@@ -26,6 +26,9 @@ class Vertex(object):
     ----------
     point : Point Object
         The Point Geometry
+        
+    attributes : dictionary
+        The dictionary of attributes appended to the object.
     
     Attributes
     ----------    
@@ -92,6 +95,9 @@ class Face(object):
     ----------
     surface : Surface Object
         The Surface Geometry
+        
+    attributes : dictionary
+        The dictionary of attributes appended to the object.
     
     Attributes
     ----------    

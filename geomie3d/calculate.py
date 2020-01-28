@@ -18,60 +18,49 @@
 #    along with py4design.  If not, see <http://www.gnu.org/licenses/>.
 #
 # ==================================================================================================
+import numpy as np
 
-class Point(object):
+def cross_product(vector1, vector2):
     """
-    A point geometry
-    
+    This function cross product two vectors.
+ 
     Parameters
-    ----------
-    xyz : tuple
-        The xyz coordinates
-    
-    Attributes
     ----------    
-    xyz : tuple
-        The xyz coordinates
+    vector1 : ndarray
+        array defining the vector.
         
+    vector2 : ndarray
+        array defining the vector.
+ 
+    Returns
+    -------
+    cross_product : ndarray
+        numpy array of the cross product
     """
-    def __init__(self, xyz):
-        """Initialises the class"""
-        self.xyz = xyz
-        
-class PolylineCurve(object):
+    if type(vector1) != np.ndarray:
+        vector1 = np.array(vector1)
+    if type(vector2) != np.ndarray:
+        vector2 = np.array(vector2)
+       
+    cross_product = np.cross(vector1, vector2)
+    return cross_product
+
+def normalise_vectors(vector_list):
     """
-    A curve geometry
-    
+    This function normalise the vectors.
+ 
     Parameters
-    ----------
-    point_list : List of Point Geometry
-        List of Point Geometry
-        
-    Attributes
     ----------    
-    point_list : List of Point Geometry
-        List of Point Geometry
-    
+    vector_list : 2d ndarray
+        numpy array of the vectors.
+ 
+    Returns
+    -------
+    normalise_vector : ndarray
+        normalise vector.
     """
-    def __init__(self, point_list):
-        """Initialises the class"""
-        self.point_list = point_list
-        
-class PolygonSurface(object):
-    """
-    A surface geometry
+    if type(vector_list) != np.ndarray:
+        vector_list = np.array(vector_list)
+    naxis = len(vector_list.shape)
+    return vector_list/np.linalg.norm(vector_list, ord = 2, axis = naxis-1, keepdims=True)
     
-    Parameters
-    ----------
-    point_list : List of Point Geometry
-        List of Point Geometry
-    
-    Attributes
-    ----------    
-    point_list : List of Point Geometry
-        List of Point Geometry
-        
-    """
-    def __init__(self, point_list):
-        """Initialises the class"""
-        self.point_list = point_list

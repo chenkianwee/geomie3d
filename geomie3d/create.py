@@ -29,13 +29,16 @@ def vertex(xyz, attributes = {}):
     ----------
     xyz : tuple
         tuple with the xyz coordinates.
+        
+    attributes : dictionary, optional
+        dictionary of the attributes.
  
     Returns
     -------
     vertex : vertex topology
         A vertex topology containing a point geometry
     """
-    point = geom.Point((0,0,0))
+    point = geom.Point(xyz)
     vertex = topo.Vertex(point, attributes = attributes)
     return vertex
     
@@ -47,17 +50,55 @@ def vertex_list(xyz_list, attributes_list = []):
     ----------
     xyz_list : list of tuple
         list of tuple with the xyz coordinates.
+        
+    attributes_list : list of dictionary, optional
+        Dictionary of the attributes
  
     Returns
     -------
     vertex_list : list of vertex topology
         A list of vertex topology.
     """
-    vlist = list(map(vertex, xyz_list))
-    # vlist = map()
+    nxyz = len(xyz_list)
+    natts = len(attributes_list)
+    
+    #check if the list match
+    is_atts = False
+    if natts != 0:
+        is_atts = True
+        if natts != nxyz:
+            raise NameError("Number of xyz_list and attributes_list do not match")
+    
+    if is_atts:
+        vlist = [vertex(xyz_list[cnt], attributes = attributes_list[cnt]) 
+                 for cnt in range(nxyz)]
+    else:
+        vlist = [vertex(xyz_list[cnt]) for cnt in range(nxyz)]
     
     return vlist
+
+def polygon_frm_verts(vertex_list, attributes = {}):
+    """
+    This function constructs a face polygon from a list of vertices.
+ 
+    Parameters
+    ----------
+    vertex_list : a list of vertex
+        A list of vertex topology
     
+    attributes : dictionary, optional
+        dictionary of the attributes.
+ 
+    Returns
+    -------
+    polygon : face topology
+        A face topology containing a polygonsurface geometry
+    """
+    pt_list = [v.point for v in vertex_list]
+    surface = geom.PolygonSurface(pt_list)
+    face = topo.Face(surface, attributes = attributes)
+    return face
+
 def topo_attributes(topo, attributes):
     """
     This function add attributes to the list of topology.
@@ -75,21 +116,4 @@ def topo_attributes(topo, attributes):
     vertex : vertex topology
         A vertex topology containing a point geometry
     """
-
-def polygon(vertex_list):
-    """
-    This function constructs a face polygon from a list of vertices.
- 
-    Parameters
-    ----------
-    vertex_list : a list of vertex
-        A list of vertex topology
- 
-    Returns
-    -------
-    polygon : face topology
-        A face topology containing a polygonsurface geometry
-    """
     pass
-
-    
