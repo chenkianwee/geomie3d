@@ -2,14 +2,14 @@
 #
 #    Copyright (c) 2020, Chen Kian Wee (chenkianwee@gmail.com)
 #
-#    This file is part of geomy3d
+#    This file is part of geomie3d
 #
-#    geomy3d is free software: you can redistribute it and/or modify
+#    geomie3d is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
 #    the Free Software Foundation, either version 3 of the License, or
 #    (at your option) any later version.
 #
-#    geomy3d is distributed in the hope that it will be useful,
+#    geomie3d is distributed in the hope that it will be useful,
 #    but WITHOUT ANY WARRANTY; without even the implied warranty of
 #    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 #    GNU General Public License for more details.
@@ -59,11 +59,13 @@ class PolylineCurve(object):
     """
     def __init__(self, point_list):
         """Initialises the class"""
+        if type(point_list) != np.ndarray:
+            point_list = np.array(point_list)
         self.point_list = point_list
         
-class PolygonSurface(object):
+class Surface(object):
     """
-    A surface geometry
+    base class of all surface geometry
     
     Parameters
     ----------
@@ -76,9 +78,46 @@ class PolygonSurface(object):
         List of Point Geometry
         
     """
-    def __init__(self, point_list):
+    def __init__(self):
         """Initialises the class"""
+        self.normal = None
+        
+class PolygonSurface(Surface):
+    """
+    A polygon surface geometry
+    
+    Parameters
+    ----------
+    point_list : List of Point Geometry
+        List of Point Geometry defining the boundary of the polygon
+        
+    hole_point_2dlist : 2D list of Point Geometry, optional
+        2d list of Point Geometry defining the holes of the polygon
+    
+    Attributes
+    ----------    
+    point_list : List of Point Geometry
+        List of Point Geometry defining the boundary of the polygon
+        
+    hole_point_2dlist : 2D list of Point Geometry
+        2d list of Point Geometry defining the holes of the polygon
+        
+    """
+    def __init__(self, point_list, hole_point_2dlist = []):
+        """Initialises the class"""
+        super(PolygonSurface, self).__init__()
+        if type(point_list) != np.ndarray:
+            point_list = np.array(point_list)
+            
+        self.hole_point_2dlist = None
+        if len(hole_point_2dlist) !=0:
+            if type(hole_point_2dlist) != np.ndarray:
+                hole_point_2dlist = np.array(hole_point_2dlist)
+            self.hole_point_2dlist = hole_point_2dlist
+            
         self.point_list = point_list
+        
+        #calculate the normal of the surface
         xyz_list = [point.xyz for point in point_list]
         vector1 = xyz_list[1] - xyz_list[0]
         vector2 = xyz_list[-1] - xyz_list[0]
