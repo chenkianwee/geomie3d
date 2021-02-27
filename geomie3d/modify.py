@@ -19,11 +19,15 @@
 #
 # ==================================================================================================
 import numpy as np
-from scipy.spatial import Delaunay
+from scipy import spatial
 
 from . import get
 from . import create
 from . import utility
+from . import topobj
+from . import geom
+from . import earcut
+from . import calculate
 
 def fuse_vertices(vertex_list):
     """
@@ -82,41 +86,136 @@ def fuse_points(point_list):
     unique_p = point_list[u_ids]
     return unique_p
 
-def delaunay_face(face, tolerance = 1e-6):
+def triangulate_face(face, indices = False):
     """
-    This function triangulate a face.
+    Triangulates a face.
  
     Parameters
     ----------
-    face : face object
-        the face object to be triangulate.
+    face : topo object
+        the face object to be triangulated.
         
-    tolerance : float, optional
-        The minimal surface area of each triangulated face, Default = 1e-06.. Any faces smaller than the tolerance will be deleted.
+    indices : bool, optional
+        Specify whether to an array of [xyzs, indices]. If True will not return the points. Default = False.
  
     Returns
     -------
     list of face : list of face
         A list of triangles constructed from the meshing.
     """
+    srf_type = face.surface_type
+    if srf_type == geom.SrfType.POLYGON:
+        bdry_verts = get.bdry_vertices_frm_face(face)
+        nbdry_verts = len(bdry_verts)
+        
+        hole_verts_2dlist = get.hole_vertices_frm_face(face)
+        nholes = len(hole_verts_2dlist)
+        if nholes > 0:
+            hole_verts_list = hole_verts_2dlist.flatten()
+            all_verts = np.append(bdry_verts, hole_verts_list)
+            
+            nhole_verts_ls = [len(hole_verts) for hole_verts in hole_verts_2dlist]
+            hole_idxs = [nbdry_verts]
+            for cnt,nhole_verts in enumerate(nhole_verts_ls):
+                if cnt != nholes-1:    
+                    hole_idx = nbdry_verts + nhole_verts
+                    hole_idxs.append(hole_idx)
+            
+        else:
+            all_verts = bdry_verts
+            hole_idxs = None
+        
+        all_xyzs_2dlist = np.array([vert.point.xyz for vert in all_verts])
+        
+        #if face is not facing z rotate the xyzs here 
+        nrml = get.face_normal(face)
+        angle = calculate.angle_btw_2vectors([0,0,1], nrml)
+        if 180 > angle > 0:
+            #means it is not facing z up
+            #turn it to z-up
+            axis = calculate.cross_product([0,0,1], nrml)
+            rot_matrice = calculate.rotate_matrice(axis, angle)
+            xyz2tri_2darr = calculate.trsf_xyzs(all_xyzs_2dlist, rot_matrice)
+        else:
+            xyz2tri_2darr = all_xyzs_2dlist
+        
+        #FLATTEN ALL THE XYZS AND THEN TRIANGULATE THEM WITH EARCUT
+        all_xyzs = xyz2tri_2darr.flatten().tolist()
+        tri_idxs = earcut.earcut(all_xyzs, hole_idxs, 3)
+        ntri_idxs = len(tri_idxs) 
+        if ntri_idxs > 0:
+            #if it is successfully triangulated
+            shape1 = int(ntri_idxs/3)
+            
+            #check if the vertices is ccw
+            tri_idxs_arr = np.array(tri_idxs)
+            tri_xyzs = np.take(all_xyzs_2dlist, tri_idxs_arr, axis=0)
+            tri_xyzs2 = np.reshape(tri_xyzs,(shape1,3,3))
+            tri1 = tri_xyzs2[0]
+            is_ccw = calculate.is_anticlockwise(tri1, nrml)
+            
+            #if it is not ccw flip it to make it ccw
+            tri_idxs_2darr = np.reshape(tri_idxs_arr, (shape1,3))
+            if is_ccw == False:
+                tri_idxs_2darr = np.flip(tri_idxs_2darr, axis = 1)
+                
+            if indices == False:
+                #TODO figure out the inheritance structure
+                #reconstruct the triangulated faces 
+                tri_idxs_arr = tri_idxs_2darr.flatten()
+                tri_verts_arr = np.take(all_verts, tri_idxs_arr, axis = 0)
+                tri_verts_2darr = np.reshape(tri_verts_arr,(shape1,3))
+                face_atts = face.attributes
+                tri_faces = []
+                for tri_verts in tri_verts_2darr:    
+                    tri_face = create.polygon_face_frm_verts(tri_verts, attributes = face_atts)
+                    tri_faces.append(tri_face)
+                return tri_faces
+            else:
+                return [all_xyzs_2dlist, tri_idxs_2darr]
+        else:
+            return []
+
+def shell_frm_delaunay(vertex_list, tolerance = 1e-6):
+    """
+    This function creates a TIN from a vertex list.
+ 
+    Parameters
+    ----------
+    vertex_list : face object
+        the x and y dim of the vertex has to be on the same plane.
+ 
+    Returns
+    -------
+    shell : shell topology
+        A shell object.
+    """
     #TODO:need to think about the inheritance of the vertices, edges and wires 
     srf_type = face.surface_type
-    if srf_type == 0:
+    if srf_type == geom.SrfType.POLYGON:
+        nrml = face.surface.normal
+        if nrml != np.array([0,0,1]) or nrml != np.array([0,0,-1]):
+            #it must be transformed to be flat
+            pass
+        
         bdry_wire = face.bdry_wire
-        bdry_verts = get.get_vertices_frm_wire(bdry_wire)
+        bdry_verts = get.vertices_frm_wire(bdry_wire)
         xyz_list = np.array([v.point.xyz for v in bdry_verts])
         
         hole_wire_list = face.hole_wire_list
+        
         hole_verts = []
         hole_xyz_list = np.array([pt.xyz for hole in hole_list for 
                                   pt in hole])
+        
+        
         
         #TODO transform the points from 3d to 2d
         xy_list = np.delete(xyz_list, 2, axis=1)
         hole_xy_list = np.delete(hole_xyz_list, 2, axis=1)
         
         d_xy_list = np.concatenate((xy_list, hole_xy_list))
-        tri = Delaunay(d_xy_list)
+        tri = spatial.Delaunay(d_xy_list)
         
         chosen = d_xy_list[tri.simplices]
         # print(chosen)
@@ -132,18 +231,15 @@ def delaunay_face(face, tolerance = 1e-6):
             # if tri_area > tolerance:
             #     occtriangles.append(occtriangle)
             
-def face2mesh(face):
+def faces2mesh(face_list):
     """
-    This function converts a face to a mesh for visualisation.
+    This function converts faces to a mesh for visualisation.
  
     Parameters
     ----------
-    face : face object
-        the face object to be triangulated.The face must be single facing, it
+    face_list : list of face object
+        the list of face object to be triangulated.The face must be single facing, it
         cannot have regions that are facing itself.
-        
-    tolerance : float, optional
-        The minimal surface area of each triangulated face, Default = 1e-06.. Any faces smaller than the tolerance will be deleted.
  
     Returns
     -------
@@ -151,55 +247,55 @@ def face2mesh(face):
         vertices: ndarray of shape(Npoints,3) of the vertiices
         indices: ndarray of shape(Ntriangles,3) indices of the triangles.
     """
-    srf_type = face.surface_type
-    if srf_type == 0:
-        #TODO TRANSFORM THE FACE FROM 3D TO 2D FOR THE DELAUNAY
-        
-        #get the boundary wire
-        bdry_wire = face.bdry_wire
-        bdry_verts = get.get_vertices_frm_wire(bdry_wire)
-        xyz_list = np.array([v.point.xyz for v in bdry_verts])
-        nxyz = len(xyz_list)
-        #get all the hole wires
-        hole_wire_list = face.hole_wire_list
-        holev_2darr = np.array([get.get_vertices_frm_wire(w) for w 
-                               in hole_wire_list])
-        #get the indices of the hole wires in 2d
-        n_hole_wires = len(holev_2darr)
-        holei_2darr = np.array([range(nxyz, len(holev_2darr[i]) + nxyz) if i == 0 
-                                else range(len(holev_2darr[i-1]), len(holev_2darr[i]) + nxyz + len(holev_2darr[i-1]))
-                                for i in range(n_hole_wires)])
-        #flatten the hole wire verts for performing delaunay
-        hole_verts = holev_2darr.flatten()
-        hole_xyz_list = np.array([v.point.xyz for v in hole_verts])
-        
-        #add all the verts together
-        mesh_xyz_list = np.concatenate((xyz_list, hole_xyz_list))
-        nmesh_xyz = len(mesh_xyz_list)
-        
-        #perform delaunay 
-        xy_list = np.delete(xyz_list, 2, axis=1)
-        hole_xy_list = np.delete(hole_xyz_list, 2, axis=1)
-        d_xy_list = np.concatenate((xy_list, hole_xy_list))
-        tri = Delaunay(d_xy_list)
-        indices2d = tri.simplices
-        tri_indices = np.array(range(0,len(indices2d)))
-        #remove all the faces that are holes
-        tri_inds_remove = np.array([], dtype = "int64")
-        for h in holei_2darr:
-            isin = np.isin(indices2d, h)
-            isall = np.all(isin, axis=1)
-            tri_ind_remove = np.where(isall)
-            tri_inds_remove = np.append(tri_inds_remove, tri_ind_remove)
+    all_xyzs = []
+    all_idxs = []
+    idx_cnt = 0
+    for f in face_list:
+        srf_type = f.surface_type
+        if srf_type == geom.SrfType.POLYGON:
+            xyzs_indxs = triangulate_face(f, indices = True)
+            if len(all_xyzs) == 0:
+                all_xyzs = xyzs_indxs[0]
+            else:
+                all_xyzs = np.append(all_xyzs, xyzs_indxs[0], axis=0)
+            
+            if len(all_idxs) == 0:
+                all_idxs = xyzs_indxs[1]
+            else:
+                indxs_new =  xyzs_indxs[1] + idx_cnt
+                all_idxs = np.append(all_idxs, indxs_new, axis=0)
+            
+            idx_cnt += len(xyzs_indxs[0])
     
-        tri_inds_remove = np.unique(tri_inds_remove)
-        indices2d = np.delete(indices2d, tri_inds_remove, axis=0)
-        return {"vertices":mesh_xyz_list, "indices":indices2d}
-    else:
-        return None
+    return {"vertices":all_xyzs, "indices":all_idxs}
+
+def edges2lines(edge_list):
+    """
+    converts edges to lines for visualisation.
+ 
+    Parameters
+    ----------
+    edge_list : list of edge object
+        the list of edge object to convert to lines.
+ 
+    Returns
+    -------
+    vertices : shape(Npoints,3) of the vertiices
+        vertices of the lines
+    """
+    all_xyzs = []
     
-def combine_meshes(mesh_dict_list):
-    pass
+    for e in edge_list:
+        vs = get.vertices_frm_edge(e)
+        xyzs = np.array([v.point.xyzs for v in vs])
+        #repeat each point and remove the first and last point after the repeat
+        xyzs = np.repeat(xyzs, 2, axis=0)[1:-1]
+        if len(all_xyzs) == 0:
+            all_xyzs = xyzs
+        else:
+            all_xyzs = np.append(all_xyzs, xyzs)
+    
+    return all_xyzs 
 
 def trsf_cs(cs1, cs2, topo):
     pass

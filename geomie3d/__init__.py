@@ -41,3 +41,4 @@ from . import calculate
 from . import modify
 from . import create
 from . import utility
+from . import earcut

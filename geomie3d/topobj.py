@@ -18,9 +18,20 @@
 #    along with py4design.  If not, see <http://www.gnu.org/licenses/>.
 #
 # ==================================================================================================
+from enum import Enum
 from . import geom
 from . import get
 import numpy as np
+
+class TopoType(Enum):
+    
+    VERTEX = 0
+    EDGE = 1
+    WIRE = 2
+    FACE = 3
+    SHELL = 4
+    SOLID = 5
+    COMPOSITE = 6
 
 class Topology(object):
     """
@@ -45,9 +56,9 @@ class Topology(object):
         self.attributes = attributes
         self.is_topo = True
     
-    def update_attributes(self, new_attributes):
+    def overwrites_attributes(self, new_attributes):
         """
-        This function updates the attributes.
+        This function overwrites the attribute dictionary with the new dictionary.
      
         Parameters
         ----------
@@ -55,6 +66,20 @@ class Topology(object):
             The dictionary of attributes appended to the object.
         """
         self.attributes = new_attributes
+        
+    def update_attributes(self, new_attributes):
+        """
+        This function overwrites the attribute dictionary with the new dictionary.
+     
+        Parameters
+        ----------
+        new_attributes : dictionary
+            The dictionary of attributes appended to the object.
+        """
+        old_att = self.attributes
+        update_att = old_att.copy()
+        update_att.update(new_attributes)
+        self.attributes = update_att
 
 class Vertex(Topology):
     """
@@ -79,6 +104,7 @@ class Vertex(Topology):
     def __init__(self, point, attributes = {}):
         """Initialises the class"""
         super(Vertex, self).__init__(attributes = attributes)
+        self.topo_type = TopoType.VERTEX
         self.point = point
         
 class Edge(Topology):
@@ -113,6 +139,7 @@ class Edge(Topology):
     def __init__(self, attributes = {}):
         """Initialises the class"""
         super(Edge, self).__init__(attributes = attributes)
+        self.topo_type = TopoType.EDGE
         self.curve_type = None
         self.curve = None
         self.vertex_list = None
@@ -127,8 +154,10 @@ class Edge(Topology):
         ----------
         vertex_list : list of vertex Object
             The vertices that defines the polyline in the edge.
-        """
-        self.curve_type = 0
+        """        
+        if type(vertex_list) != np.ndarray:
+            vertex_list = np.array(vertex_list)
+        self.curve_type = geom.CurveType.POLYLINE
         self.vertex_list = vertex_list
         self.start_vertex = vertex_list[0]
         self.end_vertex = vertex_list[-1]
@@ -159,6 +188,9 @@ class Wire(Topology):
     def __init__(self, edge_list, attributes = {}):
         """Initialises the class"""
         super(Wire, self).__init__(attributes = attributes)
+        if type(edge_list) != np.ndarray:
+            edge_list = np.array(edge_list)
+        self.topo_type = TopoType.WIRE
         self.edge_list = edge_list
         
 class Face(Topology):
@@ -193,6 +225,7 @@ class Face(Topology):
     def __init__(self, attributes = {}):
         """Initialises the class"""
         super(Face, self).__init__(attributes = attributes)
+        self.topo_type = TopoType.FACE
         self.surface_type = None
         self.surface = None
         self.bdry_wire = None
@@ -211,13 +244,16 @@ class Face(Topology):
             The list of wire objects that define the holes in the face.
      
         """
-        self.surface_type = 0
+        if type(hole_wire_list) != np.ndarray:
+            hole_wire_list = np.array(hole_wire_list)
+            
+        self.surface_type = geom.SrfType.POLYGON
         self.bdry_wire = bdry_wire
         self.hole_wire_list = hole_wire_list
         #get the point list from the bdry wire
-        pt_list = get.get_points_frm_wire(bdry_wire)
+        pt_list = get.points_frm_wire(bdry_wire)
         
-        hole_point_2dlist = [get.get_points_frm_wire(hole_wire) 
+        hole_point_2dlist = [get.points_frm_wire(hole_wire) 
                              for hole_wire in hole_wire_list]
        
         surface = geom.PolygonSurface(pt_list, 
@@ -244,6 +280,10 @@ class Shell(Topology):
     def __init__(self, face_list, attributes = {}):
         """Initialises the class"""
         super(Shell, self).__init__(attributes = attributes)
+        if type(face_list) != np.ndarray:
+            face_list = np.array(face_list)
+            
+        self.topo_type = TopoType.SHELL
         self.face_list = face_list
         self.attributes = attributes
 
@@ -267,6 +307,7 @@ class Solid(Topology):
     def __init__(self, shell, attributes = {}):
         """Initialises the class"""
         super(Solid, self).__init__(attributes = attributes)
+        self.topo_type = TopoType.SOLID
         self.shell = shell
         self.attributes = attributes
 
@@ -290,43 +331,48 @@ class Composite(Topology):
     def __init__(self, topology_list, attributes = {}):
         """Initialises the class"""
         super(Composite, self).__init__(attributes = attributes)
-        self.topology_list = topology_list   
+        if type(topology_list) != np.ndarray:
+            topology_list = np.array(topology_list)
+        self.topo_type = TopoType.COMPOSITE
+        self.topology_list = topology_list
+        self.vertex_list = None
+        self.edge_list = None
+        self.wire_list = None
+        self.face_list = None
+        self.shell_list = None
+        self.solid_list = None
+        self.composite_list = None
         
-class CoordinateSystem(object):
-    """
-    A coordinate system object
-    
-    Parameters
-    ----------
-    origin : tuple
-        The xyz defining the origin.
+    def sorted2dict(self):
+        self.vertex_list = []
+        self.edge_list = []
+        self.wire_list = []
+        self.face_list = []
+        self.shell_list = []
+        self.solid_list = []
+        self.composite_list = []
         
-    x_dir : tuple
-        The xyz of a vector defining the x-axis
+        topo_list = self.topology_list
+        for topo in topo_list:
+            if topo.topo_type == TopoType.VERTEX:
+                self.vertex_list.append(topo)
+            elif topo.topo_type == TopoType.EDGE:
+                self.edge_list.append(topo)
+            elif topo.topo_type == TopoType.WIRE:
+                self.wire_list.append(topo)
+            elif topo.topo_type == TopoType.FACE:
+                self.face_list.append(topo)
+            elif topo.topo_type == TopoType.SHELL:
+                self.shell_list.append(topo)
+            elif topo.topo_type == TopoType.SOLID:
+                self.solid_list.append(topo)
+            elif topo.topo_type == TopoType.COMPOSITE:
+                self.composite_list.append(topo.sorted2dict())
         
-    y_dir : tuple
-        The xyz of a vector defining the y-axis  
-    
-    Attributes
-    ----------    
-    origin : tuple
-        The xyz defining the origin.
-        
-    x_dir : tuple
-        The xyz of a vector defining the x-axis.
-        
-    y_dir : tuple
-        The xyz of a vector defining the y-axis.
-    """
-    def __init__(self, origin, x_dir, y_dir):
-        """Initialises the class"""
-        if type(origin) != np.ndarray:
-            origin = np.array(origin)
-        if type(x_dir) != np.ndarray:
-            x_dir = np.array(x_dir)
-        if type(y_dir) != np.ndarray:
-            y_dir = np.array(y_dir)
-            
-        self.origin = origin
-        self.x_dir = x_dir
-        self.y_dir = y_dir
+        return {'vertex': np.array(self.vertex_list), 
+                'edge': np.array(self.edge_list),
+                'wire': np.array(self.wire_list),
+                'face': np.array(self.face_list),
+                'shell': np.array(self.shell_list),
+                'solid': np.array(self.solid_list),
+                'composite': np.array(self.composite_list)}

@@ -18,6 +18,7 @@
 #    along with py4design.  If not, see <http://www.gnu.org/licenses/>.
 #
 # ==================================================================================================
+from enum import Enum
 from . import calculate
 import numpy as np 
 
@@ -42,6 +43,10 @@ class Point(object):
             xyz = np.array(xyz)
         self.xyz = xyz
         
+class CurveType(Enum):
+    
+    POLYLINE = 0
+    
 class PolylineCurve(object):
     """
     A curve geometry
@@ -61,6 +66,7 @@ class PolylineCurve(object):
         """Initialises the class"""
         if type(point_list) != np.ndarray:
             point_list = np.array(point_list)
+        self.curve_type = CurveType.POLYLINE
         self.point_list = point_list
         
 class Surface(object):
@@ -81,7 +87,13 @@ class Surface(object):
     def __init__(self):
         """Initialises the class"""
         self.normal = None
-        
+
+
+class SrfType(Enum):
+    
+    POLYGON = 0    
+
+
 class PolygonSurface(Surface):
     """
     A polygon surface geometry
@@ -109,6 +121,7 @@ class PolygonSurface(Surface):
         if type(point_list) != np.ndarray:
             point_list = np.array(point_list)
             
+        self.surface_type = SrfType.POLYGON
         self.hole_point_2dlist = None
         if len(hole_point_2dlist) !=0:
             if type(hole_point_2dlist) != np.ndarray:
