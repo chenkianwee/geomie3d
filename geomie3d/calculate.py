@@ -754,3 +754,47 @@ def is_anticlockwise(xyzs, ref_vec):
         return False 
     else:
         return True
+
+def ray_tri_intersect(ray, tri):
+    """
+    This function checks if the list of points are arranged anticlockwise in regards to the ref_pyvec. 
+    The ref_pyvec must be perpendicular to the points.
+ 
+    Parameters
+    ----------
+    xyzs : ndarray
+        array defining the points.
+    
+    ref_vec : tuple of floats
+        The reference vector must be perpendicular to the list of points. 
+        A vec is a tuple that documents the xyz direction of a vector e.g. (x,y,z)
+        
+    Returns
+    -------
+    True or False : bool
+        If True the list of points are arranged in anticlockwise manner, if False they are not.
+        
+    trsf_xyzs : ndarray
+        the transformed xyzs.
+    """
+    total = [0,0,0]    
+    npts = len(xyzs)
+    for i in range(npts):
+        vec1 = xyzs[i]
+        if i == npts-1:
+            vec2 = xyzs[0]
+        else:
+            vec2 = xyzs[i+1]
+            
+        #cross the two pts
+        prod = cross_product(vec1, vec2)
+        total[0] += prod[0]
+        total[1] += prod[1]
+        total[2] += prod[2]
+    
+    res = dot_product(total, ref_vec)
+    if res < 0:
+        return False 
+    else:
+        return True
+    

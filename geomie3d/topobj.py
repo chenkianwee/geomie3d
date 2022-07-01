@@ -21,6 +21,7 @@
 from enum import Enum
 from . import geom
 from . import get
+from .geomdl import BSpline, utilities
 import numpy as np
 
 class TopoType(Enum):
@@ -155,8 +156,6 @@ class Edge(Topology):
         vertex_list : list of vertex Object
             The vertices that defines the polyline in the edge.
         """        
-        if type(vertex_list) != np.ndarray:
-            vertex_list = np.array(vertex_list)
         self.curve_type = geom.CurveType.POLYLINE
         self.vertex_list = vertex_list
         self.start_vertex = vertex_list[0]
@@ -164,7 +163,29 @@ class Edge(Topology):
         point_list = [v.point for v in vertex_list]
         curve = geom.PolylineCurve(point_list)
         self.curve = curve
+    
+    def add_bspline_curve(self, control_xyzs, degree=2):
+        """
+        This function creates a bspline edge topology.
+     
+        Parameters
+        ----------
+        control_xyzs : list of xyz
+            The xyzs of the control points.
+        """
+        self.curve_type = geom.CurveType.BSPLINE
+        crv = BSpline.Curve()
+        # Set degree
+        crv.degree = degree
         
+        # Set control points
+        crv.ctrlpts = control_xyzs
+        
+        # Set knot vector
+        crv.knotvector = utilities.generate_knot_vector(crv.degree, len(crv.ctrlpts))
+        self.curve = crv
+        
+    
 class Wire(Topology):
     """
     A wire object

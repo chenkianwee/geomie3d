@@ -125,7 +125,7 @@ def viz(topo_dictionary_list):
         elif colour == 'green':
             rgb = (0,1,0,1)
         elif colour == 'blue':
-            rgb = (1,0,0,1)
+            rgb = (0,0,1,1)
         elif colour == 'black':
             rgb = (0,0,0,1)
         elif colour == 'white':
@@ -151,6 +151,33 @@ def viz(topo_dictionary_list):
         topo_list = d['topo_list']
         cmp = create.composite(topo_list)
         sorted_d = get.unpack_composite(cmp)
+        #=================================================================================
+        #get all the topology that can viz as points
+        #=================================================================================
+        vertices = sorted_d['vertex']
+        if len(vertices) > 0:
+            points_vertices = np.array([v.point.xyz for v in vertices])
+            viz_pts = make_points(points_vertices, rgb, 10, pxMode = True)
+            w.addItem(viz_pts)
+            
+        #=================================================================================
+        #get all the topology that can viz as lines
+        #=================================================================================
+        all_edges = []
+        edges = sorted_d['edge']
+        if len(edges) > 0:
+            all_edges = edges
+        
+        wires = sorted_d['wire']
+        if len(wires) > 0:
+            wires2edges = np.array([get.edges_frm_wire(wire) for wire in wires])
+            all_edges = np.append(all_edges, wires2edges )
+        
+        if len(all_edges) > 0:
+            line_vertices = modify.edges2lines(all_edges)
+            viz_lines = make_line(line_vertices, line_colour = rgb)
+            w.addItem(viz_lines)  
+            
         #=================================================================================
         #get all the topology that can be viz as mesh
         #=================================================================================
@@ -182,39 +209,14 @@ def viz(topo_dictionary_list):
             viz_mesh = make_mesh(verts, idx, draw_edges = draw_edges)
             viz_mesh.setColor(np.array(rgb))
             w.addItem(viz_mesh)      
-            
-        #=================================================================================
-        #get all the topology that can viz as lines
-        #=================================================================================
-        all_edges = []
-        edges = sorted_d['edge']
-        if len(edges) > 0:
-            all_edges = edges
-        
-        wires = sorted_d['wire']
-        if len(wires) > 0:
-            wires2edges = np.array([get.edges_frm_wire(wire) for wire in wires])
-            all_edges = np.append(all_edges, wires2edges )
-        
-        if len(all_edges) > 0:
-            line_vertices = modify.edges2lines(all_edges)
-            viz_lines = make_line(line_vertices, line_colour = rgb)
-            w.addItem(viz_lines)  
-        
-        #=================================================================================
-        #get all the topology that can viz as points
-        #=================================================================================
-        vertices = sorted_d['vertex']
-        if len(vertices) > 0:
-            points_vertices = np.array([v.point.xyz for v in vertices])
-            make_points(points_vertices, rgb, 10, pxMode = True)
         
         #=================================================================================
         #find the bbox
         #=================================================================================
         bbox = calculate.bbox_frm_topo(cmp)
         bbox_list.append(bbox)
-        
+    
+    w.addItem(gl.GLAxisItem())
     overall_bbox = calculate.bbox_frm_bboxes(bbox_list)
     midpt = calculate.bbox_centre(overall_bbox)
     w.opts['center'] = PyQt5.QtGui.QVector3D(midpt[0], midpt[1], midpt[2])
@@ -223,7 +225,7 @@ def viz(topo_dictionary_list):
     upr_right =  [overall_bbox[3], overall_bbox[4], overall_bbox[5]]
     dist = calculate.dist_btw_xyzs(lwr_left, upr_right)
     
-    w.opts['distance'] = dist
+    w.opts['distance'] = dist*1.5
         
     # w.setCameraPosition(distance=60)
     
@@ -285,7 +287,7 @@ def make_mesh(xyzs, indices, face_colours = [], shader = "shaded",
     
     return mesh
 
-def make_line(xyzs, line_colour = (0,0,0,1), width = 0.1, antialias=True, mode="lines"):
+def make_line(xyzs, line_colour = (0,0,0,1), width = 1, antialias=True, mode="lines"):
     """
     This function returns a Line Item that can be viz by pyqtgraph.
  

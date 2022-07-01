@@ -18,16 +18,18 @@
 #    along with py4design.  If not, see <http://www.gnu.org/licenses/>.
 #
 # ==================================================================================================
+import copy
+
 import numpy as np
 from scipy import spatial
 
 from . import get
 from . import create
 from . import utility
-from . import topobj
 from . import geom
 from . import earcut
 from . import calculate
+from . import topobj
 
 def fuse_vertices(vertex_list):
     """
@@ -287,15 +289,54 @@ def edges2lines(edge_list):
     
     for e in edge_list:
         vs = get.vertices_frm_edge(e)
-        xyzs = np.array([v.point.xyzs for v in vs])
+        xyzs = np.array([v.point.xyz for v in vs])
         #repeat each point and remove the first and last point after the repeat
         xyzs = np.repeat(xyzs, 2, axis=0)[1:-1]
+        
         if len(all_xyzs) == 0:
             all_xyzs = xyzs
         else:
-            all_xyzs = np.append(all_xyzs, xyzs)
+            all_xyzs = np.append(all_xyzs, xyzs, axis=0)
     
     return all_xyzs 
 
+def move_topo(topo, target_xyz, ref_xyz = None):
+    """
+    move topology to the target xyz
+ 
+    Parameters
+    ----------
+    topo : topo object
+        the topo object to move.
+        
+    target_xyz: np.ndarray
+        target xyz position.
+    
+    ref_xyz: np.ndarray
+        reference xyz position, if not specified will use midpt of the topology.
+ 
+    Returns
+    -------
+    mv_topo : topo
+        moved topo
+    """
+    mv_topo = copy.deepcopy(topo)
+    vs = get.topo_explorer(mv_topo, topobj.TopoType.VERTEX)
+    if ref_xyz == None:
+        #find the midpt of the topo and use that as the ref xyz
+        bbox = calculate.bbox_frm_topo(topo)
+        ref_xyz = calculate.bbox_centre(bbox)
+        
+    tx = target_xyz[0] - ref_xyz[0]
+    ty = target_xyz[1] - ref_xyz[1]
+    tz = target_xyz[2] - ref_xyz[2]
+    
+    trsl_mat = calculate.translate_matrice(tx, ty, tz)
+    xyzs = np.array([v.point.xyz for v in vs])
+    trsf_xyzs = calculate.trsf_xyzs(xyzs, trsl_mat)
+    #assigned to moved xyz back to the topo
+    for cnt,v in enumerate(vs): v.point.xyz = trsf_xyzs[cnt]
+    return mv_topo
+    
 def trsf_cs(cs1, cs2, topo):
     pass

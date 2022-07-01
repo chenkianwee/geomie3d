@@ -46,6 +46,7 @@ class Point(object):
 class CurveType(Enum):
     
     POLYLINE = 0
+    BSPLINE = 1
     
 class PolylineCurve(object):
     """
