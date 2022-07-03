@@ -23,6 +23,7 @@ import numpy as np
 
 from . import topobj
 from . import get
+from . import utility
 
 def dist_btw_xyzs(xyzs1, xyzs2):
     """
@@ -456,15 +457,15 @@ def angle_btw_2vectors(vector1, vector2):
 
 def cross_product(vector1, vector2):
     """
-    This function cross product two vectors.
+    This function cross product two vectors.It is a wrap of the numpy cross function
  
     Parameters
     ----------    
     vector1 : ndarray
-        array defining the vector.
+        array defining the vector(s).
         
     vector2 : ndarray
-        array defining the vector.
+        array defining the vector(s).
  
     Returns
     -------
@@ -481,7 +482,7 @@ def cross_product(vector1, vector2):
 
 def dot_product(vector1, vector2):
     """
-    This function cross product two vectors.
+    This function cross product two vectors. Wrap of numpy dot function
  
     Parameters
     ----------    
@@ -704,7 +705,7 @@ def trsf_xyzs(xyzs, trsf_mat):
     """
     
     if type(xyzs) != np.ndarray:
-        np.array(xyzs)
+        xyzs = np.array(xyzs)
     
     #add an extra column to the points
     npos = len(xyzs)
@@ -755,46 +756,213 @@ def is_anticlockwise(xyzs, ref_vec):
     else:
         return True
 
-def ray_tri_intersect(ray, tri):
+def ray_xyz_tri_intersect(xyz_orig, xyz_dir, xyz1, xyz2, xyz3):
     """
-    This function checks if the list of points are arranged anticlockwise in regards to the ref_pyvec. 
-    The ref_pyvec must be perpendicular to the points.
+    This function intersect a ray with a triangle
  
     Parameters
     ----------
-    xyzs : ndarray
-        array defining the points.
-    
-    ref_vec : tuple of floats
-        The reference vector must be perpendicular to the list of points. 
-        A vec is a tuple that documents the xyz direction of a vector e.g. (x,y,z)
+    xyz_orig : ndarray
+        array defining the origin of the ray.
         
+    xyz_dir : ndarray
+        array defining the ray direction.
+    
+    xyz_1 : ndarray
+        array defining the 1st point of the triangle.
+    
+    xyz_2 : ndarray
+        array defining the 2nd point of the triangle.
+    
+    xyz_3 : ndarray
+        array defining the 3rd point of the triangle.
+
     Returns
     -------
-    True or False : bool
-        If True the list of points are arranged in anticlockwise manner, if False they are not.
-        
-    trsf_xyzs : ndarray
-        the transformed xyzs.
+    intersect_pt : ndarray
+        point of intersection. If no intersection returns None
     """
-    total = [0,0,0]    
-    npts = len(xyzs)
-    for i in range(npts):
-        vec1 = xyzs[i]
-        if i == npts-1:
-            vec2 = xyzs[0]
-        else:
-            vec2 = xyzs[i+1]
-            
-        #cross the two pts
-        prod = cross_product(vec1, vec2)
-        total[0] += prod[0]
-        total[1] += prod[1]
-        total[2] += prod[2]
+    if type(xyz_orig) != np.ndarray:
+        xyz_orig = np.array(xyz_orig)
     
-    res = dot_product(total, ref_vec)
-    if res < 0:
-        return False 
-    else:
-        return True
+    if type(xyz_dir) != np.ndarray:
+        xyz_dir = np.array(xyz_dir)
+    
+    if type(xyz1) != np.ndarray:
+        xyz1 = np.array(xyz1)
+    
+    if type(xyz2) != np.ndarray:
+        xyz2 = np.array(xyz2)
+    
+    if type(xyz3) != np.ndarray:
+        xyz3 = np.array(xyz3)
+    
+    xyz2_1 = xyz2-xyz1
+    xyz3_1 = xyz3-xyz1
+    pvec = cross_product(xyz_dir, xyz3_1)
+    det = dot_product(xyz2_1, pvec)
+    # print('det', det)
+    if det < 0.000001:
+        return float('-inf')
+    
+    invDet = 1.0 / det
+    tvec = xyz_orig - xyz1
+    u = dot_product(tvec, pvec) * invDet
+    # print('u', u)
+    if u < 0 or u > 1:
+        return None
+    
+    qvec = cross_product(tvec, xyz2_1)
+    v = dot_product(xyz_dir,qvec) * invDet
+    # print('v', v)
+    if v < 0 or u + v > 1:
+        return None
+    
+    magnitude = dot_product(xyz3_1,qvec)*invDet
+    dir_magnitude = xyz_dir*magnitude
+    intersect_pt = xyz_orig + dir_magnitude 
+    return list(intersect_pt)
+
+def rays_xyz_tris_intersect(rays_xyz, tris_xyz):
+    """
+    This function intersect multiple rays with multiple triangles
+ 
+    Parameters
+    ----------
+    rays_xyz : ndarray
+        array of rays [ray_xyz1,ray_xyz2,...]. Each ray is defined with [[origin], [direction]].
+        
+    tris_xyz : ndarray
+        array of triangles [tri_xyz1, tri_xyz2, ...]. Each triangle is define with [[x1,y1,z1],[x2,y2,z2],[x3,y3,z3]].
+
+    Returns
+    -------
+    intersect_pts : ndarray
+        points of intersection. If no intersection returns None
+    
+    tris_index : ndarray
+        indices of the intersected triangles. Corresponds to the intersect pts.
+    """
+    #============================================
+    def dot_product_2dx2d(vectors1, vectors2):
+        if type(vectors1) != np.ndarray:
+            vectors1 = np.array(vectors1)
+        
+        if type(vectors2) != np.ndarray:
+            vectors2 = np.array(vectors2)
+        
+        v1sT = vectors1.T
+        v2sT = vectors2.T
+        
+        v1x = v1sT[0] * v2sT[0]
+        v1y = v1sT[1] * v2sT[1]
+        v1z = v1sT[2] * v2sT[2]
+        
+        dp = v1x + v1y+ v1z
+        return dp
+    
+    def acct4obstruction(intPts, mags, rayIndxs, triIndxs):
+        dupIds = utility.id_dup_indices_1dlist(rayIndxs)
+        non_obs_indx = []
+        for di in dupIds:
+            mag = mags[di]
+            index = np.where(mag == mag.min())[0]
+            index = index.flatten()
+            index = index + di[0]
+            non_obs_indx.append(list(index))
+        from itertools import chain
+        non_obs_indx = list(chain(*non_obs_indx))
+        nb_intPts = np.take(intPts, non_obs_indx, axis=0)
+        nb_mags = np.take(mags, non_obs_indx, axis=0)
+        nb_rayIndxs = np.take(rayIndxs, non_obs_indx, axis=0)
+        nb_triIndxs = np.take(triIndxs, non_obs_indx, axis=0)
+        return nb_intPts, nb_mags, nb_rayIndxs, nb_triIndxs
+    #============================================
+    dets_threshold = 0.000001
+    if type(rays_xyz) != np.ndarray:
+        rays_xyz = np.array(rays_xyz)
+    
+    if type(tris_xyz) != np.ndarray:
+        tris_xyz = np.array(tris_xyz)
+    
+    nrays = len(rays_xyz)
+    ntris = len(tris_xyz)
+    
+    tris_xyz_tiled = np.tile(tris_xyz, (nrays,1,1))
+    trisT = np.stack(tris_xyz_tiled, axis=1)
+    xyzs1_0 = trisT[1] - trisT[0]
+    xyzs2_0 = trisT[2] - trisT[0]
+    
+    rays_repeat = np.repeat(rays_xyz, ntris, axis=0)
+    raysT = np.stack(rays_repeat, axis=1)
+    pvecs = cross_product(raysT[1], xyzs2_0)
+    dets = dot_product_2dx2d(xyzs1_0, pvecs)
+    # print('dets', dets)
+    dets_true = np.logical_not(dets<dets_threshold)
+    dets_index = np.where(dets_true)
+    if len(dets_index) == 0:
+        #no intersections at all
+        return float('-inf')
+    #============================================
+    invDet = np.where(dets_true, 1.0/dets, dets)
+    dets_true_repeat = np.repeat(dets_true, 3)
+    dets_true_repeat_reshape = np.reshape(dets_true_repeat, (len(raysT[0]),3))
+    tvecs = np.where(dets_true_repeat_reshape, 
+                    raysT[0] - trisT[0], 
+                    np.zeros((len(raysT[0]), 3)))
+    us = np.where(dets_true, 
+                  dot_product_2dx2d(tvecs, pvecs)*invDet, 
+                  np.zeros(len(dets_true)))
+    # print('us', us)
+    us_true = np.logical_and(us>=0, us<=1)
+    us_true = np.logical_and(us_true, dets_true)
+    us_index = np.where(us_true)
+    if len(us_index) == 0:
+        #no intersections at all 
+        return float('-inf')
+    #============================================
+    us_true_repeat = np.repeat(us_true, 3)
+    us_true_repeat_reshape = np.reshape(us_true_repeat, (len(tvecs),3))
+    
+    qvecs = np.where(us_true_repeat_reshape,
+                     cross_product(tvecs, xyzs1_0),
+                     np.zeros([len(tvecs),3]))
+    vs = np.where(us_true, 
+                  dot_product_2dx2d(raysT[1], qvecs)*invDet,
+                  np.zeros([len(us_true)]))
+    # print('vs', vs)
+    vs_true1 = np.logical_not(vs < 0)
+    vs_true2 = np.logical_not(us+vs > 1)
+    vs_true = np.logical_and(vs_true1, vs_true2)
+    vs_true = np.logical_and(vs_true, us_true)
+    mags = np.where(vs_true, 
+                    dot_product_2dx2d(xyzs2_0, qvecs)*invDet,
+                    np.zeros([len(vs_true)]))
+    # print('mags',mags)
+    mags_reshape = np.reshape(mags,[len(mags),1])
+    dir_mags = raysT[1]*mags_reshape
+    intPts = raysT[0] + dir_mags
+    #============================================
+    #separate the intersections into ray-based groups
+    #sub zeros with infinity to make processing easier later
+    mags = np.where(vs_true, mags, np.full([len(vs_true)], np.inf))
+    mags_ray_reshape = np.reshape(mags, (nrays,ntris))
+    
+    mags_true = np.logical_not(mags_ray_reshape==np.inf)
+    mags_true_index = np.where(mags_true)
+    intPts_reshape = np.reshape(intPts, (nrays,ntris,3))
+    res_pts = intPts_reshape[mags_true_index]
+    res_mag = mags_ray_reshape[mags_true_index]
+    res_ray_indx = mags_true_index[0]
+    res_tri_indx = mags_true_index[1]
+    
+    
+    res_pts, res_mag, res_ray_indx, res_tri_indx= acct4obstruction(res_pts, 
+                                                                   res_mag, 
+                                                                   res_ray_indx, 
+                                                                   res_tri_indx)
+    
+    return res_pts, res_mag, res_ray_indx, res_tri_indx
+
+
     

@@ -51,6 +51,7 @@ def fuse_vertices(vertex_list):
                                       return_index=True)
     
     dup_ids = utility.id_dup_indices_1dlist(inverse)
+    dup_ids = np.array(dup_ids, dtype = 'int64')
     dups = vertex_list[dup_ids]
     cnt = 0
     for d in dups:

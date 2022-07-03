@@ -70,6 +70,37 @@ class CoordinateSystem(object):
         self.x_dir = x_dir
         self.y_dir = y_dir
 
+class Ray(object):
+    """
+    A ray object
+    
+    Parameters
+    ----------
+    origin : tuple
+        The xyz defining the origin.
+        
+    dirx : tuple
+        The direction of the ray
+    Attributes
+    ----------    
+    origin : tuple
+        The xyz defining the origin.
+        
+    dirx : tuple
+        The direction of the ray
+        
+    """
+    def __init__(self, origin, dirx):
+        """Initialises the class"""
+        if type(origin) != np.ndarray:
+            origin = np.array(origin)
+        if type(dirx) != np.ndarray:
+            dirx = np.array(dirx)
+            
+        self.origin = origin
+        self.dirx = dirx
+        
+
 def id_dup_indices_1dlist(lst):
     """
     This function returns numpy array of the indices of the repeating elements in a list.
@@ -95,10 +126,9 @@ def id_dup_indices_1dlist(lst):
                                        return_index=True)
 
     res = np.split(idx_sort, idx_start[1:])
-    
     vals = vals[count > 1]
     res = list(filter(lambda x: x.size > 1, res))
-    return np.array(res)
+    return res
     
 def viz(topo_dictionary_list):
     """
