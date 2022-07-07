@@ -114,6 +114,26 @@ def box(dimx, dimy, dimz, attributes = {}):
     shell = topobj.Shell(np.array([face1, face2, face3, face4, face5, face6]))
     solid = topobj.Solid(shell)
     return solid
+
+def ray(xyz_orig, xyz_dir):
+    """
+    This function constructs a ray object.
+ 
+    Parameters
+    ----------
+    xyz_orig : tuple
+        tuple with the xyz coordinates of the ray origin.
+        
+    xyz_dir : tuple
+        tuple with the xyz of the ray direction.
+ 
+    Returns
+    -------
+    ray : ray object
+        A ray object
+    """
+    ray = utility.Ray(xyz_orig, xyz_dir)
+    return ray
     
 def vertex(xyz, attributes = {}):
     """
@@ -195,9 +215,8 @@ def polygon_face_frm_verts(vertex_list, hole_vertex_list = [], attributes = {}):
     
     hole_wire_list = []
     for hole in hole_vertex_list:
-        hole_wire =  wire_frm_vertices(vertex_list)
+        hole_wire =  wire_frm_vertices(hole)
         hole_wire_list.append(hole_wire)
-    
     face = polygon_face_frm_wires(bdry_wire, hole_wire_list = hole_wire_list, attributes = attributes)
     return face
 
@@ -319,25 +338,6 @@ def coordinate_system(origin, x_dir, y_dir):
     """
     return utility.CoordinateSystem(origin, x_dir, y_dir)
 
-def topo_attributes(topo, attributes):
-    """
-    This function add attributes to the list of topology.
- 
-    Parameters
-    ----------
-    topo : Topo Object
-        Topo objects include Vertex, Edge, Wire, Face, Shell, Solid and Composite Topology Object.
-        
-    attributes : dictionary
-        Dictionary of the attributes
- 
-    Returns
-    -------
-    vertex : vertex topology
-        A vertex topology containing a point geometry
-    """
-    pass
-
 def composite(topo_list, attributes={}):
     """
     This function add attributes to the list of topology.
@@ -356,3 +356,58 @@ def composite(topo_list, attributes={}):
         A composite topology containing the topo list
     """
     return topobj.Composite(topo_list, attributes = attributes)
+
+def shell_frm_delaunay(vertex_list, tolerance = 1e-6):
+    """
+    This function creates a TIN from a vertex list.
+ 
+    Parameters
+    ----------
+    vertex_list : face object
+        the x and y dim of the vertex has to be on the same plane.
+ 
+    Returns
+    -------
+    shell : shell topology
+        A shell object.
+    """
+    pass
+    # from scipy import spatial
+    # #TODO:need to think about the inheritance of the vertices, edges and wires 
+    # srf_type = face.surface_type
+    # if srf_type == geom.SrfType.POLYGON:
+    #     nrml = face.surface.normal
+    #     if nrml != np.array([0,0,1]) or nrml != np.array([0,0,-1]):
+    #         #it must be transformed to be flat
+    #         pass
+        
+    #     bdry_wire = face.bdry_wire
+    #     bdry_verts = get.vertices_frm_wire(bdry_wire)
+    #     xyz_list = np.array([v.point.xyz for v in bdry_verts])
+        
+    #     hole_wire_list = face.hole_wire_list
+        
+    #     hole_verts = []
+    #     hole_xyz_list = np.array([pt.xyz for hole in hole_list for 
+    #                               pt in hole])
+    
+    #     #TODO transform the points from 3d to 2d
+    #     xy_list = np.delete(xyz_list, 2, axis=1)
+    #     hole_xy_list = np.delete(hole_xyz_list, 2, axis=1)
+        
+    #     d_xy_list = np.concatenate((xy_list, hole_xy_list))
+    #     tri = spatial.Delaunay(d_xy_list)
+        
+    #     chosen = d_xy_list[tri.simplices]
+    #     # print(chosen)
+    #     # for indices in tri.simplices:
+    #     #     fp = d_xy_list[indices]
+    #     #     print(fp)
+    #         # create.polygon_face_frm_verts(vertex_list)
+    #         # pt1 = list(xyz[verts[0]])
+    #         # pt2 = list(xyz[verts[1]])
+    #         # pt3 = list(xyz[verts[2]])
+    #         # occtriangle = make_polygon([pt1,pt2,pt3])
+    #         # tri_area = calculate.face_area(occtriangle)
+    #         # if tri_area > tolerance:
+    #         #     occtriangles.append(occtriangle)

@@ -128,9 +128,12 @@ class PolygonSurface(Surface):
             if type(hole_point_2dlist) != np.ndarray:
                 hole_point_2dlist = np.array(hole_point_2dlist)
             self.hole_point_2dlist = hole_point_2dlist
-            
-        self.point_list = point_list
         
+        self.point_list = point_list
+        self.calc_normal()
+        
+    def calc_normal(self):
+        point_list = self.point_list
         #calculate the normal of the surface
         xyz_list = [point.xyz for point in point_list]
         vector1 = xyz_list[1] - xyz_list[0]

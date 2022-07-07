@@ -21,7 +21,6 @@
 import copy
 
 import numpy as np
-from scipy import spatial
 
 from . import get
 from . import create
@@ -116,13 +115,13 @@ def triangulate_face(face, indices = False):
         if nholes > 0:
             hole_verts_list = hole_verts_2dlist.flatten()
             all_verts = np.append(bdry_verts, hole_verts_list)
-            
             nhole_verts_ls = [len(hole_verts) for hole_verts in hole_verts_2dlist]
             hole_idxs = [nbdry_verts]
             for cnt,nhole_verts in enumerate(nhole_verts_ls):
                 if cnt != nholes-1:    
                     hole_idx = nbdry_verts + nhole_verts
                     hole_idxs.append(hole_idx)
+                    print(hole_idxs)
             
         else:
             all_verts = bdry_verts
@@ -145,7 +144,7 @@ def triangulate_face(face, indices = False):
         #FLATTEN ALL THE XYZS AND THEN TRIANGULATE THEM WITH EARCUT
         all_xyzs = xyz2tri_2darr.flatten().tolist()
         tri_idxs = earcut.earcut(all_xyzs, hole_idxs, 3)
-        ntri_idxs = len(tri_idxs) 
+        ntri_idxs = len(tri_idxs)
         if ntri_idxs > 0:
             #if it is successfully triangulated
             shape1 = int(ntri_idxs/3)
@@ -178,61 +177,6 @@ def triangulate_face(face, indices = False):
                 return [all_xyzs_2dlist, tri_idxs_2darr]
         else:
             return []
-
-def shell_frm_delaunay(vertex_list, tolerance = 1e-6):
-    """
-    This function creates a TIN from a vertex list.
- 
-    Parameters
-    ----------
-    vertex_list : face object
-        the x and y dim of the vertex has to be on the same plane.
- 
-    Returns
-    -------
-    shell : shell topology
-        A shell object.
-    """
-    #TODO:need to think about the inheritance of the vertices, edges and wires 
-    srf_type = face.surface_type
-    if srf_type == geom.SrfType.POLYGON:
-        nrml = face.surface.normal
-        if nrml != np.array([0,0,1]) or nrml != np.array([0,0,-1]):
-            #it must be transformed to be flat
-            pass
-        
-        bdry_wire = face.bdry_wire
-        bdry_verts = get.vertices_frm_wire(bdry_wire)
-        xyz_list = np.array([v.point.xyz for v in bdry_verts])
-        
-        hole_wire_list = face.hole_wire_list
-        
-        hole_verts = []
-        hole_xyz_list = np.array([pt.xyz for hole in hole_list for 
-                                  pt in hole])
-        
-        
-        
-        #TODO transform the points from 3d to 2d
-        xy_list = np.delete(xyz_list, 2, axis=1)
-        hole_xy_list = np.delete(hole_xyz_list, 2, axis=1)
-        
-        d_xy_list = np.concatenate((xy_list, hole_xy_list))
-        tri = spatial.Delaunay(d_xy_list)
-        
-        chosen = d_xy_list[tri.simplices]
-        # print(chosen)
-        # for indices in tri.simplices:
-        #     fp = d_xy_list[indices]
-        #     print(fp)
-            # create.polygon_face_frm_verts(vertex_list)
-            # pt1 = list(xyz[verts[0]])
-            # pt2 = list(xyz[verts[1]])
-            # pt3 = list(xyz[verts[2]])
-            # occtriangle = make_polygon([pt1,pt2,pt3])
-            # tri_area = calculate.face_area(occtriangle)
-            # if tri_area > tolerance:
-            #     occtriangles.append(occtriangle)
             
 def faces2mesh(face_list):
     """
@@ -257,6 +201,7 @@ def faces2mesh(face_list):
         srf_type = f.surface_type
         if srf_type == geom.SrfType.POLYGON:
             xyzs_indxs = triangulate_face(f, indices = True)
+            # print(xyzs_indxs)
             if len(all_xyzs) == 0:
                 all_xyzs = xyzs_indxs[0]
             else:
@@ -338,6 +283,44 @@ def move_topo(topo, target_xyz, ref_xyz = None):
     #assigned to moved xyz back to the topo
     for cnt,v in enumerate(vs): v.point.xyz = trsf_xyzs[cnt]
     return mv_topo
-    
+
+def reverse_face_normal(face):
+    """
+    reverse the normal of the face
+ 
+    Parameters
+    ----------
+    face : topo object
+        the face to reverse.
+        
+    Returns
+    -------
+    reversed_face : topo
+        the reversed face
+    """
+    #check the surface type of the face
+    if face.surface_type == geom.SrfType.POLYGON:
+        bverts = get.bdry_vertices_frm_face(face)
+        hverts = get.hole_vertices_frm_face(face)
+        bxyzs = np.array([v.point.xyz for v in bverts])
+        bxyzs = np.flip(bxyzs, axis=0)
+        bverts = create.vertex_list(bxyzs)
+        if len(hverts) == 0:    
+            flip_f = create.polygon_face_frm_verts(bverts)
+        else:
+            hverts_ls = []
+            for h in hverts:     
+                hxyzs = np.array([v.point.xyz for v in h])
+                hxyzs = np.flip(hxyzs, axis=0)
+                hverts = create.vertex_list(hxyzs)    
+                hverts_ls.append(hverts)
+            flip_f = create.polygon_face_frm_verts(bverts, 
+                                                   hole_vertex_list = hverts_ls)
+        return flip_f
+    else:
+        #TODO account for nurbs surfaces in the future
+        print('nurbs surface not implemented yet')
+        return face
+
 def trsf_cs(cs1, cs2, topo):
     pass

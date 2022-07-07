@@ -19,11 +19,13 @@
 #
 # ==================================================================================================
 import math
+from itertools import chain
 import numpy as np
 
 from . import topobj
 from . import get
 from . import utility
+from . import modify
 
 def dist_btw_xyzs(xyzs1, xyzs2):
     """
@@ -653,22 +655,20 @@ def cs2cs_matrice(orig_cs, dest_cs):
     matrice : ndarray
         4x4 matrice.
     """
-    #first move the origin from the original cs to the destination cs
-    orig1 = orig_cs.origin
-    orig2 = dest_cs.origin
-    trsl = orig2 - orig1
-    trsl_mat = translate_matrice(trsl[0],trsl[1],trsl[2])
-    #then get the rotation axis for the y-axis 
-    yd1 = orig_cs.y_dir
-    yd2 = dest_cs.y_dir
-    rot_axis1 = cross_product(yd1, yd2)
-    #need to get the rotation angle
-    rot_angle = angle_btw_2vectors(yd1, yd2)
-    rot_mat = rotate_matrice(rot_axis1, rot_angle)
-    
-    
-    #TODO FINISH THE FUNCTION
-    # print(trsl_mat)
+    # #TODO FINISH THE FUNCTION
+    # #first move the origin from the original cs to the destination cs
+    # orig1 = orig_cs.origin
+    # orig2 = dest_cs.origin
+    # trsl = orig2 - orig1
+    # trsl_mat = translate_matrice(trsl[0],trsl[1],trsl[2])
+    # #then get the rotation axis for the y-axis 
+    # yd1 = orig_cs.y_dir
+    # yd2 = dest_cs.y_dir
+    # rot_axis1 = cross_product(yd1, yd2)
+    # #need to get the rotation angle
+    # rot_angle = angle_btw_2vectors(yd1, yd2)
+    # rot_mat = rotate_matrice(rot_axis1, rot_angle)
+    # # print(trsl_mat)
     
 def face_midxyz(face):
     """
@@ -715,6 +715,39 @@ def trsf_xyzs(xyzs, trsf_mat):
     trsf_xyzs = t_xyzw[:,:-1]
     
     return trsf_xyzs
+
+def move_xyzs(xyzs, directions, magnitudes):
+    """
+    Calculates the moved xyzs based on a direction vectors and magnitudes
+ 
+    Parameters
+    ----------    
+    xyzs : ndarray
+        array defining the points.
+    
+    directions : ndarray
+        array defining the directions.
+    
+    magnitudes : 1d array
+        array defining the magnitude to move.
+        
+    Returns
+    -------
+    moved_xyzs : ndarray
+        the moved xyzs.
+    """
+    if type(xyzs) != np.ndarray:
+        xyzs = np.array(xyzs)
+    
+    if type(directions) != np.ndarray:
+        directions = np.array(directions)
+        
+    if type(magnitudes) != np.ndarray:
+        magnitudes = np.array(magnitudes)
+    
+    magnitudes = np.reshape(magnitudes, [len(directions),1])
+    moved_xyzs = xyzs + directions*magnitudes
+    return moved_xyzs 
 
 def is_anticlockwise(xyzs, ref_vec):
     """
@@ -838,7 +871,13 @@ def rays_xyz_tris_intersect(rays_xyz, tris_xyz):
     Returns
     -------
     intersect_pts : ndarray
-        points of intersection. If no intersection returns None
+        points of intersection. If no intersection returns an empty array
+        
+    magnitudes : ndarray
+        array of magnitude of the rays to the intersection points. If no intersection return an empty array
+        
+    ray_index : ndarray
+        indices of the rays. Corresponds to the intersect pts.
     
     tris_index : ndarray
         indices of the intersected triangles. Corresponds to the intersect pts.
@@ -853,7 +892,6 @@ def rays_xyz_tris_intersect(rays_xyz, tris_xyz):
         
         v1sT = vectors1.T
         v2sT = vectors2.T
-        
         v1x = v1sT[0] * v2sT[0]
         v1y = v1sT[1] * v2sT[1]
         v1z = v1sT[2] * v2sT[2]
@@ -862,16 +900,18 @@ def rays_xyz_tris_intersect(rays_xyz, tris_xyz):
         return dp
     
     def acct4obstruction(intPts, mags, rayIndxs, triIndxs):
+        indx = np.arange(len(rayIndxs))
         dupIds = utility.id_dup_indices_1dlist(rayIndxs)
-        non_obs_indx = []
+        dupIds_flat = list(chain(*dupIds))
+        non_obs_indx = utility.find_xs_not_in_ys(indx, dupIds_flat)
         for di in dupIds:
             mag = mags[di]
             index = np.where(mag == mag.min())[0]
             index = index.flatten()
             index = index + di[0]
-            non_obs_indx.append(list(index))
-        from itertools import chain
-        non_obs_indx = list(chain(*non_obs_indx))
+            non_obs_indx = np.append(non_obs_indx, index)
+        
+        non_obs_indx.sort()
         nb_intPts = np.take(intPts, non_obs_indx, axis=0)
         nb_mags = np.take(mags, non_obs_indx, axis=0)
         nb_rayIndxs = np.take(rayIndxs, non_obs_indx, axis=0)
@@ -902,11 +942,14 @@ def rays_xyz_tris_intersect(rays_xyz, tris_xyz):
     dets_index = np.where(dets_true)
     if len(dets_index) == 0:
         #no intersections at all
-        return float('-inf')
+        return [],[],[],[]
     #============================================
+    dets = np.where(dets_true, dets, np.inf)
     invDet = np.where(dets_true, 1.0/dets, dets)
+    invDet = np.where(dets_true, invDet, 0)
     dets_true_repeat = np.repeat(dets_true, 3)
     dets_true_repeat_reshape = np.reshape(dets_true_repeat, (len(raysT[0]),3))
+    
     tvecs = np.where(dets_true_repeat_reshape, 
                     raysT[0] - trisT[0], 
                     np.zeros((len(raysT[0]), 3)))
@@ -919,7 +962,7 @@ def rays_xyz_tris_intersect(rays_xyz, tris_xyz):
     us_index = np.where(us_true)
     if len(us_index) == 0:
         #no intersections at all 
-        return float('-inf')
+        return [],[],[],[]
     #============================================
     us_true_repeat = np.repeat(us_true, 3)
     us_true_repeat_reshape = np.reshape(us_true_repeat, (len(tvecs),3))
@@ -947,7 +990,6 @@ def rays_xyz_tris_intersect(rays_xyz, tris_xyz):
     #sub zeros with infinity to make processing easier later
     mags = np.where(vs_true, mags, np.full([len(vs_true)], np.inf))
     mags_ray_reshape = np.reshape(mags, (nrays,ntris))
-    
     mags_true = np.logical_not(mags_ray_reshape==np.inf)
     mags_true_index = np.where(mags_true)
     intPts_reshape = np.reshape(intPts, (nrays,ntris,3))
@@ -956,7 +998,6 @@ def rays_xyz_tris_intersect(rays_xyz, tris_xyz):
     res_ray_indx = mags_true_index[0]
     res_tri_indx = mags_true_index[1]
     
-    
     res_pts, res_mag, res_ray_indx, res_tri_indx= acct4obstruction(res_pts, 
                                                                    res_mag, 
                                                                    res_ray_indx, 
@@ -964,5 +1005,170 @@ def rays_xyz_tris_intersect(rays_xyz, tris_xyz):
     
     return res_pts, res_mag, res_ray_indx, res_tri_indx
 
-
+def rays_faces_intersection(ray_list, face_list):
+    """
+    This function intersect multiple rays with multiple faces
+ 
+    Parameters
+    ----------
+    ray_list : list of rays
+        array of ray objects
+        
+    face_list : lsit of faces
+        array of face objects
+        
+    Returns
+    -------
+    hit_face : array of faces
+        faces that are hit with new attributes documenting the intersection pt and the rays that hit it. {'rays_faces_intersection': {'intersection':[], 'ray':[]}}
+        
+    miss_faces : array of faces
+        faces that are not hit by any rays.
+        
+    hit_rays : array of rays
+        rays that hit faces with new attributes documenting the faces and intersections. {'rays_faces_intersection': {'intersection':[], 'hit_face':[]}}
+        
     
+    miss_rays : array of rays
+        rays that did not hit any faces.
+    """
+    #extract the origin and dir of the rays 
+    rays_xyz = [[r.origin,r.dirx] for r in ray_list]
+    #need to first triangulate the faces
+    tris_xyz = np.array([])
+    ntris = 0
+    tidx_faces = []
+    for f in face_list:
+        verts_indx = modify.triangulate_face(f, indices = True)
+        verts = verts_indx[0]
+        indx = verts_indx[1]
+        c_verts = np.take(verts, indx, axis=0)
+        tris_xyz = np.append(tris_xyz, c_verts)
+        ntri_aface = len(indx)
+        tidx_faces.append(np.arange(ntri_aface) + ntris)
+        ntris += ntri_aface
+    
+    #reshape the tris
+    tris_xyz = np.reshape(tris_xyz, (ntris, 3, 3))
+    res_pts, res_mag, res_ray_indx, res_tri_indx = rays_xyz_tris_intersect(rays_xyz, tris_xyz)
+    #now i need to sort it into faces
+    hit_faces = []
+    miss_faces = []
+    for cnt, tidx_face in enumerate(tidx_faces):
+        #if the triidx_face are in the hit tri indx, this face is hit by a ray
+        hit_true = np.in1d(res_tri_indx, tidx_face)
+        hit_indx = np.where(hit_true)[0]
+        nhits = len(hit_indx)
+        if nhits == 0:
+            #this face is not hit by any rays
+            miss_faces.append(face_list[cnt])
+        elif nhits == 1:
+            #this face is hit by one of the ray
+            #find the ray and put it in its attributes
+            face_ray = ray_list[res_ray_indx[hit_indx[0]]]
+            intersect = res_pts[hit_indx[0]]
+            hit_face = face_list[cnt]
+            hf_attribs = hit_face.attributes
+            if 'rays_faces_intersection' in hf_attribs:
+                ht_rf_att = hf_attribs['rays_faces_intersection']
+                ht_rf_att['intersection'].append(intersect)
+                ht_rf_att['ray'].append(face_ray)
+            else:
+                attribs = {'rays_faces_intersection':
+                               { 'intersection': [intersect],
+                                'ray': [face_ray]
+                                }
+                           }
+                hit_face.update_attributes(attribs)
+            hit_faces.append(hit_face)
+            
+            #check if the attribs alr exist in the rays
+            rattribs = face_ray.attributes
+            if 'rays_faces_intersection' in rattribs:
+                rays_rf_att = rattribs['rays_faces_intersection']
+                rays_rf_att['intersection'].append(intersect)
+                rays_rf_att['hit_face'].append(hit_face)
+            else:
+                rattribs = {'rays_faces_intersection':
+                                {'intersection': [intersect],
+                                 'hit_face': [hit_face]}
+                            }
+                face_ray.update_attributes(rattribs)
+            # print('1_hit')
+        elif nhits > 1:
+            #first take a look at the ray index
+            #find the rays that are hitting this face
+            pts_face = np.take(res_pts, hit_indx, axis=0)
+            mags_face = np.take(res_mag, hit_indx, axis=0)
+            raysIds_face = np.take(res_ray_indx, hit_indx, axis=0)
+            #check if they are instances where a single ray is hitting the same surfaces >1
+            idDups = utility.id_dup_indices_1dlist(raysIds_face)
+            all_indx = np.arange(len(raysIds_face))
+            if len(idDups) > 0:
+                # a single ray hits a face more than once
+                # the ray is hitting the face at its triangulated seams    
+                idDups_flat = list(chain(*idDups))
+                nonDup_idxs = utility.find_xs_not_in_ys(all_indx, idDups_flat)
+                # double check if hitting at seams is true
+                for idDup in idDups:
+                    mag = mags_face[idDup]
+                    id_magDup = utility.id_dup_indices_1dlist(mag)
+                    if len(id_magDup) == 1:    
+                        if len(id_magDup[0]) == len(mag):
+                            #they are hitting the same spot
+                            nonDup_idxs = np.append(nonDup_idxs, idDup[0])
+                        else:
+                            print('SOMETHING IS WRONG WITH THIS SURFACE')
+                    else:
+                        print('SOMETHING IS WRONG WITH THIS SURFACE')
+                        
+            else:
+                nonDup_idxs = all_indx
+            
+            nonDup_idxs.sort()
+            raysIds_face = np.take(raysIds_face, nonDup_idxs, axis=0)
+            face_rays = np.take(ray_list, raysIds_face, axis=0)
+            intersects = np.take(pts_face, nonDup_idxs, axis=0)
+            
+            hit_face = face_list[cnt]
+            hf_attribs = hit_face.attributes
+            
+            #need to check is it hit by different rays
+            if 'rays_faces_intersection' in hf_attribs:
+                ht_rf_att = hf_attribs['rays_faces_intersection']
+                ht_rf_att['intersection'].extend(intersects)
+                ht_rf_att['ray'].extend(face_rays)
+            else:
+                attribs = {'rays_faces_intersection':
+                               { 'intersection': intersects,
+                                'ray': face_rays
+                                }
+                           }
+                hit_face.update_attributes(attribs)
+                
+            hit_faces.append(hit_face)
+            
+            #check if the attribs alr exist in the rays
+            for fcnt,face_ray in enumerate(face_rays):
+                rattribs = face_ray.attributes
+                if 'rays_faces_intersection' in rattribs:
+                    rays_rf_att = rattribs['rays_faces_intersection']
+                    rays_rf_att['intersection'].append(intersects[fcnt])
+                    rays_rf_att['hit_face'].append(hit_face)
+                else:
+                    rattribs = {'rays_faces_intersection':
+                                    {'intersection': [intersects[fcnt]],
+                                     'hit_face': [hit_face]}
+                                }
+                    face_ray.update_attributes(rattribs)
+            # print('multiple hits')
+    hit_rays = []
+    miss_rays = []
+    uq_hit_idx = np.unique(res_ray_indx)
+    hit_rays = np.take(ray_list, uq_hit_idx , axis=0)
+    rindx = np.arange(len(ray_list))
+    miss_true = np.in1d(rindx, uq_hit_idx)
+    miss_true = np.logical_not(miss_true)
+    miss_idx = np.where(miss_true)[0]
+    miss_rays = np.take(ray_list, miss_idx, axis=0)
+    return hit_faces, miss_faces, hit_rays, miss_rays

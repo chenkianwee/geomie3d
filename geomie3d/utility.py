@@ -90,7 +90,7 @@ class Ray(object):
         The direction of the ray
         
     """
-    def __init__(self, origin, dirx):
+    def __init__(self, origin, dirx, attributes = {}):
         """Initialises the class"""
         if type(origin) != np.ndarray:
             origin = np.array(origin)
@@ -99,7 +99,32 @@ class Ray(object):
             
         self.origin = origin
         self.dirx = dirx
+        self.attributes = attributes
+    
+    def overwrites_attributes(self, new_attributes):
+        """
+        This function overwrites the attribute dictionary with the new dictionary.
+     
+        Parameters
+        ----------
+        new_attributes : dictionary
+            The dictionary of attributes appended to the object.
+        """
+        self.attributes = new_attributes
         
+    def update_attributes(self, new_attributes):
+        """
+        This function overwrites the attribute dictionary with the new dictionary.
+     
+        Parameters
+        ----------
+        new_attributes : dictionary
+            The dictionary of attributes appended to the object.
+        """
+        old_att = self.attributes
+        update_att = old_att.copy()
+        update_att.update(new_attributes)
+        self.attributes = update_att 
 
 def id_dup_indices_1dlist(lst):
     """
@@ -129,6 +154,30 @@ def id_dup_indices_1dlist(lst):
     vals = vals[count > 1]
     res = list(filter(lambda x: x.size > 1, res))
     return res
+
+def find_xs_not_in_ys(xlst, ylst):
+    """
+    This function compare the 2 list and find the elements in lst2find that is not in ref_lst.
+ 
+    Parameters
+    ----------
+    xlst : a 1D list
+        The lst to check if the elements exist in the ylst.
+    
+    ylstt : a 1D list
+        The reference lst to compare xlst.
+        
+    Returns
+    -------
+    not_in : 1d ndarray
+        the elements in xlst and not in ylst.
+    """
+    not_in_true = np.in1d(xlst, ylst)
+    not_in_true = np.logical_not(not_in_true)
+    not_in_indx = np.where(not_in_true)[0]
+    not_in = np.take(xlst, not_in_indx, axis=0)
+    return not_in
+    
     
 def viz(topo_dictionary_list):
     """
