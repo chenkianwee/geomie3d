@@ -24,6 +24,8 @@ from . import geom
 from . import topobj
 from . import utility
 
+from .geomdl import BSpline, utilities, construct
+
 def box(dimx, dimy, dimz, attributes = {}):
     """
     Constructs a box which is a solid topology where its bottom face midpt is at the origin (0,0,0).
@@ -114,7 +116,7 @@ def box(dimx, dimy, dimz, attributes = {}):
     shell = topobj.Shell(np.array([face1, face2, face3, face4, face5, face6]))
     solid = topobj.Solid(shell)
     return solid
-
+    
 def ray(xyz_orig, xyz_dir):
     """
     This function constructs a ray object.
@@ -244,6 +246,166 @@ def polygon_face_frm_wires(bdry_wire, hole_wire_list = [], attributes = {}):
     face.add_polygon_surface(bdry_wire, hole_wire_list = hole_wire_list)
     return face
 
+def bspline_face_frm_ctrlpts(ctrlpts_xyz, knotvector_u, knotvector_v, deg_u, deg_v,
+                             resolution = 0.06, attributes = {}):
+    """
+    This function creates a bspline face with control points. Refer to for more help https://github.com/orbingol/geomdl-examples/blob/master/surface/ex_surface01.py
+ 
+    Parameters
+    ----------
+    ctrlpts_xyz : array of xyzs
+        control points of the bspline surface. 
+    
+    knotvector_u : int
+        knockvector_u
+    
+    knotvector_v : int
+        knockvector_v
+    
+    deg_u : int
+        the degree of the surface in u direction.
+        
+    deg_v : int
+        the degree of the surface in v direction.
+    
+    resolution : float
+        a number between 0-1. The smaller the number the higher resolution of the surface stored.
+        
+    attributes : dictionary, optional
+        dictionary of the attributes.
+        
+    Returns
+    -------
+    bspline_face : face topology
+        A face topology containing a bspline surface geometry
+    """
+    # Create a BSpline surface instance
+    surf = BSpline.Surface()
+    # Set degrees
+    surf.degree_u = deg_u
+    surf.degree_v = deg_v
+    kv_u = knotvector_u
+    kv_v = knotvector_v
+    surf.set_ctrlpts(ctrlpts_xyz, kv_u, kv_v)
+    # Set knot vectors
+    surf.knotvector_u = utilities.generate_knot_vector(surf.degree_u, kv_u)
+    surf.knotvector_v = utilities.generate_knot_vector(surf.degree_v, kv_v)
+
+    # Set evaluation delta
+    surf.delta = resolution
+    # Evaluate surface
+    surf.evaluate()
+    face = topobj.Face(attributes = attributes)
+    face.add_bspline_surface(surf)
+    return face
+
+def bspline_face_frm_loft(bspline_edge_list,deg=1,resolution=0.06,attributes = {}):
+    """
+    This function creates a bspline face from bspline edges.
+    
+    Parameters
+    ----------
+    bspline_edge_list : array of Edge with bspline geometry
+        array of edges with bspline geometry. 
+        
+    deg : int, optional
+        the degree of the surface.
+    
+    resolution : float, optional
+        a number between 0-1. The smaller the number the higher resolution of the surface stored.
+        
+    attributes : dictionary, optional
+        dictionary of the attributes.
+        
+    Returns
+    -------
+    bspline_face : face topology
+        A face topology containing a bspline surface geometry
+    """
+    crv_ls = [e.curve for e in bspline_edge_list]
+    surf = construct.construct_surface('u', *crv_ls, degree = deg)
+    # Set evaluation delta
+    surf.delta = resolution
+    # Evaluate surface
+    surf.evaluate()
+    face = topobj.Face(attributes = attributes)
+    face.add_bspline_surface(surf)
+    return face
+
+def grids_frm_bspline_face(face, columns, rows):
+    """
+    This function creates a grid from a face.
+ 
+    Parameters
+    ----------
+    face : face object
+        face to be gridded.
+        
+    columns : int
+        number of columns.
+        
+    rows : int
+        number of rows.
+        
+    Returns
+    -------
+    grid : array of faces
+        the gridded face, if grid_pts=True, will return empty array.
+        
+    """
+    flist = []
+    pts = grid_pts_frm_bspline_face(face,columns+1,rows+1,xyzs=True)
+    ngrids = columns*rows
+    for cnt in range(ngrids):
+        id1 = cnt + int(cnt/columns)
+        id2 = id1 + 1
+        id3 = id1 + columns+2
+        id4 = id3 - 1
+        f_xyz = [pts[id4], pts[id3], pts[id1], pts[id2]]
+        f = bspline_face_frm_ctrlpts(f_xyz, 2, 2, 1, 1, resolution = 0.5)
+        # create polygon surface
+        # f_xyz = [pts[id1], pts[id2], pts[id3], pts[id4]]
+        # f_v = vertex_list(f_xyz)
+        # f = polygon_face_frm_verts(f_v)
+        flist.append(f)
+    return flist
+    
+def grid_pts_frm_bspline_face(face,columns,rows,xyzs=False):
+    """
+    This function creates a grid pts from a face.
+ 
+    Parameters
+    ----------
+    face : face object
+        face to be gridded.
+        
+    columns : int
+        number of columns.
+        
+    rows : int
+        number of rows.
+    
+    xyzs : bool, optional
+        If True return the xyzs, False return vertices.
+    
+    Returns
+    -------    
+    grid_pts : array of vertices
+        grid of pts. If xyzs == True, return xyzs.
+    """
+    if face.surface_type == geom.SrfType.BSPLINE:
+        urange = [0,1,columns]
+        vrange = [0,1,rows]
+        params = utility.gen_gridxyz(urange, vrange)
+        surface = face.surface
+        pts = surface.evaluate_list(params)
+        if xyzs == True:
+            return pts
+        else:    
+            vs = vertex_list(pts)
+            return vs
+    else:
+        print('ERROR SURFACE IS NOT BSPLINE')
 
 def pline_edge_frm_verts(vertex_list, attributes = {}):
     """
@@ -264,6 +426,43 @@ def pline_edge_frm_verts(vertex_list, attributes = {}):
     """
     edge = topobj.Edge(attributes = attributes)
     edge.add_polyline_curve(vertex_list)
+    return edge
+
+def bspline_edge_frm_xyzs(ctrlpts_xyz, degree = 2, resolution = 0.01, attributes = {}):
+    """
+    This function constructs a bspline edge from a list of control points.
+ 
+    Parameters
+    ----------
+    ctrlpts_xyz : array of xyzs
+        An array of xyzs. [[x1,y1,z1], [x2,y2,z2], [...]]
+    
+    degree : int, optional
+        degree of the bspline curve. For straight lines use 2. For more curvy go for 3 and above
+    
+    resolution : float, optional 
+        the resolution to store the curve. Float between 0-1. 0.1 will discretize the curve into 10 parts. 0.01 will discretize it to 100 parts. The lower the number the higher resolution of the curve stored in the edge topology. 
+        
+    attributes : dictionary, optional
+        dictionary of the attributes.
+ 
+    Returns
+    -------
+    bspline_edge : edge topology
+        A edge topology containing a bspline geometry
+    """
+    crv = BSpline.Curve()
+    # Set degree
+    crv.degree = degree
+    
+    # Set control points
+    crv.ctrlpts = ctrlpts_xyz
+    # Set knot vector
+    crv.knotvector = utilities.generate_knot_vector(crv.degree, len(crv.ctrlpts))
+    crv.delta = resolution
+    
+    edge = topobj.Edge(attributes = attributes)
+    edge.add_bspline_curve(crv)
     return edge
 
 def wire_frm_vertices(vertex_list, attributes = {}):
@@ -356,7 +555,7 @@ def composite(topo_list, attributes={}):
         A composite topology containing the topo list
     """
     return topobj.Composite(topo_list, attributes = attributes)
-
+    
 def shell_frm_delaunay(vertex_list, tolerance = 1e-6):
     """
     This function creates a TIN from a vertex list.

@@ -92,7 +92,8 @@ class Surface(object):
 
 class SrfType(Enum):
     
-    POLYGON = 0    
+    POLYGON = 0
+    BSPLINE = 1
 
 
 class PolygonSurface(Surface):

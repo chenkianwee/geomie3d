@@ -101,13 +101,7 @@ def vertices_frm_wire(wire):
         A list of vertices.
     """
     edge_list = wire.edge_list
-    #TODO currently only account for polyline edges
-    #when getting vertices from non polyline curve, will have to do an approximation to
-    #get of vertex list
-    
-    #TODO need to inherit the attributes too
-    vertex_2dlist = np.array([edge.vertex_list for edge in edge_list 
-                              if edge.curve_type == geom.CurveType.POLYLINE])
+    vertex_2dlist = np.array([edge.vertex_list for edge in edge_list])
     
     vertex_list = vertex_2dlist.flatten()
     #fused the points
@@ -128,7 +122,7 @@ def face_normal(face):
     normal : tuple
         Tuple specifying normal.
     """
-    return face.surface.normal
+    return face.normal
 
 def vertices_frm_face(face):
     """

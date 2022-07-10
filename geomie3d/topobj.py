@@ -21,7 +21,8 @@
 from enum import Enum
 from . import geom
 from . import get
-from .geomdl import BSpline, utilities
+from . import create
+from .geomdl import construct, operations
 import numpy as np
 
 class TopoType(Enum):
@@ -164,28 +165,23 @@ class Edge(Topology):
         curve = geom.PolylineCurve(point_list)
         self.curve = curve
     
-    def add_bspline_curve(self, control_xyzs, degree=2):
+    def add_bspline_curve(self, bspline_crv):
         """
         This function creates a bspline edge topology.
      
         Parameters
         ----------
-        control_xyzs : list of xyz
-            The xyzs of the control points.
+        bspline_crv : geomdl.BSPLINE crv
+            The bspline curve from NURBS-python.
         """
         self.curve_type = geom.CurveType.BSPLINE
-        crv = BSpline.Curve()
-        # Set degree
-        crv.degree = degree
+        self.curve = bspline_crv
+        pts = bspline_crv.evalpts
+        vertex_list = create.vertex_list(pts)
+        self.vertex_list = vertex_list
+        self.start_vertex = vertex_list[0]
+        self.end_vertex = vertex_list[-1]
         
-        # Set control points
-        crv.ctrlpts = control_xyzs
-        
-        # Set knot vector
-        crv.knotvector = utilities.generate_knot_vector(crv.degree, len(crv.ctrlpts))
-        self.curve = crv
-        
-    
 class Wire(Topology):
     """
     A wire object
@@ -251,6 +247,7 @@ class Face(Topology):
         self.surface = None
         self.bdry_wire = None
         self.hole_wire_list = None
+        self.normal = None
         
     def add_polygon_surface(self, bdry_wire, hole_wire_list = []):
         """
@@ -280,6 +277,49 @@ class Face(Topology):
         surface = geom.PolygonSurface(pt_list, 
                                       hole_point_2dlist = hole_point_2dlist)
         self.surface = surface
+        self.normal = surface.normal
+    
+    def add_bspline_surface(self, bspline_srf):
+        """
+        This function adds a polygon to the face object.
+     
+        Parameters
+        ----------
+        bspline_srf : geomdl.BSPLINE srf
+            The wire object that defines the outer boundary of the face.
+    
+        """
+        self.surface_type = geom.SrfType.BSPLINE
+        self.surface = bspline_srf
+        crvs = construct.extract_curves(bspline_srf)
+        ucrvs = crvs['u']
+        vcrvs = crvs['v']
+        crv1 = ucrvs[0]
+        crv2 = vcrvs[-1]
+        crv3 = ucrvs[-1]
+        crv4 = vcrvs[0]
+        
+        crv3.reverse()
+        crv4.reverse()
+        
+        crv1.delta = 0.1
+        crv2.delta = 0.1
+        crv3.delta = 0.1
+        crv4.delta = 0.1
+        
+        edge1 = Edge()
+        edge1.add_bspline_curve(crv1)
+        edge2 = Edge()
+        edge2.add_bspline_curve(crv2)
+        edge3 = Edge()
+        edge3.add_bspline_curve(crv3)        
+        edge4 = Edge()
+        edge4.add_bspline_curve(crv4)
+        bdry_wire = create.wire_frm_edges([edge1,edge2,edge3,edge4])
+        normal = list(operations.normal(bspline_srf, (0.5,0.5))[1])
+        self.bdry_wire = bdry_wire
+        self.hole_wire_list = []
+        self.normal = normal
         
 class Shell(Topology):
     """

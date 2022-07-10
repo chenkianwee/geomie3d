@@ -26,6 +26,7 @@ from . import topobj
 from . import get
 from . import utility
 from . import modify
+from . import geom
 
 def dist_btw_xyzs(xyzs1, xyzs2):
     """
@@ -171,6 +172,45 @@ def bbox_frm_bboxes(bbox_list):
     mxz = max(zip_box[5])
     
     return np.array([mnx,mny,mnz,mxx,mxy,mxz])
+
+def is_collinear(vertex_list):
+    """
+    This function checks if the list of points are collinear. 
+ 
+    Parameters
+    ----------
+    vertex_list : ndarray
+        array of vertices.
+        
+    Returns
+    -------
+    True or False : bool
+        If True the list of points are collinear.
+    """
+    from sympy import Point3D
+    sympts = [Point3D(v.point.xyz) for v in vertex_list]
+    collinear = Point3D.are_collinear(*sympts)
+    return collinear
+
+def is_coplanar(vertex_list):
+    """
+    This function checks if the list of points are coplanar. 
+ 
+    Parameters
+    ----------
+    vertex_list : ndarray
+        array of vertices.
+        
+    Returns
+    -------
+    True or False : bool
+        If True the list of points are coplanar.
+    """
+    from sympy import Point3D
+    sympts = [Point3D(v.point.xyz) for v in vertex_list]
+    
+    coplanar = Point3D.are_coplanar(*sympts)
+    return coplanar
 
 def bbox_frm_topo(topo):
     """
@@ -684,9 +724,14 @@ def face_midxyz(face):
     midxyz : ndarray
         array defining the midpt.
     """
-    vertex_list = get.vertices_frm_face(face)
-    xyzs = np.array([v.point.xyz for v in vertex_list])
-    mid_xyz = xyzs_mean(xyzs)
+    if face.surface_type == geom.SrfType.POLYGON:
+        vertex_list = get.vertices_frm_face(face)
+        xyzs = np.array([v.point.xyz for v in vertex_list])
+        mid_xyz = xyzs_mean(xyzs)
+        
+    elif face.surface_type == geom.SrfType.BSPLINE:
+        bspline_srf = face.surface
+        mid_xyz = np.array(bspline_srf.evaluate_single([0.5,0.5]))
     return mid_xyz
 
 def trsf_xyzs(xyzs, trsf_mat):

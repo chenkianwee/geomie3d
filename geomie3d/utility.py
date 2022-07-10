@@ -178,7 +178,46 @@ def find_xs_not_in_ys(xlst, ylst):
     not_in = np.take(xlst, not_in_indx, axis=0)
     return not_in
     
+def gen_gridxyz(xrange, yrange, zrange=None):
+    """
+    This function generate a 2d xy grid.
     
+    Parameters
+    ----------
+    xrange : list of int
+        [start, stop, number of intervals].
+    
+    yrange : list of int
+        [start, stop, number of intervals].
+    
+    zrange : list of int, optional
+        [start, stop, number of intervals].
+        
+    Returns
+    -------
+    gridxy : 2d array
+        2d array with xyz. If zrange == None, xy.
+    """
+    x = np.linspace(xrange[0], xrange[1], xrange[2])
+    y = np.linspace(yrange[0], yrange[1], yrange[2])
+    
+    if zrange == None:
+        xx, yy = np.meshgrid(x,y)
+        xx = xx.flatten()
+        yy= yy.flatten()
+        xys = np.array([xx, yy])
+        xys = xys.T
+        return xys
+    else:
+        z = np.linspace(zrange[0], zrange[1], zrange[2])
+        xx, yy, zz = np.meshgrid(x,y,z)
+        xx = xx.flatten()
+        yy= yy.flatten()
+        zz = zz.flatten()
+        xyzs = np.array([xx, yy, zz])
+        xyzs = xyzs.T
+        return xyzs
+        
 def viz(topo_dictionary_list):
     """
     This function visualises the topologies.
@@ -213,7 +252,7 @@ def viz(topo_dictionary_list):
         return rgb
             
     os.environ['PYQTGRAPH_QT_LIB'] = "PyQt5"
-    ## Create a GL View widget to display data
+    # Create a GL View widget to display data
     app = QtGui.QApplication([])
     w = gl.GLViewWidget()
     w.show()

@@ -50,16 +50,12 @@ def fuse_vertices(vertex_list):
                                       return_index=True)
     
     dup_ids = utility.id_dup_indices_1dlist(inverse)
-    dup_ids = np.array(dup_ids, dtype = 'int64')
-    dups = vertex_list[dup_ids]
-    cnt = 0
-    for d in dups:
-        d_id = dup_ids[cnt]
+    for cnt,d_id in enumerate(dup_ids):
+        d = np.take(vertex_list, d_id, axis=0)
         att_list = [v.attributes for v in d]
         new_dict = {"fused_vertex"+str(x):att_list[x] 
                     for x in range(len(att_list)) if att_list[x]}
         vertex_list[d_id[0]].update_attributes(new_dict)
-        cnt+=1
         
     u_ids = np.sort(u_ids)
     unique_v = vertex_list[u_ids]
@@ -109,7 +105,6 @@ def triangulate_face(face, indices = False):
     if srf_type == geom.SrfType.POLYGON:
         bdry_verts = get.bdry_vertices_frm_face(face)
         nbdry_verts = len(bdry_verts)
-        
         hole_verts_2dlist = get.hole_vertices_frm_face(face)
         nholes = len(hole_verts_2dlist)
         if nholes > 0:
@@ -121,7 +116,7 @@ def triangulate_face(face, indices = False):
                 if cnt != nholes-1:    
                     hole_idx = nbdry_verts + nhole_verts
                     hole_idxs.append(hole_idx)
-                    print(hole_idxs)
+                    # print(hole_idxs)
             
         else:
             all_verts = bdry_verts
@@ -177,6 +172,59 @@ def triangulate_face(face, indices = False):
                 return [all_xyzs_2dlist, tri_idxs_2darr]
         else:
             return []
+        
+    if srf_type == geom.SrfType.BSPLINE:
+        #check if the surface is planar
+        params = utility.gen_gridxyz([0,1,6], [0,1,6])
+        f_xyzs = face.surface.evaluate_list(params)
+        f_vs = create.vertex_list(f_xyzs)
+        is_planar = calculate.is_coplanar(f_vs)
+        if is_planar:
+            # the surface is planar, can triangulate it like polygon
+            columns = 2
+            rows = 2
+            gpts = create.grid_pts_frm_bspline_face(face, columns+1, rows+1,
+                                                    xyzs=True)
+            
+        else:
+            # grid the bspline
+            columns = 15
+            rows = 15
+            gpts = create.grid_pts_frm_bspline_face(face,columns+1,rows+1,
+                                                    xyzs=True)
+        ngrids = columns*rows
+        if indices == False:
+            #TODO figure out the inheritance structure
+            flist = []
+            for cnt in range(ngrids):
+                id1 = cnt + int(cnt/columns)
+                id2 = id1 + 1
+                id3 = id1 + columns+2
+                id4 = id3 - 1
+                # create polygon surface
+                f_xyz1 = [gpts[id1], gpts[id2], gpts[id3]]
+                f_v1 = create.vertex_list(f_xyz1)
+                f1 = create.polygon_face_frm_verts(f_v1)
+                flist.append(f1)
+                f_xyz2 = [gpts[id1], gpts[id3], gpts[id4]]
+                f_v2 = create.vertex_list(f_xyz2)
+                f2 = create.polygon_face_frm_verts(f_v2)
+                flist.append(f2)
+            return flist
+            
+        else:
+            indx = []
+            for cnt in range(ngrids):
+                id1 = cnt + int(cnt/columns)
+                id2 = id1 + 1
+                id3 = id1 + columns+2
+                id4 = id3 - 1
+                # create triangles
+                tri1 = [id1, id2, id3]
+                tri2 = [id1, id3, id4]
+                indx.append(tri1)
+                indx.append(tri2)
+            return [np.array(gpts), np.array(indx)]
             
 def faces2mesh(face_list):
     """
@@ -199,9 +247,8 @@ def faces2mesh(face_list):
     idx_cnt = 0
     for f in face_list:
         srf_type = f.surface_type
-        if srf_type == geom.SrfType.POLYGON:
+        if srf_type == geom.SrfType.POLYGON or srf_type == geom.SrfType.BSPLINE:
             xyzs_indxs = triangulate_face(f, indices = True)
-            # print(xyzs_indxs)
             if len(all_xyzs) == 0:
                 all_xyzs = xyzs_indxs[0]
             else:
@@ -214,7 +261,7 @@ def faces2mesh(face_list):
                 all_idxs = np.append(all_idxs, indxs_new, axis=0)
             
             idx_cnt += len(xyzs_indxs[0])
-    
+        
     return {"vertices":all_xyzs, "indices":all_idxs}
 
 def edges2lines(edge_list):
@@ -266,6 +313,7 @@ def move_topo(topo, target_xyz, ref_xyz = None):
     mv_topo : topo
         moved topo
     """
+    #TODO: account for different kind of geometries
     mv_topo = copy.deepcopy(topo)
     vs = get.topo_explorer(mv_topo, topobj.TopoType.VERTEX)
     if ref_xyz == None:
@@ -317,10 +365,22 @@ def reverse_face_normal(face):
             flip_f = create.polygon_face_frm_verts(bverts, 
                                                    hole_vertex_list = hverts_ls)
         return flip_f
-    else:
-        #TODO account for nurbs surfaces in the future
-        print('nurbs surface not implemented yet')
-        return face
+    
+    elif face.surface_type == geom.SrfType.BSPLINE:
+        srf = face.surface
+        cp2d = np.array(srf.ctrlpts2d)
+        #flipped it to change the normals
+        cp2d = np.flip(cp2d, axis=1)
+        arr_shp = np.shape(cp2d)
+        cp = np.reshape(cp2d, (arr_shp[0]*arr_shp[1], 3))
+        cp = cp.tolist()
+        kv_u = arr_shp[0]
+        kv_v = arr_shp[1]
+        
+        deg_u = srf.degree_u
+        deg_v = srf.degree_v
+        flip_f = create.bspline_face_frm_ctrlpts(cp, kv_u, kv_v, deg_u, deg_v)
+        return flip_f 
 
 def trsf_cs(cs1, cs2, topo):
     pass
