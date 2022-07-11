@@ -19,10 +19,13 @@
 #
 # ==================================================================================================
 import os
+import sys
 
 import numpy as np
 
-from pyqtgraph.Qt import QtGui
+import pyqtgraph as pg
+from pyqtgraph.parametertree import Parameter, ParameterTree
+from pyqtgraph.Qt import QtGui, QtCore
 import pyqtgraph.opengl as gl
 import colorsys
 
@@ -30,6 +33,7 @@ from . import modify
 from . import get
 from . import create
 from . import calculate
+from . import topobj
 
 class CoordinateSystem(object):
     """
@@ -126,6 +130,91 @@ class Ray(object):
         update_att.update(new_attributes)
         self.attributes = update_att 
 
+class FalsecolourView(QtGui.QWidget):
+    def __init__(self):
+        QtGui.QWidget.__init__(self)
+        self.setupGUI()
+        
+    def setupGUI(self):
+        self.layout = QtGui.QVBoxLayout()
+        self.layout.setContentsMargins(0,0,0,0)
+        self.setLayout(self.layout)
+        #create the right panel
+        self.splitter = QtGui.QSplitter()
+        self.splitter.setOrientation(QtCore.Qt.Horizontal)
+        #create the parameter tree for housing the parameters
+        self.tree = ParameterTree(showHeader=False)
+        self.splitter.addWidget(self.tree)
+        # self.splitter.setStretchFactor(0,3)
+        #put the splitter 2 into the layout
+        self.layout.addWidget(self.splitter)
+        
+        self.view3d = gl.GLViewWidget()
+        #self.view3d.opts['distance'] = 10000
+        self.splitter.addWidget(self.view3d)
+    
+    def insert_fcolour(self, fmin_val, fmax_val, results):
+        self.min_val = min(results)
+        self.max_val = max(results)
+        falsecolour, int_ls, clr_ls = self.gen_falsecolour_bar(fmin_val, fmax_val)
+        self.falsecolour = falsecolour
+        
+        self.min_max = dict(name='Min Max', type='group', expanded = True, title = "Min Max Value",
+                            children=[dict(name='Min Value', type = 'float', title = "Min Value", value = self.min_val, readonly = True),
+                                      dict(name='Max Value', type = 'float', title = "Max Value", value = self.max_val, readonly = True)]
+                            )
+        
+        self.params = Parameter.create(name = "Parmx", type = "group", children = [self.falsecolour,
+                                                                                     self.min_max])
+        
+        self.tree.setParameters(self.params, showTop=False)
+        return int_ls, clr_ls
+    
+    def gen_falsecolour_bar(self, min_val, max_val):
+        interval = 10.0
+        inc1 = (max_val-min_val)/(interval)
+        inc2 = inc1/2.0    
+        float_list = list(np.arange(min_val+inc2, max_val, inc1))
+        bcolour = falsecolour(float_list, min_val, max_val)
+        new_c_list = []
+        for c in bcolour:
+            new_c = [c[0]*255, c[1]*255, c[2]*255]
+            new_c_list.append(new_c)
+            
+        rangex = max_val-min_val
+        intervals = rangex/10.0
+        intervals_half = intervals/2.0
+        interval_ls = []
+        str_list = []
+        fcnt = 0
+        for f in float_list:
+            mi = round(f - intervals_half)
+            ma = round(f + intervals_half)
+            if fcnt == 0:
+                strx = "<" + str(ma)
+            elif fcnt == 9:
+                strx = ">" + str(mi)
+            else:
+                strx = str(mi) + " - " + str(ma)
+                
+            str_list.append(strx)
+            interval_ls.append([mi,ma])
+            fcnt+=1
+            
+        falsecolourd = dict(name='Falsecolour', type='group', expanded = True, title = "Colour Legend",
+                                children =  [dict(name = str_list[9], type = 'color', value = new_c_list[9], readonly = True),
+                                             dict(name = str_list[8], type = 'color', value = new_c_list[8], readonly = True),
+                                             dict(name = str_list[7], type = 'color', value = new_c_list[7], readonly = True),
+                                             dict(name = str_list[6], type = 'color', value = new_c_list[6], readonly = True),
+                                             dict(name = str_list[5], type = 'color', value = new_c_list[5], readonly = True),
+                                             dict(name = str_list[4], type = 'color', value = new_c_list[4], readonly = True),
+                                             dict(name = str_list[3], type = 'color', value = new_c_list[3], readonly = True),
+                                             dict(name = str_list[2], type = 'color', value = new_c_list[2], readonly = True),
+                                             dict(name = str_list[1], type = 'color', value = new_c_list[1], readonly = True),
+                                             dict(name = str_list[0], type = 'color', value = new_c_list[0], readonly = True)]
+                            )
+        return falsecolourd, interval_ls, bcolour
+    
 def id_dup_indices_1dlist(lst):
     """
     This function returns numpy array of the indices of the repeating elements in a list.
@@ -217,8 +306,8 @@ def gen_gridxyz(xrange, yrange, zrange=None):
         xyzs = np.array([xx, yy, zz])
         xyzs = xyzs.T
         return xyzs
-        
-def viz(topo_dictionary_list):
+
+def convert_topo_dictionary_list4viz(topo_dictionary_list, view3d):
     """
     This function visualises the topologies.
  
@@ -230,9 +319,10 @@ def viz(topo_dictionary_list):
         colour:  keywords (RED,ORANGE,YELLOW,GREEN,BLUE,BLACK,WHITE) or rgb tuple to specify the colours
         draw_edges: bool whether to draw the edges of mesh, default is True
         att: name of the att to visualise with the topologies
+        
+    view3d : pyqtgraph 3d view widget
+        3d view to visualise the geometries
     """
-    import PyQt5
-    
     def colour2rgb(colour):
         if colour == 'red':
             rgb = (1,0,0,1)
@@ -248,15 +338,7 @@ def viz(topo_dictionary_list):
             rgb = (0,0,0,1)
         elif colour == 'white':
             rgb = (1,1,1,1)
-        
         return rgb
-            
-    os.environ['PYQTGRAPH_QT_LIB'] = "PyQt5"
-    # Create a GL View widget to display data
-    app = QtGui.QApplication([])
-    w = gl.GLViewWidget()
-    w.show()
-    w.setWindowTitle('Geomie3D viz')
     
     bbox_list = []
     for d in topo_dictionary_list:
@@ -276,7 +358,7 @@ def viz(topo_dictionary_list):
         if len(vertices) > 0:
             points_vertices = np.array([v.point.xyz for v in vertices])
             viz_pts = make_points(points_vertices, rgb, 10, pxMode = True)
-            w.addItem(viz_pts)
+            view3d.addItem(viz_pts)
             
         #=================================================================================
         #get all the topology that can viz as lines
@@ -289,12 +371,13 @@ def viz(topo_dictionary_list):
         wires = sorted_d['wire']
         if len(wires) > 0:
             wires2edges = np.array([get.edges_frm_wire(wire) for wire in wires])
+            wires2edges = wires2edges.flatten()
             all_edges = np.append(all_edges, wires2edges )
         
         if len(all_edges) > 0:
             line_vertices = modify.edges2lines(all_edges)
             viz_lines = make_line(line_vertices, line_colour = rgb)
-            w.addItem(viz_lines)  
+            view3d.addItem(viz_lines)  
             
         #=================================================================================
         #get all the topology that can be viz as mesh
@@ -324,15 +407,200 @@ def viz(topo_dictionary_list):
             idx = mesh_dict['indices']
             #flip the vertices to be clockwise
             idx = np.flip(idx, axis=1)
-            viz_mesh = make_mesh(verts, idx, draw_edges = draw_edges)
+            viz_mesh = make_mesh(verts, idx,  draw_edges = draw_edges)
             viz_mesh.setColor(np.array(rgb))
-            w.addItem(viz_mesh)      
-        
+            view3d.addItem(viz_mesh)     
         #=================================================================================
         #find the bbox
         #=================================================================================
         bbox = calculate.bbox_frm_topo(cmp)
         bbox_list.append(bbox)
+    
+    return bbox_list
+
+def viz_falsecolour(topo_list, results, false_min_max_val = None, other_topo_dlist = []):
+    """
+    This function visualises the topologies in falsecolour.
+ 
+    Parameters
+    ----------
+    topo_list : list of topologies
+        list of topologies.
+    
+    results : list of floats
+        list of performance value to be visualise as falsecolour.
+    
+    min_max_val : list of floats, optional
+        list of two values [min_val, max_val] for the falsecolour visualisation.
+    
+    other_topo_dlist : a list of dictionary, optional
+        A list of dictionary specifying the visualisation parameters.
+        topo_list: the topos to visualise
+        colour:  keywords (RED,ORANGE,YELLOW,GREEN,BLUE,BLACK,WHITE) or rgb tuple to specify the colours
+        draw_edges: bool whether to draw the edges of mesh, default is True
+        att: name of the att to visualise with the topologies
+    
+    """
+    def sort_topos(topo, topo_type, icnt, topo_int_ls):
+        if topo_type == topobj.TopoType.VERTEX:
+            pnt = topo.point.xyz
+            topo_int_ls[icnt][0].append(pnt)
+        elif topo_type == topobj.TopoType.EDGE:
+            topo_int_ls[icnt][1].append(topo)
+        elif topo_type == topobj.TopoType.WIRE:
+            edges = get.edges_frm_wire(topo)
+            topo_int_ls[icnt][1].extend(edges)
+        elif topo_type == topobj.TopoType.FACE:
+            topo_int_ls[icnt][2].append(topo)
+        elif topo_type == topobj.TopoType.SHELL:
+            faces = get.faces_frm_shell(topo)
+            topo_int_ls[icnt][2].extend(faces)
+        elif topo_type == topobj.TopoType.SOLID:
+            faces = get.faces_frm_shell(topo)
+            topo_int_ls[icnt][2].extend(faces)
+        elif topo_type == topobj.TopoType.COMPOSITE:
+            sorted_d = get.unpack_composite(topo)
+            vertices = sorted_d['vertex']
+            if len(vertices) > 0:
+                pnts = [v.point.xyz for v in vertices]
+                topo_int_ls[icnt][0].extend(pnts)
+            #=================================================================================
+            #get all the topology that can viz as lines
+            #=================================================================================
+            cedges = sorted_d['edge']
+            if len(cedges) > 0:
+                topo_int_ls[icnt][1].extend(cedges)
+            wires = sorted_d['wire']
+            if len(wires) > 0:
+                edges = np.array([get.edges_frm_wire(wire) for wire in wires])
+                edges = edges.flatten()
+                topo_int_ls[icnt][1].extend(edges.tolist())
+            #=================================================================================
+            #get all the topology that can be viz as mesh
+            #=================================================================================
+            cfaces = sorted_d['face']
+            if len(cfaces) > 0:
+                topo_int_ls[icnt][2].extend(cfaces)
+            
+            shells = sorted_d['shell']
+            if len(shells) > 0:
+                shells2faces = np.array([get.faces_frm_shell(shell) for shell in shells])
+                shells2faces = shells2faces.flatten()
+                topo_int_ls[icnt][2].extend(shells2faces.tolist())
+            
+            solids = sorted_d['solid']
+            if len(solids) > 0:
+                solids2faces = np.array([get.faces_frm_solid(solid) for solid in solids])
+                solids2faces = solids2faces.flatten()
+                topo_int_ls[icnt][2].extend(solids2faces.tolist())
+    
+    def create_topo_int_ls(int_ls):
+        topo_int_ls = []
+        for _ in range(len(int_ls)):
+            topo_int_ls.append([])
+            topo_int_ls[-1].append([])
+            topo_int_ls[-1].append([])
+            topo_int_ls[-1].append([])
+        return topo_int_ls
+    #========================================================================
+    import PyQt5
+    os.environ['PYQTGRAPH_QT_LIB'] = "PyQt5"
+    pg.mkQApp()
+    win = FalsecolourView()
+    win.setWindowTitle("FalseColourView")
+    if false_min_max_val == None:
+        int_ls, c_ls = win.insert_fcolour(min(results), max(results), results)
+    else:
+        int_ls, c_ls = win.insert_fcolour(false_min_max_val[0], 
+                                          false_min_max_val[1], results)
+        
+    topo_int_ls = create_topo_int_ls(int_ls)
+    
+    #sort all the topologies into the 10 intervals
+    for cnt,topo in enumerate(topo_list):
+        res = results[cnt]
+        topo_type = topo.topo_type
+        for icnt, intx in enumerate(int_ls):
+            if icnt == 0:
+                if res < intx[1]:
+                    sort_topos(topo, topo_type, icnt, topo_int_ls)
+                    break
+                
+            elif icnt == len(int_ls)-1:
+                if res >= intx[0]:
+                    sort_topos(topo, topo_type, icnt, topo_int_ls)
+                    break
+                
+            else:
+                if intx[0] <= res < intx[1]:
+                    sort_topos(topo, topo_type, icnt, topo_int_ls)
+                    break
+ 
+    #create visualisable topologies for visualisation
+    for ccnt, topo_int in enumerate(topo_int_ls):
+        rgb = list(c_ls[ccnt])
+        rgb.append(1)
+        #viz pts
+        all_pts = topo_int[0]
+        all_edges = topo_int[1]
+        all_faces = topo_int[2]
+        if len(all_pts) > 0:
+            viz_pts = make_points(all_pts, rgb, 10, pxMode = True)
+            win.view3d.addItem(viz_pts)
+        if len(all_edges) > 0:
+            line_vertices = modify.edges2lines(all_edges)
+            viz_lines = make_line(line_vertices, line_colour = rgb)
+            win.view3d.addItem(viz_lines)
+        if len(all_faces) > 0:
+            mesh_dict = modify.faces2mesh(all_faces)
+            #flip the indices
+            verts = mesh_dict['vertices']
+            idx = mesh_dict['indices']
+            #flip the vertices to be clockwise
+            idx = np.flip(idx, axis=1)
+            viz_mesh = make_mesh(verts, idx, 
+                                 draw_edges = False)
+            viz_mesh.setColor(np.array(rgb))
+            win.view3d.addItem(viz_mesh)
+            
+    win.view3d.addItem(gl.GLAxisItem())
+    cmp = create.composite(topo_list)
+    bbox = calculate.bbox_frm_topo(cmp)
+    midpt = calculate.bbox_centre(bbox)
+    win.view3d.opts['center'] = PyQt5.QtGui.QVector3D(midpt[0], midpt[1], midpt[2])
+    
+    lwr_left = [bbox[0], bbox[1], bbox[2]]
+    upr_right =  [bbox[3], bbox[4], bbox[5]]
+    dist = calculate.dist_btw_xyzs(lwr_left, upr_right)
+    win.view3d.opts['distance'] = dist*1.5
+    if len(other_topo_dlist) != 0:
+        bbox_list = convert_topo_dictionary_list4viz(other_topo_dlist, win.view3d)
+    
+    win.show()
+    win.resize(1100,700)
+    if (sys.flags.interactive != 1) or not hasattr(QtCore, 'PYQT_VERSION'):
+        QtGui.QApplication.instance().exec_()
+        
+def viz(topo_dictionary_list):
+    """
+    This function visualises the topologies.
+ 
+    Parameters
+    ----------
+    topo_dictionary_list : a list of dictionary
+        A list of dictionary specifying the visualisation parameters.
+        topo_list: the topos to visualise
+        colour:  keywords (RED,ORANGE,YELLOW,GREEN,BLUE,BLACK,WHITE) or rgb tuple to specify the colours
+        draw_edges: bool whether to draw the edges of mesh, default is True
+        att: name of the att to visualise with the topologies
+    """
+    import PyQt5
+    os.environ['PYQTGRAPH_QT_LIB'] = "PyQt5"
+    # Create a GL View widget to display data
+    app = QtGui.QApplication([])
+    w = gl.GLViewWidget()
+    
+    bbox_list = convert_topo_dictionary_list4viz(topo_dictionary_list, w)
     
     w.addItem(gl.GLAxisItem())
     overall_bbox = calculate.bbox_frm_bboxes(bbox_list)
@@ -342,11 +610,10 @@ def viz(topo_dictionary_list):
     lwr_left = [overall_bbox[0], overall_bbox[1], overall_bbox[2]]
     upr_right =  [overall_bbox[3], overall_bbox[4], overall_bbox[5]]
     dist = calculate.dist_btw_xyzs(lwr_left, upr_right)
-    
     w.opts['distance'] = dist*1.5
-        
-    # w.setCameraPosition(distance=60)
     
+    w.show()
+    w.setWindowTitle('Geomie3D viz')
     QtGui.QApplication.instance().exec_()
         
 def make_mesh(xyzs, indices, face_colours = [], shader = "shaded", 

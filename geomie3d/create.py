@@ -332,7 +332,7 @@ def bspline_face_frm_loft(bspline_edge_list,deg=1,resolution=0.06,attributes = {
     face.add_bspline_surface(surf)
     return face
 
-def grids_frm_bspline_face(face, columns, rows):
+def grids_frm_bspline_face(face, columns, rows, polygonise = True):
     """
     This function creates a grid from a face.
  
@@ -356,18 +356,26 @@ def grids_frm_bspline_face(face, columns, rows):
     flist = []
     pts = grid_pts_frm_bspline_face(face,columns+1,rows+1,xyzs=True)
     ngrids = columns*rows
-    for cnt in range(ngrids):
-        id1 = cnt + int(cnt/columns)
-        id2 = id1 + 1
-        id3 = id1 + columns+2
-        id4 = id3 - 1
-        f_xyz = [pts[id4], pts[id3], pts[id1], pts[id2]]
-        f = bspline_face_frm_ctrlpts(f_xyz, 2, 2, 1, 1, resolution = 0.5)
-        # create polygon surface
-        # f_xyz = [pts[id1], pts[id2], pts[id3], pts[id4]]
-        # f_v = vertex_list(f_xyz)
-        # f = polygon_face_frm_verts(f_v)
-        flist.append(f)
+    if polygonise == False:
+        for cnt in range(ngrids):
+            id1 = cnt + int(cnt/columns)
+            id2 = id1 + 1
+            id3 = id1 + columns+2
+            id4 = id3 - 1
+            f_xyz = [pts[id4], pts[id3], pts[id1], pts[id2]]
+            f = bspline_face_frm_ctrlpts(f_xyz, 2, 2, 1, 1, resolution = 0.5)
+            flist.append(f)
+    else:
+        for cnt in range(ngrids):
+            id1 = cnt + int(cnt/columns)
+            id2 = id1 + 1
+            id3 = id1 + columns+2
+            id4 = id3 - 1
+            # create polygon surface
+            f_xyz = [pts[id1], pts[id2], pts[id3], pts[id4]]
+            f_v = vertex_list(f_xyz)
+            f = polygon_face_frm_verts(f_v)
+            flist.append(f)
     return flist
     
 def grid_pts_frm_bspline_face(face,columns,rows,xyzs=False):
