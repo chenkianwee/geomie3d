@@ -105,7 +105,7 @@ class Ray(object):
         self.dirx = dirx
         self.attributes = attributes
     
-    def overwrites_attributes(self, new_attributes):
+    def overwrite_attributes(self, new_attributes):
         """
         This function overwrites the attribute dictionary with the new dictionary.
      
@@ -163,7 +163,6 @@ class FalsecolourView(QtGui.QWidget):
                             children=[dict(name='Min Value', type = 'float', title = "Min Value", value = self.min_val, readonly = True),
                                       dict(name='Max Value', type = 'float', title = "Max Value", value = self.max_val, readonly = True)]
                             )
-        
         self.params = Parameter.create(name = "Parmx", type = "group", children = [self.falsecolour,
                                                                                      self.min_max])
         
@@ -175,7 +174,7 @@ class FalsecolourView(QtGui.QWidget):
         inc1 = (max_val-min_val)/(interval)
         inc2 = inc1/2.0    
         float_list = list(np.arange(min_val+inc2, max_val, inc1))
-        bcolour = falsecolour(float_list, min_val, max_val)
+        bcolour = calc_falsecolour(float_list, min_val, max_val)
         new_c_list = []
         for c in bcolour:
             new_c = [c[0]*255, c[1]*255, c[2]*255]
@@ -188,8 +187,8 @@ class FalsecolourView(QtGui.QWidget):
         str_list = []
         fcnt = 0
         for f in float_list:
-            mi = round(f - intervals_half)
-            ma = round(f + intervals_half)
+            mi = round(f - intervals_half, 2)
+            ma = round(f + intervals_half, 2)
             if fcnt == 0:
                 strx = "<" + str(ma)
             elif fcnt == 9:
@@ -338,6 +337,8 @@ def convert_topo_dictionary_list4viz(topo_dictionary_list, view3d):
             rgb = (0,0,0,1)
         elif colour == 'white':
             rgb = (1,1,1,1)
+        else:
+            rgb = colour
         return rgb
     
     bbox_list = []
@@ -773,7 +774,7 @@ def pseudocolor(val, minval, maxval, inverse = False):
     r, g, b = colorsys.hsv_to_rgb(h/360, 1., 1.)
     return r, g, b
     
-def falsecolour(vals, minval, maxval, inverse = False):
+def calc_falsecolour(vals, minval, maxval, inverse = False):
     """
     This function converts a list of values into a list of rgb values with reference to the minimum and maximum value.
  

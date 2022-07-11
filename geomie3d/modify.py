@@ -382,5 +382,33 @@ def reverse_face_normal(face):
         flip_f = create.bspline_face_frm_ctrlpts(cp, kv_u, kv_v, deg_u, deg_v)
         return flip_f 
 
+def update_topo_att(topo, attributes):
+    """
+    update the attributes of the topology
+ 
+    Parameters
+    ----------
+    topo : topo object
+        topology to update.
+    
+    attributes: dictionary
+        the attributes
+    """
+    topo.update_attributes(attributes)
+
+def overwrite_topo_att(topo, attributes):
+    """
+    update the attributes of the topology
+ 
+    Parameters
+    ----------
+    topo : topo object
+        topology to update.
+    
+    attributes: dictionary
+        the attributes
+    """
+    topo.overwrite_attributes(attributes)
+
 def trsf_cs(cs1, cs2, topo):
     pass

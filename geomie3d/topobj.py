@@ -58,7 +58,7 @@ class Topology(object):
         self.attributes = attributes
         self.is_topo = True
     
-    def overwrites_attributes(self, new_attributes):
+    def overwrite_attributes(self, new_attributes):
         """
         This function overwrites the attribute dictionary with the new dictionary.
      

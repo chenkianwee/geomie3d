@@ -879,28 +879,31 @@ def ray_xyz_tri_intersect(xyz_orig, xyz_dir, xyz1, xyz2, xyz3):
     xyz3_1 = xyz3-xyz1
     pvec = cross_product(xyz_dir, xyz3_1)
     det = dot_product(xyz2_1, pvec)
-    # print('det', det)
+    print('det', det)
     if det < 0.000001:
-        return float('-inf')
+        return None
     
     invDet = 1.0 / det
     tvec = xyz_orig - xyz1
     u = dot_product(tvec, pvec) * invDet
-    # print('u', u)
+    print('u', u)
     if u < 0 or u > 1:
         return None
     
     qvec = cross_product(tvec, xyz2_1)
     v = dot_product(xyz_dir,qvec) * invDet
-    # print('v', v)
+    print('v', v)
     if v < 0 or u + v > 1:
         return None
     
     magnitude = dot_product(xyz3_1,qvec)*invDet
-    dir_magnitude = xyz_dir*magnitude
-    intersect_pt = xyz_orig + dir_magnitude 
-    return list(intersect_pt)
-
+    if magnitude >  0.000001:
+        dir_magnitude = xyz_dir*magnitude
+        intersect_pt = xyz_orig + dir_magnitude
+        return list(intersect_pt)
+    else:
+        return None
+    
 def rays_xyz_tris_intersect(rays_xyz, tris_xyz):
     """
     This function intersect multiple rays with multiple triangles
@@ -1026,6 +1029,9 @@ def rays_xyz_tris_intersect(rays_xyz, tris_xyz):
     mags = np.where(vs_true, 
                     dot_product_2dx2d(xyzs2_0, qvecs)*invDet,
                     np.zeros([len(vs_true)]))
+    
+    mags_true = np.logical_not(mags < dets_threshold)
+    mags = np.where(mags_true, mags, np.zeros([len(vs_true)]))
     # print('mags',mags)
     mags_reshape = np.reshape(mags,[len(mags),1])
     dir_mags = raysT[1]*mags_reshape
@@ -1033,7 +1039,7 @@ def rays_xyz_tris_intersect(rays_xyz, tris_xyz):
     #============================================
     #separate the intersections into ray-based groups
     #sub zeros with infinity to make processing easier later
-    mags = np.where(vs_true, mags, np.full([len(vs_true)], np.inf))
+    mags = np.where(mags_true, mags, np.full([len(vs_true)], np.inf))
     mags_ray_reshape = np.reshape(mags, (nrays,ntris))
     mags_true = np.logical_not(mags_ray_reshape==np.inf)
     mags_true_index = np.where(mags_true)
@@ -1078,7 +1084,7 @@ def rays_faces_intersection(ray_list, face_list):
         rays that did not hit any faces.
     """
     #extract the origin and dir of the rays 
-    rays_xyz = [[r.origin,r.dirx] for r in ray_list]
+    rays_xyz = np.array([[r.origin,r.dirx] for r in ray_list])
     #need to first triangulate the faces
     tris_xyz = np.array([])
     ntris = 0

@@ -279,6 +279,9 @@ def bspline_face_frm_ctrlpts(ctrlpts_xyz, knotvector_u, knotvector_v, deg_u, deg
     bspline_face : face topology
         A face topology containing a bspline surface geometry
     """
+    if type(ctrlpts_xyz) == np.ndarray:
+        ctrlpts_xyz = ctrlpts_xyz.tolist()
+        
     # Create a BSpline surface instance
     surf = BSpline.Surface()
     # Set degrees
@@ -459,6 +462,9 @@ def bspline_edge_frm_xyzs(ctrlpts_xyz, degree = 2, resolution = 0.01, attributes
     bspline_edge : edge topology
         A edge topology containing a bspline geometry
     """
+    if type(ctrlpts_xyz) == np.ndarray:
+        ctrlpts_xyz = ctrlpts_xyz.tolist()
+        
     crv = BSpline.Curve()
     # Set degree
     crv.degree = degree

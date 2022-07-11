@@ -24,6 +24,23 @@ from . import geom
 from . import topobj
 from . import modify
 
+def topo_atts(topo):
+    """
+    Return attributes from the topology.
+ 
+    Parameters
+    ----------
+    topo : topo object
+        get the attributes from this topology.
+        
+    Returns
+    -------
+    attributes : dictionary
+        attributes of the topology.
+    """
+    att = topo.attributes
+    return att
+    
 def point_frm_vertex(vertex):
     """
     Return point from vertex.
