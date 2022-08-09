@@ -966,7 +966,8 @@ def rays_xyz_tris_intersect(rays_xyz, tris_xyz):
         nb_triIndxs = np.take(triIndxs, non_obs_indx, axis=0)
         return nb_intPts, nb_mags, nb_rayIndxs, nb_triIndxs
     #============================================
-    dets_threshold = 0.000001
+    dets_threshold = 1e-06
+    precision = 6
     if type(rays_xyz) != np.ndarray:
         rays_xyz = np.array(rays_xyz)
     
@@ -975,7 +976,7 @@ def rays_xyz_tris_intersect(rays_xyz, tris_xyz):
     
     nrays = len(rays_xyz)
     ntris = len(tris_xyz)
-    
+
     tris_xyz_tiled = np.tile(tris_xyz, (nrays,1,1))
     trisT = np.stack(tris_xyz_tiled, axis=1)
     xyzs1_0 = trisT[1] - trisT[0]
@@ -985,9 +986,11 @@ def rays_xyz_tris_intersect(rays_xyz, tris_xyz):
     raysT = np.stack(rays_repeat, axis=1)
     pvecs = cross_product(raysT[1], xyzs2_0)
     dets = dot_product_2dx2d(xyzs1_0, pvecs)
+    dets_round = np.around(dets, decimals=precision)
     # print('dets', dets)
-    dets_true = np.logical_not(dets<dets_threshold)
-    dets_index = np.where(dets_true)
+    dets_true = np.logical_not(dets_round<dets_threshold)
+    dets_index = np.where(dets_true)[0]
+    # print(dets_index)
     if len(dets_index) == 0:
         #no intersections at all
         return [],[],[],[]
@@ -1004,10 +1007,11 @@ def rays_xyz_tris_intersect(rays_xyz, tris_xyz):
     us = np.where(dets_true, 
                   dot_product_2dx2d(tvecs, pvecs)*invDet, 
                   np.zeros(len(dets_true)))
-    # print('us', us)
-    us_true = np.logical_and(us>=0, us<=1)
+    
+    us = np.around(us, decimals=precision)
+    us_true = np.logical_and(us>=0.0-dets_threshold, us<=1.0+dets_threshold)
     us_true = np.logical_and(us_true, dets_true)
-    us_index = np.where(us_true)
+    us_index = np.where(us_true)[0]
     if len(us_index) == 0:
         #no intersections at all 
         return [],[],[],[]
@@ -1021,15 +1025,18 @@ def rays_xyz_tris_intersect(rays_xyz, tris_xyz):
     vs = np.where(us_true, 
                   dot_product_2dx2d(raysT[1], qvecs)*invDet,
                   np.zeros([len(us_true)]))
-    # print('vs', vs)
-    vs_true1 = np.logical_not(vs < 0)
-    vs_true2 = np.logical_not(us+vs > 1)
+    vs = np.around(vs, decimals = precision)
+    vs_true1 = np.logical_not(vs < 0.0-dets_threshold)
+    usvs = us+vs
+    usvs = np.around(usvs, decimals=precision)
+    vs_true2 = np.logical_not(usvs > 1.0+dets_threshold)
     vs_true = np.logical_and(vs_true1, vs_true2)
     vs_true = np.logical_and(vs_true, us_true)
     mags = np.where(vs_true, 
                     dot_product_2dx2d(xyzs2_0, qvecs)*invDet,
                     np.zeros([len(vs_true)]))
     
+    mags = np.around(mags, decimals=precision)
     mags_true = np.logical_not(mags < dets_threshold)
     mags = np.where(mags_true, mags, np.zeros([len(vs_true)]))
     # print('mags',mags)
@@ -1048,7 +1055,6 @@ def rays_xyz_tris_intersect(rays_xyz, tris_xyz):
     res_mag = mags_ray_reshape[mags_true_index]
     res_ray_indx = mags_true_index[0]
     res_tri_indx = mags_true_index[1]
-    
     res_pts, res_mag, res_ray_indx, res_tri_indx= acct4obstruction(res_pts, 
                                                                    res_mag, 
                                                                    res_ray_indx, 
@@ -1102,124 +1108,127 @@ def rays_faces_intersection(ray_list, face_list):
     #reshape the tris
     tris_xyz = np.reshape(tris_xyz, (ntris, 3, 3))
     res_pts, res_mag, res_ray_indx, res_tri_indx = rays_xyz_tris_intersect(rays_xyz, tris_xyz)
-    #now i need to sort it into faces
-    hit_faces = []
-    miss_faces = []
-    for cnt, tidx_face in enumerate(tidx_faces):
-        #if the triidx_face are in the hit tri indx, this face is hit by a ray
-        hit_true = np.in1d(res_tri_indx, tidx_face)
-        hit_indx = np.where(hit_true)[0]
-        nhits = len(hit_indx)
-        if nhits == 0:
-            #this face is not hit by any rays
-            miss_faces.append(face_list[cnt])
-        elif nhits == 1:
-            #this face is hit by one of the ray
-            #find the ray and put it in its attributes
-            face_ray = ray_list[res_ray_indx[hit_indx[0]]]
-            intersect = res_pts[hit_indx[0]]
-            hit_face = face_list[cnt]
-            hf_attribs = hit_face.attributes
-            if 'rays_faces_intersection' in hf_attribs:
-                ht_rf_att = hf_attribs['rays_faces_intersection']
-                ht_rf_att['intersection'].append(intersect)
-                ht_rf_att['ray'].append(face_ray)
-            else:
-                attribs = {'rays_faces_intersection':
-                               { 'intersection': [intersect],
-                                'ray': [face_ray]
-                                }
-                           }
-                hit_face.update_attributes(attribs)
-            hit_faces.append(hit_face)
-            
-            #check if the attribs alr exist in the rays
-            rattribs = face_ray.attributes
-            if 'rays_faces_intersection' in rattribs:
-                rays_rf_att = rattribs['rays_faces_intersection']
-                rays_rf_att['intersection'].append(intersect)
-                rays_rf_att['hit_face'].append(hit_face)
-            else:
-                rattribs = {'rays_faces_intersection':
-                                {'intersection': [intersect],
-                                 'hit_face': [hit_face]}
-                            }
-                face_ray.update_attributes(rattribs)
-            # print('1_hit')
-        elif nhits > 1:
-            #first take a look at the ray index
-            #find the rays that are hitting this face
-            pts_face = np.take(res_pts, hit_indx, axis=0)
-            mags_face = np.take(res_mag, hit_indx, axis=0)
-            raysIds_face = np.take(res_ray_indx, hit_indx, axis=0)
-            #check if they are instances where a single ray is hitting the same surfaces >1
-            idDups = utility.id_dup_indices_1dlist(raysIds_face)
-            all_indx = np.arange(len(raysIds_face))
-            if len(idDups) > 0:
-                # a single ray hits a face more than once
-                # the ray is hitting the face at its triangulated seams    
-                idDups_flat = list(chain(*idDups))
-                nonDup_idxs = utility.find_xs_not_in_ys(all_indx, idDups_flat)
-                # double check if hitting at seams is true
-                for idDup in idDups:
-                    mag = mags_face[idDup]
-                    id_magDup = utility.id_dup_indices_1dlist(mag)
-                    if len(id_magDup) == 1:    
-                        if len(id_magDup[0]) == len(mag):
-                            #they are hitting the same spot
-                            nonDup_idxs = np.append(nonDup_idxs, idDup[0])
-                        else:
-                            print('SOMETHING IS WRONG WITH THIS SURFACE')
-                    else:
-                        print('SOMETHING IS WRONG WITH THIS SURFACE')
-                        
-            else:
-                nonDup_idxs = all_indx
-            
-            nonDup_idxs.sort()
-            raysIds_face = np.take(raysIds_face, nonDup_idxs, axis=0)
-            face_rays = np.take(ray_list, raysIds_face, axis=0)
-            intersects = np.take(pts_face, nonDup_idxs, axis=0)
-            
-            hit_face = face_list[cnt]
-            hf_attribs = hit_face.attributes
-            
-            #need to check is it hit by different rays
-            if 'rays_faces_intersection' in hf_attribs:
-                ht_rf_att = hf_attribs['rays_faces_intersection']
-                ht_rf_att['intersection'].extend(intersects)
-                ht_rf_att['ray'].extend(face_rays)
-            else:
-                attribs = {'rays_faces_intersection':
-                               { 'intersection': intersects,
-                                'ray': face_rays
-                                }
-                           }
-                hit_face.update_attributes(attribs)
+    if len(res_pts) != 0:
+        #now i need to sort it into faces
+        hit_faces = []
+        miss_faces = []
+        for cnt, tidx_face in enumerate(tidx_faces):
+            #if the triidx_face are in the hit tri indx, this face is hit by a ray
+            hit_true = np.in1d(res_tri_indx, tidx_face)
+            hit_indx = np.where(hit_true)[0]
+            nhits = len(hit_indx)
+            if nhits == 0:
+                #this face is not hit by any rays
+                miss_faces.append(face_list[cnt])
+            elif nhits == 1:
+                #this face is hit by one of the ray
+                #find the ray and put it in its attributes
+                face_ray = ray_list[res_ray_indx[hit_indx[0]]]
+                intersect = res_pts[hit_indx[0]]
+                hit_face = face_list[cnt]
+                hf_attribs = hit_face.attributes
+                if 'rays_faces_intersection' in hf_attribs:
+                    ht_rf_att = hf_attribs['rays_faces_intersection']
+                    ht_rf_att['intersection'].append(intersect)
+                    ht_rf_att['ray'].append(face_ray)
+                else:
+                    attribs = {'rays_faces_intersection':
+                                   { 'intersection': [intersect],
+                                    'ray': [face_ray]
+                                    }
+                               }
+                    hit_face.update_attributes(attribs)
+                hit_faces.append(hit_face)
                 
-            hit_faces.append(hit_face)
-            
-            #check if the attribs alr exist in the rays
-            for fcnt,face_ray in enumerate(face_rays):
+                #check if the attribs alr exist in the rays
                 rattribs = face_ray.attributes
                 if 'rays_faces_intersection' in rattribs:
                     rays_rf_att = rattribs['rays_faces_intersection']
-                    rays_rf_att['intersection'].append(intersects[fcnt])
+                    rays_rf_att['intersection'].append(intersect)
                     rays_rf_att['hit_face'].append(hit_face)
                 else:
                     rattribs = {'rays_faces_intersection':
-                                    {'intersection': [intersects[fcnt]],
+                                    {'intersection': [intersect],
                                      'hit_face': [hit_face]}
                                 }
                     face_ray.update_attributes(rattribs)
-            # print('multiple hits')
-    hit_rays = []
-    miss_rays = []
-    uq_hit_idx = np.unique(res_ray_indx)
-    hit_rays = np.take(ray_list, uq_hit_idx , axis=0)
-    rindx = np.arange(len(ray_list))
-    miss_true = np.in1d(rindx, uq_hit_idx)
-    miss_true = np.logical_not(miss_true)
-    miss_idx = np.where(miss_true)[0]
-    miss_rays = np.take(ray_list, miss_idx, axis=0)
-    return hit_faces, miss_faces, hit_rays, miss_rays
+                # print('1_hit')
+            elif nhits > 1:
+                #first take a look at the ray index
+                #find the rays that are hitting this face
+                pts_face = np.take(res_pts, hit_indx, axis=0)
+                mags_face = np.take(res_mag, hit_indx, axis=0)
+                raysIds_face = np.take(res_ray_indx, hit_indx, axis=0)
+                #check if they are instances where a single ray is hitting the same surfaces >1
+                idDups = utility.id_dup_indices_1dlist(raysIds_face)
+                all_indx = np.arange(len(raysIds_face))
+                if len(idDups) > 0:
+                    # a single ray hits a face more than once
+                    # the ray is hitting the face at its triangulated seams    
+                    idDups_flat = list(chain(*idDups))
+                    nonDup_idxs = utility.find_xs_not_in_ys(all_indx, idDups_flat)
+                    # double check if hitting at seams is true
+                    for idDup in idDups:
+                        mag = mags_face[idDup]
+                        id_magDup = utility.id_dup_indices_1dlist(mag)
+                        if len(id_magDup) == 1:    
+                            if len(id_magDup[0]) == len(mag):
+                                #they are hitting the same spot
+                                nonDup_idxs = np.append(nonDup_idxs, idDup[0])
+                            else:
+                                print('SOMETHING IS WRONG WITH THIS SURFACE')
+                        else:
+                            print('SOMETHING IS WRONG WITH THIS SURFACE')
+                            
+                else:
+                    nonDup_idxs = all_indx
+                
+                nonDup_idxs.sort()
+                raysIds_face = np.take(raysIds_face, nonDup_idxs, axis=0)
+                face_rays = np.take(ray_list, raysIds_face, axis=0)
+                intersects = np.take(pts_face, nonDup_idxs, axis=0)
+                
+                hit_face = face_list[cnt]
+                hf_attribs = hit_face.attributes
+                
+                #need to check is it hit by different rays
+                if 'rays_faces_intersection' in hf_attribs:
+                    ht_rf_att = hf_attribs['rays_faces_intersection']
+                    ht_rf_att['intersection'].extend(intersects)
+                    ht_rf_att['ray'].extend(face_rays)
+                else:
+                    attribs = {'rays_faces_intersection':
+                                   { 'intersection': intersects,
+                                    'ray': face_rays
+                                    }
+                               }
+                    hit_face.update_attributes(attribs)
+                    
+                hit_faces.append(hit_face)
+                
+                #check if the attribs alr exist in the rays
+                for fcnt,face_ray in enumerate(face_rays):
+                    rattribs = face_ray.attributes
+                    if 'rays_faces_intersection' in rattribs:
+                        rays_rf_att = rattribs['rays_faces_intersection']
+                        rays_rf_att['intersection'].append(intersects[fcnt])
+                        rays_rf_att['hit_face'].append(hit_face)
+                    else:
+                        rattribs = {'rays_faces_intersection':
+                                        {'intersection': [intersects[fcnt]],
+                                         'hit_face': [hit_face]}
+                                    }
+                        face_ray.update_attributes(rattribs)
+                # print('multiple hits')
+        hit_rays = []
+        miss_rays = []
+        uq_hit_idx = np.unique(res_ray_indx)
+        hit_rays = np.take(ray_list, uq_hit_idx , axis=0)
+        rindx = np.arange(len(ray_list))
+        miss_true = np.in1d(rindx, uq_hit_idx)
+        miss_true = np.logical_not(miss_true)
+        miss_idx = np.where(miss_true)[0]
+        miss_rays = np.take(ray_list, miss_idx, axis=0)
+        return hit_faces, miss_faces, hit_rays, miss_rays
+    else:
+        return [], face_list, [], ray_list

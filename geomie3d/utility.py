@@ -85,6 +85,10 @@ class Ray(object):
         
     dirx : tuple
         The direction of the ray
+    
+    attributes : dictionary, optional
+        dictionary of the attributes.
+        
     Attributes
     ----------    
     origin : tuple
@@ -514,9 +518,9 @@ def viz_falsecolour(topo_list, results, false_min_max_val = None, other_topo_dli
     else:
         int_ls, c_ls = win.insert_fcolour(false_min_max_val[0], 
                                           false_min_max_val[1], results)
-        
+
     topo_int_ls = create_topo_int_ls(int_ls)
-    
+    # print(len(topo_list))
     #sort all the topologies into the 10 intervals
     for cnt,topo in enumerate(topo_list):
         res = results[cnt]
@@ -536,7 +540,7 @@ def viz_falsecolour(topo_list, results, false_min_max_val = None, other_topo_dli
                 if intx[0] <= res < intx[1]:
                     sort_topos(topo, topo_type, icnt, topo_int_ls)
                     break
- 
+    
     #create visualisable topologies for visualisation
     for ccnt, topo_int in enumerate(topo_int_ls):
         rgb = list(c_ls[ccnt])
@@ -546,6 +550,7 @@ def viz_falsecolour(topo_list, results, false_min_max_val = None, other_topo_dli
         all_edges = topo_int[1]
         all_faces = topo_int[2]
         if len(all_pts) > 0:
+            all_pts = np.array(all_pts)
             viz_pts = make_points(all_pts, rgb, 10, pxMode = True)
             win.view3d.addItem(viz_pts)
         if len(all_edges) > 0:
@@ -575,7 +580,7 @@ def viz_falsecolour(topo_list, results, false_min_max_val = None, other_topo_dli
     dist = calculate.dist_btw_xyzs(lwr_left, upr_right)
     win.view3d.opts['distance'] = dist*1.5
     if len(other_topo_dlist) != 0:
-        bbox_list = convert_topo_dictionary_list4viz(other_topo_dlist, win.view3d)
+        convert_topo_dictionary_list4viz(other_topo_dlist, win.view3d)
     
     win.show()
     win.resize(1100,700)
@@ -598,7 +603,7 @@ def viz(topo_dictionary_list):
     import PyQt5
     os.environ['PYQTGRAPH_QT_LIB'] = "PyQt5"
     # Create a GL View widget to display data
-    app = QtGui.QApplication([])
+    QtGui.QApplication([])
     w = gl.GLViewWidget()
     
     bbox_list = convert_topo_dictionary_list4viz(topo_dictionary_list, w)

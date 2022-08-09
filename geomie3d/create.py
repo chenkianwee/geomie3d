@@ -117,7 +117,7 @@ def box(dimx, dimy, dimz, attributes = {}):
     solid = topobj.Solid(shell)
     return solid
     
-def ray(xyz_orig, xyz_dir):
+def ray(xyz_orig, xyz_dir, attributes = {}):
     """
     This function constructs a ray object.
  
@@ -128,13 +128,16 @@ def ray(xyz_orig, xyz_dir):
         
     xyz_dir : tuple
         tuple with the xyz of the ray direction.
+    
+    attributes : dictionary, optional
+        dictionary of the attributes.
  
     Returns
     -------
     ray : ray object
         A ray object
     """
-    ray = utility.Ray(xyz_orig, xyz_dir)
+    ray = utility.Ray(xyz_orig, xyz_dir, attributes = attributes)
     return ray
     
 def vertex(xyz, attributes = {}):
