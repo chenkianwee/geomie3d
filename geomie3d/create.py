@@ -26,7 +26,7 @@ from . import utility
 
 from .geomdl import BSpline, utilities, construct
 
-def box(dimx, dimy, dimz, attributes = {}):
+def box(dimx, dimy, dimz, centre_pt = [0,0,1], attributes = {}):
     """
     Constructs a box which is a solid topology where its bottom face midpt is at the origin (0,0,0).
  
@@ -41,6 +41,9 @@ def box(dimx, dimy, dimz, attributes = {}):
     dimz : float
         height of box.
         
+    centre_pt : tuple, optional
+        tuple with the xyz coordinates of the centre point of the box.
+        
     attributes : dictionary, optional
         dictionary of the attributes.
  
@@ -51,14 +54,15 @@ def box(dimx, dimy, dimz, attributes = {}):
     """
     dimx_half = dimx/2
     dimy_half = dimy/2
+    dimz_half = dimz/2
     
-    mnx = 0 - dimx_half
-    mny = 0 - dimy_half
-    mnz = 0
+    mnx = centre_pt[0] - dimx_half
+    mny = centre_pt[1] - dimy_half
+    mnz = centre_pt[2] - dimz_half
     
-    mxx = 0 + dimx_half
-    mxy = 0 + dimy_half
-    mxz = dimz
+    mxx = centre_pt[0] + dimx_half
+    mxy = centre_pt[1] + dimy_half
+    mxz = centre_pt[2] + dimz_half
     
     #bottom face
     xyz_list1 = np.array([[mnx, mny, mnz],
@@ -116,6 +120,26 @@ def box(dimx, dimy, dimz, attributes = {}):
     shell = topobj.Shell(np.array([face1, face2, face3, face4, face5, face6]))
     solid = topobj.Solid(shell)
     return solid
+
+def bbox(bbox_arr, attributes = {}):
+    """
+    Create a bounding box object
+    
+    Parameters
+    ----------
+    bbox_arr : tuple
+        Array specifying [minx,miny,minz,maxx,maxy,maxz].
+        
+    attributes : dictionary, optional
+        dictionary of the attributes.
+        
+    Returns
+    -------
+    bbox : bbox object
+        A bbox object
+    """
+    bbox = utility.Bbox(bbox_arr, attributes = attributes)
+    return bbox
     
 def ray(xyz_orig, xyz_dir, attributes = {}):
     """

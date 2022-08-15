@@ -104,8 +104,8 @@ def bbox_frm_xyzs(xyzs):
 
     Returns
     -------
-    bbox : tuple
-        The tuple (xmin,ymin,zmin,xmax,ymax,zmax). The tuple specifies the boundaries.
+    bbox : bbox object
+        bbox object
     """
     import numpy as np
     
@@ -126,7 +126,8 @@ def bbox_frm_xyzs(xyzs):
     mnz = np.amin(z)
     mxz = np.amax(z)
     
-    return np.array([mnx,mny,mnz,mxx,mxy,mxz])
+    bbox = utility.Bbox([mnx,mny,mnz,mxx,mxy,mxz])
+    return bbox
     
 def bbox_centre(bbox):
     """
@@ -134,17 +135,18 @@ def bbox_centre(bbox):
     
     Parameters
     ----------
-    bbox : tuple
-        The tuple (xmin,ymin,zmin,xmax,ymax,zmax). The tuple specifies the boundaries.
-
+    bbox : bbox object
+        bbox object
+       
     Returns
     -------
     xyz : ndarray
         array defining the point.
     """
-    midx = bbox[0] + ((bbox[3] - bbox[0])/2)
-    midy = bbox[1] + ((bbox[4] - bbox[1])/2)
-    midz = bbox[2] + ((bbox[5] - bbox[2])/2)
+    bbox_arr = bbox.bbox_arr
+    midx = bbox_arr[0] + ((bbox_arr[3] - bbox_arr[0])/2)
+    midy = bbox_arr[1] + ((bbox_arr[4] - bbox_arr[1])/2)
+    midz = bbox_arr[2] + ((bbox_arr[5] - bbox_arr[2])/2)
     
     return np.array([midx,midy,midz])
     
@@ -154,15 +156,16 @@ def bbox_frm_bboxes(bbox_list):
     
     Parameters
     ----------
-    bbox_list : tuple
-        The tuple (xmin,ymin,zmin,xmax,ymax,zmax). The tuple specifies the boundaries.
-
+    bbox_list : a list of bbox object
+        A list of bbox    
+    
     Returns
     -------
-    bbox : tuple
-        The tuple (xmin,ymin,zmin,xmax,ymax,zmax). The tuple specifies the boundaries.
+    bbox : bbox object
+        bbox object
     """
-    zip_box = list(zip(*bbox_list))
+    bbox_arr_ls = [bbox.bbox_arr.tolist() for bbox in bbox_list]
+    zip_box = list(zip(*bbox_arr_ls))
     mnx = min(zip_box[0])
     mny = min(zip_box[1])
     mnz = min(zip_box[2])
@@ -171,7 +174,8 @@ def bbox_frm_bboxes(bbox_list):
     mxy = max(zip_box[4])
     mxz = max(zip_box[5])
     
-    return np.array([mnx,mny,mnz,mxx,mxy,mxz])
+    res_bbox = utility.Bbox([mnx,mny,mnz,mxx,mxy,mxz])
+    return res_bbox
 
 def is_collinear(vertex_list):
     """
@@ -223,8 +227,8 @@ def bbox_frm_topo(topo):
 
     Returns
     -------
-    bbox : tuple
-        The tuple (xmin,ymin,zmin,xmax,ymax,zmax). The tuple specifies the boundaries.
+    bbox : bbox object
+        bbox object
     """
     verts = get.topo_explorer(topo, topobj.TopoType.VERTEX)
     xyzs = np.array([v.point.xyz for v in verts])
@@ -240,8 +244,8 @@ def xyzs_in_bbox(xyzs, bbox, zdim = True, indices = False):
     xyzs : ndarray
         array defining the points.
     
-    bbox : tuple
-        The tuple (xmin,ymin,zmin,xmax,ymax,zmax). The tuple specifies the boundaries.
+    bbox : bbox object
+        bbox object
         
     zdim : bool, optional
         If True will check the z-dimension.
@@ -251,7 +255,7 @@ def xyzs_in_bbox(xyzs, bbox, zdim = True, indices = False):
     
     Returns
     -------
-    points_in_bdry : pyptlist or indices
+    points_in_bdry : xyzs or indices
         The points that is in the boundary. If indices==True, this will be the indices instead of the actual points.
     """
     import numpy as np
@@ -264,10 +268,11 @@ def xyzs_in_bbox(xyzs, bbox, zdim = True, indices = False):
     ylist = zip_xyzs[0]
     zlist = zip_xyzs[0]
     
-    mnx = bbox[0]
-    mny = bbox[1]
-    mxx = bbox[3]
-    mxy = bbox[4]
+    bbox_arr = bbox.bbox_arr
+    mnx = bbox_arr[0]
+    mny = bbox_arr[1]
+    mxx = bbox_arr[3]
+    mxy = bbox_arr[4]
     
     x_valid = np.logical_and((mnx <= xlist),
                              (mxx >= xlist))
@@ -276,8 +281,8 @@ def xyzs_in_bbox(xyzs, bbox, zdim = True, indices = False):
                              (mxy >= ylist))
     
     if zdim == True:
-        mnz = bbox[2]
-        mxz = bbox[5]
+        mnz = bbox_arr[2]
+        mxz = bbox_arr[5]
         
         z_valid = np.logical_and((mnz <= zlist),
                                  (mxz >= zlist))
@@ -305,8 +310,8 @@ def is_xyz_in_bbox(xyz, bbox, zdim = True):
     xyz : ndarray
         array defining the point.
         
-    bbox : tuple
-        The tuple (xmin,ymin,zmin,xmax,ymax,zmax). The tuple specifies the boundaries.
+    bbox : bbox object
+        bbox object
         
     zdim : bool, optional
         If True will check the z-dimension.
@@ -319,12 +324,13 @@ def is_xyz_in_bbox(xyz, bbox, zdim = True):
     x = xyz[0]
     y = xyz[1]
     z = xyz[2]
-    mnx = bbox[0]
-    mny = bbox[1]
-    mnz = bbox[2]
-    mxx = bbox[3]
-    mxy = bbox[4]
-    mxz = bbox[5]
+    bbox_arr = bbox.bbox_arr
+    mnx = bbox_arr[0]
+    mny = bbox_arr[1]
+    mnz = bbox_arr[2]
+    mxx = bbox_arr[3]
+    mxy = bbox_arr[4]
+    mxz = bbox_arr[5]
     
     in_bdry = False
     if zdim == True:
@@ -346,8 +352,8 @@ def match_xyzs_2_bboxes(xyzs, bbox_list, zdim = True):
     xyzs : ndarray
         array defining the points.
     
-    bbox_list : tuple
-        The tuple (xmin,ymin,zmin,xmax,ymax,zmax). The tuple specifies the boundaries.
+    bbox_list : a list of bbox object
+        A list of bbox
         
     zdim : bool, optional
         If True will check the z-dimension.
@@ -357,11 +363,6 @@ def match_xyzs_2_bboxes(xyzs, bbox_list, zdim = True):
     point_bbox_indices : nparray
         point indices follow by the bbox indices.
     """
-    import numpy as np
-    
-    if type(bbox_list) != np.ndarray:
-        bbox_list = np.array(bbox_list)
-        
     if type(xyzs) != np.ndarray:
         xyzs = np.array(xyzs)
         
@@ -371,7 +372,9 @@ def match_xyzs_2_bboxes(xyzs, bbox_list, zdim = True):
         return arrx
     
     npts = len(xyzs)
-    tbdry = bbox_list.T
+    
+    bbox_arr_ls = np.array([bbox.bbox_arr for bbox in bbox_list])
+    tbdry = bbox_arr_ls.T
     
     xmin_list = reshape_bdry(tbdry[0], npts)
     ymin_list = reshape_bdry(tbdry[1], npts)
@@ -412,8 +415,8 @@ def id_bboxes_contain_xyzs(bbox_list, xyzs, zdim = True):
     
     Parameters
     ----------
-    bbox_list : list of tuple
-        The tuple (xmin,ymin,zmin,xmax,ymax,zmax). The tuple specifies the boundaries.
+    bbox_list : a list of bbox object
+        A list of bbox
         
     xyzs : ndarray
         array defining the points.
@@ -442,9 +445,9 @@ def id_xyzs_in_bboxes(xyzs, bbox_list, zdim = False):
     xyzs : ndarray
         array defining the points.
         
-    bbox_list : list of tuple
-        The tuple (xmin,ymin,zmin,xmax,ymax,zmax). The tuple specifies the boundaries.
-        
+   bbox_list : a list of bbox object
+       A list of bbox
+       
     zdim : bool, optional
         If True will check the z-dimension.
 
@@ -748,7 +751,6 @@ def trsf_xyzs(xyzs, trsf_mat):
     trsf_xyzs : ndarray
         the transformed xyzs.
     """
-    
     if type(xyzs) != np.ndarray:
         xyzs = np.array(xyzs)
     
@@ -834,79 +836,28 @@ def is_anticlockwise(xyzs, ref_vec):
     else:
         return True
 
-def ray_xyz_tri_intersect(xyz_orig, xyz_dir, xyz1, xyz2, xyz3):
-    """
-    This function intersect a ray with a triangle
- 
-    Parameters
-    ----------
-    xyz_orig : ndarray
-        array defining the origin of the ray.
-        
-    xyz_dir : ndarray
-        array defining the ray direction.
+def acct4obstruction(intPts, mags, rayIndxs, objIndxs):
+    indx = np.arange(len(rayIndxs))
+    dupIds = utility.id_dup_indices_1dlist(rayIndxs)
+    dupIds_flat = list(chain(*dupIds))
+    non_obs_indx = utility.find_xs_not_in_ys(indx, dupIds_flat)
+    for di in dupIds:
+        mag = mags[di]
+        index = np.where(mag == mag.min())[0]
+        index = index.flatten()
+        index = index + di[0]
+        non_obs_indx = np.append(non_obs_indx, index)
     
-    xyz_1 : ndarray
-        array defining the 1st point of the triangle.
-    
-    xyz_2 : ndarray
-        array defining the 2nd point of the triangle.
-    
-    xyz_3 : ndarray
-        array defining the 3rd point of the triangle.
+    non_obs_indx.sort()
+    nb_intPts = np.take(intPts, non_obs_indx, axis=0)
+    nb_mags = np.take(mags, non_obs_indx, axis=0)
+    nb_rayIndxs = np.take(rayIndxs, non_obs_indx, axis=0)
+    nb_objIndxs = np.take(objIndxs, non_obs_indx, axis=0)
+    return nb_intPts, nb_mags, nb_rayIndxs, nb_objIndxs
 
-    Returns
-    -------
-    intersect_pt : ndarray
-        point of intersection. If no intersection returns None
-    """
-    if type(xyz_orig) != np.ndarray:
-        xyz_orig = np.array(xyz_orig)
-    
-    if type(xyz_dir) != np.ndarray:
-        xyz_dir = np.array(xyz_dir)
-    
-    if type(xyz1) != np.ndarray:
-        xyz1 = np.array(xyz1)
-    
-    if type(xyz2) != np.ndarray:
-        xyz2 = np.array(xyz2)
-    
-    if type(xyz3) != np.ndarray:
-        xyz3 = np.array(xyz3)
-    
-    xyz2_1 = xyz2-xyz1
-    xyz3_1 = xyz3-xyz1
-    pvec = cross_product(xyz_dir, xyz3_1)
-    det = dot_product(xyz2_1, pvec)
-    print('det', det)
-    if det < 0.000001:
-        return None
-    
-    invDet = 1.0 / det
-    tvec = xyz_orig - xyz1
-    u = dot_product(tvec, pvec) * invDet
-    print('u', u)
-    if u < 0 or u > 1:
-        return None
-    
-    qvec = cross_product(tvec, xyz2_1)
-    v = dot_product(xyz_dir,qvec) * invDet
-    print('v', v)
-    if v < 0 or u + v > 1:
-        return None
-    
-    magnitude = dot_product(xyz3_1,qvec)*invDet
-    if magnitude >  0.000001:
-        dir_magnitude = xyz_dir*magnitude
-        intersect_pt = xyz_orig + dir_magnitude
-        return list(intersect_pt)
-    else:
-        return None
-    
 def rays_xyz_tris_intersect(rays_xyz, tris_xyz):
     """
-    This function intersect multiple rays with multiple triangles
+    This function intersect multiple rays with multiple triangles. https://github.com/johnnovak/raytriangle-test/blob/master/python/perftest.py 
  
     Parameters
     ----------
@@ -947,24 +898,6 @@ def rays_xyz_tris_intersect(rays_xyz, tris_xyz):
         dp = v1x + v1y+ v1z
         return dp
     
-    def acct4obstruction(intPts, mags, rayIndxs, triIndxs):
-        indx = np.arange(len(rayIndxs))
-        dupIds = utility.id_dup_indices_1dlist(rayIndxs)
-        dupIds_flat = list(chain(*dupIds))
-        non_obs_indx = utility.find_xs_not_in_ys(indx, dupIds_flat)
-        for di in dupIds:
-            mag = mags[di]
-            index = np.where(mag == mag.min())[0]
-            index = index.flatten()
-            index = index + di[0]
-            non_obs_indx = np.append(non_obs_indx, index)
-        
-        non_obs_indx.sort()
-        nb_intPts = np.take(intPts, non_obs_indx, axis=0)
-        nb_mags = np.take(mags, non_obs_indx, axis=0)
-        nb_rayIndxs = np.take(rayIndxs, non_obs_indx, axis=0)
-        nb_triIndxs = np.take(triIndxs, non_obs_indx, axis=0)
-        return nb_intPts, nb_mags, nb_rayIndxs, nb_triIndxs
     #============================================
     dets_threshold = 1e-06
     precision = 6
@@ -1062,6 +995,184 @@ def rays_xyz_tris_intersect(rays_xyz, tris_xyz):
     
     return res_pts, res_mag, res_ray_indx, res_tri_indx
 
+def rays_xyz_bboxes_intersect(rays_xyz, bbox_list):
+    """
+    This function intersect multiple rays with multiple bboxes. based on this https://www.scratchapixel.com/lessons/3d-basic-rendering/minimal-ray-tracer-rendering-simple-shapes/ray-box-intersection and this https://github.com/stackgl/ray-aabb-intersection/blob/master/index.js 
+    
+    Parameters
+    ----------
+    rays_xyz : ndarray
+        array of rays [ray_xyz1,ray_xyz2,...]. Each ray is defined with [[origin], [direction]].
+        
+    bbox_list : a list of bbox object
+        A list of bbox
+
+    Returns
+    -------
+    intersect_pts : ndarray
+        points of intersection. If no intersection returns an empty array
+        
+    magnitudes : ndarray
+        array of magnitude of the rays to the intersection points. If no intersection return an empty array
+        
+    ray_index : ndarray
+        indices of the rays. Corresponds to the intersect pts.
+    
+    tris_index : ndarray
+        indices of the intersected triangles. Corresponds to the intersect pts.
+    """
+    if type(rays_xyz) != np.ndarray:
+        rays_xyz = np.array(rays_xyz)
+    
+    precision = 6
+    nrays = len(rays_xyz)
+    nbbox = len(bbox_list)
+    bbox_arr_ls = np.array([bbox.bbox_arr for bbox in bbox_list])
+    #sort the bbox to match the number of rays, each ray to all the bboxes
+    bbox_tiled = np.tile(bbox_arr_ls, (nrays,1))
+    bboxT = bbox_tiled.T
+    #sort the rays to match the boxs 
+    rays_repeat = np.repeat(rays_xyz, nbbox, axis=0)
+    rays_stacked = np.stack(rays_repeat, axis=1)
+    rays_origs = rays_stacked[0]
+    rays_dirs = rays_stacked[1]
+    rays_origsT = rays_origs.T
+    rays_dirsT = rays_dirs.T
+    rays_dirsT = np.where(rays_dirsT == 0, np.inf, rays_dirsT)
+    #============================================
+    #calculation to detect intersections
+    rdirxs = rays_dirsT[0]
+    x0_true = np.where(rdirxs == np.inf, True, False)
+    txmin0 = bboxT[0] - rays_origsT[0]
+    txmin = txmin0 / rdirxs
+    txmax0 = bboxT[3] - rays_origsT[0]
+    txmax = txmax0 / rdirxs
+    
+    txmin_neg = np.where(txmin0 < 0, True, False)
+    txmax_neg = np.where(txmax0 < 0, True, False)
+    
+    txmin = np.where(x0_true, np.inf, txmin)
+    txmin_ntrue = np.logical_and(x0_true, txmin_neg)
+    txmin = np.where(txmin_ntrue, -np.inf, txmin)
+    txmax = np.where(x0_true, np.inf, txmax)
+    txmax_ntrue = np.logical_and(x0_true, txmax_neg)
+    txmax = np.where(txmax_ntrue, -np.inf, txmax)
+    
+    txmin = np.around(txmin, decimals=precision)
+    txmax = np.around(txmax, decimals=precision)
+    
+    txmin = np.where(txmin > txmax, txmax , txmin)
+    txmax = np.where(txmin > txmax, txmin , txmax)
+
+    rdirys = rays_dirsT[1]
+    y0_true = np.where(rdirys == np.inf, True, False)
+    tymin0 = bboxT[1] - rays_origsT[1] 
+    tymin = tymin0 / rdirys
+    tymax0 = bboxT[4] - rays_origsT[1]  
+    tymax = tymax0 / rdirys
+    
+    tymin_neg = np.where(tymin0 < 0, True, False)
+    tymax_neg = np.where(tymax0 < 0, True, False)
+    
+    tymin = np.where(y0_true, np.inf, tymin)
+    tymin_ntrue = np.logical_and(y0_true, tymin_neg)
+    tymin = np.where(tymin_ntrue, -np.inf, tymin)
+    tymax = np.where(y0_true, np.inf, tymax)
+    tymax_ntrue = np.logical_and(y0_true, tymax_neg)
+    tymax = np.where(tymax_ntrue, -np.inf, tymax)
+    
+    tymin = np.around(tymin, decimals=precision)
+    tymax = np.around(tymax, decimals=precision)
+    
+    tymin = np.where(tymin > tymax, tymax , tymin)
+    tymax = np.where(tymin > tymax, tymin , tymax)
+    #============================================
+    #make the first judgement if there is any collisions
+    condxy = np.logical_or(txmin > tymax, tymin > txmax)
+    condxy = np.logical_not(condxy)
+    condxy_index = np.where(condxy)[0]
+    if len(condxy_index) == 0:
+        #no intersections at all
+        return [],[],[],[]
+    
+    swapx_true1 = np.logical_and(condxy, tymin > txmin)
+    swapx_true2 = np.logical_and(condxy, tymax < txmax)
+    txmin = np.where(swapx_true1, tymin , txmin)
+    txmax = np.where(swapx_true2, tymax , txmax)
+    #============================================
+    # calcuate the z-dim
+    rdirzs = rays_dirsT[2]
+    z0_true = np.where(rdirzs == np.inf, True, False)
+    tzmin0 = bboxT[2] - rays_origsT[2] 
+    tzmin = tzmin0 / rdirzs
+    tzmax0  = bboxT[5] - rays_origsT[2]
+    tzmax = tzmax0 / rdirzs
+    
+    tzmin_neg = np.where(tzmin0 < 0, True, False)
+    tzmax_neg = np.where(tzmax0 < 0, True, False)
+    
+    tzmin = np.where(z0_true, np.inf, tzmin)
+    tzmin_ntrue = np.logical_and(z0_true, tzmin_neg)
+    tzmin = np.where(tzmin_ntrue, -np.inf, tzmin)
+    tzmax = np.where(z0_true, np.inf, tzmax)
+    tzmax_ntrue = np.logical_and(z0_true, tzmax_neg)
+    tzmax = np.where(tzmax_ntrue, -np.inf, tzmax)
+    
+    tzmin = np.around(tzmin, decimals=precision)
+    tzmax = np.around(tzmax, decimals=precision)
+    tzmin = np.where(tzmin > tzmax, tzmax , tzmin)
+    tzmax = np.where(tzmin > tzmax, tzmin , tzmax)
+    #============================================
+    # make judgement on the zdim
+    #make the first judgement if there is any collisions
+    condxyz = np.logical_or(txmin > tzmax, tzmin > txmax)
+    condxyz = np.logical_not(condxyz)
+    condxyz = np.logical_and(condxy, condxyz)
+    condxyz_index = np.where(condxyz)[0]
+    if len(condxyz_index) == 0:
+        #no intersections at all
+        return [],[],[],[]
+    
+    swapz_true1 = np.logical_and(condxyz, tzmin > txmin)
+    swapz_true2 = np.logical_and(condxyz, tzmax < txmax)
+    txmin = np.where(swapz_true1, tzmin , txmin)
+    txmax = np.where(swapz_true2, tzmax , txmax)
+    
+    tx_min_true = np.logical_not(txmin > 0)
+    tx_min_true = np.logical_and(tx_min_true, condxyz)
+    txmin = np.where(tx_min_true, txmax, txmin)
+    #check again if the magnitude and the max is positive
+    tx_min_true = np.logical_not(txmin < 0)
+    tx_min_true = np.logical_and(tx_min_true, condxyz)
+    tx_min_true_index = np.where(tx_min_true)[0]
+    if len(tx_min_true_index) == 0:
+        #no intersections at all
+        return [],[],[],[]
+    
+    mags = np.where(tx_min_true, txmin, np.zeros(len(txmin)))
+    # print('mags',mags)
+    mags_reshape = np.reshape(mags,[len(mags),1])
+    dir_mags = rays_dirs*mags_reshape
+    intPts = rays_origs + dir_mags
+    
+    mags = np.where(tx_min_true, mags, np.full([len(mags)], np.inf))
+    mags_ray_reshape = np.reshape(mags, (nrays,nbbox))
+    mags_true = np.logical_not(mags_ray_reshape==np.inf)
+    mags_true_index = np.where(mags_true)
+    
+    intPts_reshape = np.reshape(intPts, (nrays,nbbox,3))
+    res_pts = intPts_reshape[mags_true_index]
+    res_mag = mags_ray_reshape[mags_true_index]
+    res_ray_indx = mags_true_index[0]
+    res_bbox_indx = mags_true_index[1]
+
+    res_pts, res_mag, res_ray_indx, res_bbox_indx= acct4obstruction(res_pts, 
+                                                                   res_mag, 
+                                                                   res_ray_indx, 
+                                                                   res_bbox_indx)
+    
+    return res_pts, res_mag, res_ray_indx, res_bbox_indx
+
 def rays_faces_intersection(ray_list, face_list):
     """
     This function intersect multiple rays with multiple faces
@@ -1076,18 +1187,17 @@ def rays_faces_intersection(ray_list, face_list):
         
     Returns
     -------
+    hit_rays : array of rays
+        rays that hit faces with new attributes documenting the faces and intersections. {'rays_faces_intersection': {'intersection':[], 'hit_face':[]}}
+        
+    miss_rays : array of rays
+        rays that did not hit any faces.
+        
     hit_face : array of faces
         faces that are hit with new attributes documenting the intersection pt and the rays that hit it. {'rays_faces_intersection': {'intersection':[], 'ray':[]}}
         
     miss_faces : array of faces
         faces that are not hit by any rays.
-        
-    hit_rays : array of rays
-        rays that hit faces with new attributes documenting the faces and intersections. {'rays_faces_intersection': {'intersection':[], 'hit_face':[]}}
-        
-    
-    miss_rays : array of rays
-        rays that did not hit any faces.
     """
     #extract the origin and dir of the rays 
     rays_xyz = np.array([[r.origin,r.dirx] for r in ray_list])
@@ -1186,8 +1296,9 @@ def rays_faces_intersection(ray_list, face_list):
                 nonDup_idxs.sort()
                 raysIds_face = np.take(raysIds_face, nonDup_idxs, axis=0)
                 face_rays = np.take(ray_list, raysIds_face, axis=0)
+                face_rays = face_rays.tolist()
                 intersects = np.take(pts_face, nonDup_idxs, axis=0)
-                
+                intersects = intersects.tolist()
                 hit_face = face_list[cnt]
                 hf_attribs = hit_face.attributes
                 
@@ -1229,6 +1340,145 @@ def rays_faces_intersection(ray_list, face_list):
         miss_true = np.logical_not(miss_true)
         miss_idx = np.where(miss_true)[0]
         miss_rays = np.take(ray_list, miss_idx, axis=0)
-        return hit_faces, miss_faces, hit_rays, miss_rays
+        return hit_rays, miss_rays, hit_faces, miss_faces
     else:
-        return [], face_list, [], ray_list
+        return [], ray_list, [], face_list
+
+def rays_bboxes_intersect(ray_list, bbox_list):
+    """
+    This function intersect multiple rays with multiple bboxes
+ 
+    Parameters
+    ----------
+    ray_list : list of rays
+        array of ray objects
+        
+    bbox_list : a list of bbox object
+        A list of bbox
+        
+    Returns
+    -------
+    hit_rays : array of rays
+        rays that hit faces with new attributes documenting the faces and intersections. {'rays_bboxes_intersection': {'intersection':[], 'hit_bbox':[]}}
+        
+    miss_rays : array of rays
+        rays that did not hit .
+        
+    hit_bboxes : array of dictionary
+        bboxes that are hit with new attributes documenting the intersection pt and the rays that hit it. {'rays_bboxes_intersection': {'intersection':[], 'ray':[]}}
+        
+    miss_faces : array of bbox
+        bboxes that are not hit by any rays.
+    """
+    #extract the origin and dir of the rays
+    rays_xyz = np.array([[r.origin,r.dirx] for r in ray_list])
+    res_pts, res_mag, res_ray_indx, res_bbox_indx = rays_xyz_bboxes_intersect(rays_xyz, bbox_list)
+    # print(res_pts, res_mag, res_ray_indx, res_bbox_indx)
+    if len(res_pts) != 0:
+        #now i need to sort it into bboxes
+        hit_bboxes = []
+        miss_bboxes = []
+        for cnt,bbox in enumerate(bbox_list):
+            cnt_ls = np.array(cnt)
+            hit_true = np.in1d(res_bbox_indx, cnt_ls)
+            hit_indx = np.where(hit_true)[0]
+            nhits = len(hit_indx)
+            if nhits == 0:
+                #this bbox is not hit by any rays
+                miss_bboxes.append(bbox)
+            if nhits == 1:
+                # print('1_hit')
+                #this face is hit by one of the ray
+                #find the ray and put it in its attributes
+                bbox_ray = ray_list[res_ray_indx[hit_indx[0]]]
+                intersect = res_pts[hit_indx[0]]
+                hb_attribs = bbox.attributes
+                if 'rays_bboxes_intersection' in hb_attribs:
+                    ht_rf_att = hb_attribs['rays_bboxes_intersection']
+                    ht_rf_att['intersection'].append(intersect)
+                    ht_rf_att['ray'].append(bbox_ray)
+                else:
+                    attribs = {'rays_bboxes_intersection':
+                                    { 'intersection': [intersect],
+                                    'ray': [bbox_ray]
+                                    }
+                                }
+                    bbox.update_attributes(attribs)
+                hit_bboxes.append(bbox)
+    
+                #check if the attribs alr exist in the rays
+                rattribs = bbox_ray.attributes
+                if 'rays_bboxes_intersection' in rattribs:
+                    rays_rf_att = rattribs['rays_bboxes_intersection']
+                    rays_rf_att['intersection'].append(intersect)
+                    rays_rf_att['hit_bbox'].append(bbox)
+                else:
+                    rattribs = {'rays_bboxes_intersection':
+                                    {'intersection': [intersect],
+                                      'hit_face': [bbox]}
+                                }
+                    bbox_ray.update_attributes(rattribs)
+            elif nhits > 1:
+                # print('multiple hits')
+                #first take a look at the ray index
+                #find the rays that are hitting this bbox
+                pts_bbox = np.take(res_pts, hit_indx, axis=0)
+                raysIds_bbox = np.take(res_ray_indx, hit_indx, axis=0)
+                #check if they are instances where a single ray is hitting the same surfaces >1
+                idDups = utility.id_dup_indices_1dlist(raysIds_bbox)
+                all_indx = np.arange(len(raysIds_bbox))
+                if len(idDups) > 0:
+                    print('SOMETHING IS WRONG A RAY SHOULD NOT HIT THE BBOX TWICE')
+                else:
+                    nonDup_idxs = all_indx
+                
+                nonDup_idxs.sort()
+                raysIds_bbox = np.take(raysIds_bbox, nonDup_idxs, axis=0)
+                bbox_rays = np.take(ray_list, raysIds_bbox, axis=0)
+                bbox_rays = bbox_rays.tolist()
+                intersects = np.take(pts_bbox, nonDup_idxs, axis=0)
+                intersects = intersects.tolist()
+                hb_attribs = bbox.attributes
+                
+                #need to check is it hit by different rays before
+                if 'rays_bboxes_intersection' in hb_attribs:
+                    ht_rf_att = hb_attribs['rays_bboxes_intersection']
+                    ht_rf_att['intersection'].extend(intersects)
+                    ht_rf_att['ray'].extend(bbox_rays)
+                else:
+                    attribs = {'rays_bboxes_intersection':
+                                    { 'intersection': intersects,
+                                    'ray': bbox_rays
+                                    }
+                                }
+                    bbox.update_attributes(attribs)
+                    
+                hit_bboxes.append(bbox)
+                
+                #check if the attribs alr exist in the rays
+                for fcnt,bbox_ray in enumerate(bbox_rays):
+                    rattribs = bbox_ray.attributes
+                    if 'rays_bboxes_intersection' in rattribs:
+                        rays_rf_att = rattribs['rays_bboxes_intersection']
+                        rays_rf_att['intersection'].append(intersects[fcnt])
+                        rays_rf_att['hit_bbox'].append(bbox)
+                    else:
+                        rattribs = {'rays_bboxes_intersection':
+                                        {'intersection': [intersects[fcnt]],
+                                          'hit_bbox': [bbox]}
+                                    }
+                        bbox_ray.update_attributes(rattribs)
+                
+        hit_rays = []
+        miss_rays = []
+        uq_hit_idx = np.unique(res_ray_indx)
+        hit_rays = np.take(ray_list, uq_hit_idx , axis=0)
+        rindx = np.arange(len(ray_list))
+        miss_true = np.in1d(rindx, uq_hit_idx)
+        miss_true = np.logical_not(miss_true)
+        miss_idx = np.where(miss_true)[0]
+        miss_rays = np.take(ray_list, miss_idx, axis=0)
+        return hit_rays, miss_rays, hit_bboxes, miss_bboxes
+    
+    else:
+        return [], ray_list, [], bbox_list

@@ -7,7 +7,8 @@
 
 """
 
-from geomdl import abstract
+# from geomdl import abstract
+from . import abstract
 
 
 class Freeform(abstract.Geometry):

@@ -410,5 +410,59 @@ def overwrite_topo_att(topo, attributes):
     """
     topo.overwrite_attributes(attributes)
 
+def xyzs2voxs(xyzs, xdim, ydim, zdim):
+    """
+    This function group the vertices into a 3d voxel grid.
+    
+    Parameters
+    ----------
+    xyzs1 : ndarray
+        array defining the point.
+    
+    xdim : float
+        x dimension of a voxel
+    
+    ydim : float
+        y dimension of a voxel
+    
+    zdim : float
+        z dimension of a voxel
+    
+    Returns
+    -------
+    voxel_dictionary : a dictionary of voxels
+        a dictionary with key (i,j,k) for each voxel and the value as the index of the point
+    """
+    if type(xyzs) != np.ndarray:
+        xyzs = np.array(xyzs)
+        
+    xyzs_t = xyzs.T
+    x = xyzs_t[0]
+    y = xyzs_t[1]
+    z = xyzs_t[2]
+    
+    mnx = np.amin(x)
+    mny = np.amin(y)
+    mnz = np.amin(z)
+    
+    i = np.fix((x - mnx)/xdim)
+    j = np.fix((y - mny)/ydim)
+    k = np.fix((z - mnz)/zdim)
+    ijks = np.stack((i,j,k), axis=-1)
+    voxs = {}
+    for cnt,ijk in enumerate(ijks):
+        ijk = ijk.tolist()
+        ijk = list(map(int,ijk))
+        ijk = tuple(ijk)
+        if ijk in voxs:
+            voxs[ijk]['idx'].append(cnt)
+        else:
+            mpx = ijk[0] * xdim + (xdim/2) + mnx
+            mpy = ijk[1] * ydim + (ydim/2) + mny
+            mpz = ijk[2] * zdim + (zdim/2) + mnz
+            voxs[ijk] = {'idx':[cnt], 'midpt':[mpx,mpy,mpz]}
+            
+    return voxs
+
 def trsf_cs(cs1, cs2, topo):
     pass

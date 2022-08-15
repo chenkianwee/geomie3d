@@ -20,6 +20,7 @@
 # ==================================================================================================
 import os
 import sys
+import colorsys
 
 import numpy as np
 
@@ -27,7 +28,6 @@ import pyqtgraph as pg
 from pyqtgraph.parametertree import Parameter, ParameterTree
 from pyqtgraph.Qt import QtGui, QtCore
 import pyqtgraph.opengl as gl
-import colorsys
 
 from . import modify
 from . import get
@@ -133,6 +133,81 @@ class Ray(object):
         update_att = old_att.copy()
         update_att.update(new_attributes)
         self.attributes = update_att 
+
+class Bbox(object):
+    """
+    A bounding box object
+    
+    Parameters
+    ----------
+    bbox_arr : tuple
+        Array specifying [minx,miny,minz,maxx,maxy,maxz].
+        
+    attributes : dictionary, optional
+        dictionary of the attributes.
+        
+    Attributes
+    ----------    
+    minx : float
+        The min x.
+    
+    miny : float
+        The min y.
+        
+    minz : float
+        The min z.
+        
+    maxx : float
+        The max x.
+        
+    maxy : float
+        The max y.
+        
+    maxz : float
+        The max z.
+        
+    attributes : dictionary
+        dictionary of the attributes
+        
+    """
+    def __init__(self, bbox_arr, attributes = {}):
+        """Initialises the class"""
+        if type(bbox_arr) != np.ndarray:
+            bbox_arr = np.array(bbox_arr)
+        
+        self.bbox_arr = bbox_arr
+        self.minx = bbox_arr[0]
+        self.miny = bbox_arr[1]
+        self.minz = bbox_arr[2]
+        self.maxx = bbox_arr[3]
+        self.maxy = bbox_arr[4]
+        self.maxz = bbox_arr[5]
+        self.attributes = attributes
+    
+    def overwrite_attributes(self, new_attributes):
+        """
+        This function overwrites the attribute dictionary with the new dictionary.
+     
+        Parameters
+        ----------
+        new_attributes : dictionary
+            The dictionary of attributes appended to the object.
+        """
+        self.attributes = new_attributes
+        
+    def update_attributes(self, new_attributes):
+        """
+        This function overwrites the attribute dictionary with the new dictionary.
+     
+        Parameters
+        ----------
+        new_attributes : dictionary
+            The dictionary of attributes appended to the object.
+        """
+        old_att = self.attributes
+        update_att = old_att.copy()
+        update_att.update(new_attributes)
+        self.attributes = update_att
 
 class FalsecolourView(QtGui.QWidget):
     def __init__(self):
@@ -321,6 +396,8 @@ def convert_topo_dictionary_list4viz(topo_dictionary_list, view3d):
         topo_list: the topos to visualise
         colour:  keywords (RED,ORANGE,YELLOW,GREEN,BLUE,BLACK,WHITE) or rgb tuple to specify the colours
         draw_edges: bool whether to draw the edges of mesh, default is True
+        point_size: size of the point
+        px_mode: True or False, if true the size of the point is in pixel if not its in meters
         att: name of the att to visualise with the topologies
         
     view3d : pyqtgraph 3d view widget
@@ -353,6 +430,14 @@ def convert_topo_dictionary_list4viz(topo_dictionary_list, view3d):
         if 'draw_edges' in d.keys():
             draw_edges = d['draw_edges']
         
+        pt_size = 10
+        if 'point_size' in d.keys():
+            pt_size = d['point_size']
+            
+        px_mode = True
+        if 'px_mode' in d.keys():
+            px_mode = d['px_mode']
+        
         topo_list = d['topo_list']
         cmp = create.composite(topo_list)
         sorted_d = get.unpack_composite(cmp)
@@ -362,7 +447,7 @@ def convert_topo_dictionary_list4viz(topo_dictionary_list, view3d):
         vertices = sorted_d['vertex']
         if len(vertices) > 0:
             points_vertices = np.array([v.point.xyz for v in vertices])
-            viz_pts = make_points(points_vertices, rgb, 10, pxMode = True)
+            viz_pts = make_points(points_vertices, rgb, pt_size, pxMode = px_mode)
             view3d.addItem(viz_pts)
             
         #=================================================================================
@@ -423,6 +508,61 @@ def convert_topo_dictionary_list4viz(topo_dictionary_list, view3d):
     
     return bbox_list
 
+def viz_voxel(voxels, other_topo_dlist = []):
+    """
+    This function visualises voxels as glVolume object in Pyqggraph.
+ 
+    Parameters
+    ----------
+    voxel : dictionary
+        Dictionary specifying the voxel grid.{(i,j,k):{}}
+    
+    other_topo_dlist : a list of dictionary, optional
+        A list of dictionary specifying the visualisation parameters.
+        topo_list: the topos to visualise
+        colour:  keywords (RED,ORANGE,YELLOW,GREEN,BLUE,BLACK,WHITE) or rgb tuple to specify the colours
+        draw_edges: bool whether to draw the edges of mesh, default is True
+        point_size: size of the point
+        px_mode: True or False, if true the size of the point is in pixel if not its in meters
+        att: name of the att to visualise with the topologies
+    
+    """
+    #TODO: finish the function to viz volumetric objects
+    import PyQt5
+    os.environ['PYQTGRAPH_QT_LIB'] = "PyQt5"
+    # Create a GL View widget to display data
+    QtGui.QApplication([])
+    w = gl.GLViewWidget()
+    data = [[[[0,0,0,1], [0,0,0,1]],
+             [[0,0,0,1], [0,0,0,1]]],
+            [[[255,0,0,0], [0,255,0,0]],
+             [[255,0,0,0], [0,255,0,0]]],
+            [[[255,0,0,0], [0,255,0,0]],
+             [[255,0,0,0], [0,255,0,0]]],
+            [[[255,0,0,0], [0,255,0,0]],
+             [[255,0,0,0], [0,255,0,0]]],
+            [[[255,0,0,0], [0,255,0,0]],
+             [[255,0,0,0], [0,255,0,0]]]]
+    
+    data = np.array(data)
+    print(data.shape)
+    vol = gl.GLVolumeItem(data, sliceDensity=1, glOptions='opaque')
+    
+    w.addItem(gl.GLAxisItem())
+    w.addItem(vol)
+    # overall_bbox = calculate.bbox_frm_bboxes(bbox_list)
+    # midpt = calculate.bbox_centre(overall_bbox)
+    # w.opts['center'] = PyQt5.QtGui.QVector3D(midpt[0], midpt[1], midpt[2])
+    
+    # lwr_left = [overall_bbox.minx, overall_bbox.miny, overall_bbox.minz]
+    # upr_right =  [overall_bbox.maxx, overall_bbox.maxy, overall_bbox.maxz]
+    # dist = calculate.dist_btw_xyzs(lwr_left, upr_right)
+    # w.opts['distance'] = dist*1.5
+    
+    w.show()
+    w.setWindowTitle('Geomie3D viz voxel')
+    QtGui.QApplication.instance().exec_()
+
 def viz_falsecolour(topo_list, results, false_min_max_val = None, other_topo_dlist = []):
     """
     This function visualises the topologies in falsecolour.
@@ -443,6 +583,8 @@ def viz_falsecolour(topo_list, results, false_min_max_val = None, other_topo_dli
         topo_list: the topos to visualise
         colour:  keywords (RED,ORANGE,YELLOW,GREEN,BLUE,BLACK,WHITE) or rgb tuple to specify the colours
         draw_edges: bool whether to draw the edges of mesh, default is True
+        point_size: size of the point
+        px_mode: True or False, if true the size of the point is in pixel if not its in meters
         att: name of the att to visualise with the topologies
     
     """
@@ -575,8 +717,8 @@ def viz_falsecolour(topo_list, results, false_min_max_val = None, other_topo_dli
     midpt = calculate.bbox_centre(bbox)
     win.view3d.opts['center'] = PyQt5.QtGui.QVector3D(midpt[0], midpt[1], midpt[2])
     
-    lwr_left = [bbox[0], bbox[1], bbox[2]]
-    upr_right =  [bbox[3], bbox[4], bbox[5]]
+    lwr_left = [bbox.minx, bbox.miny, bbox.minz]
+    upr_right =  [bbox.maxx, bbox.maxy, bbox.maxz]
     dist = calculate.dist_btw_xyzs(lwr_left, upr_right)
     win.view3d.opts['distance'] = dist*1.5
     if len(other_topo_dlist) != 0:
@@ -598,6 +740,8 @@ def viz(topo_dictionary_list):
         topo_list: the topos to visualise
         colour:  keywords (RED,ORANGE,YELLOW,GREEN,BLUE,BLACK,WHITE) or rgb tuple to specify the colours
         draw_edges: bool whether to draw the edges of mesh, default is True
+        point_size: size of the point
+        px_mode: True or False, if true the size of the point is in pixel if not its in meters
         att: name of the att to visualise with the topologies
     """
     import PyQt5
@@ -613,11 +757,11 @@ def viz(topo_dictionary_list):
     midpt = calculate.bbox_centre(overall_bbox)
     w.opts['center'] = PyQt5.QtGui.QVector3D(midpt[0], midpt[1], midpt[2])
     
-    lwr_left = [overall_bbox[0], overall_bbox[1], overall_bbox[2]]
-    upr_right =  [overall_bbox[3], overall_bbox[4], overall_bbox[5]]
+    lwr_left = [overall_bbox.minx, overall_bbox.miny, overall_bbox.minz]
+    upr_right =  [overall_bbox.maxx, overall_bbox.maxy, overall_bbox.maxz]
     dist = calculate.dist_btw_xyzs(lwr_left, upr_right)
     w.opts['distance'] = dist*1.5
-    
+    w.setBackgroundColor('w')
     w.show()
     w.setWindowTitle('Geomie3D viz')
     QtGui.QApplication.instance().exec_()
@@ -835,3 +979,114 @@ def rgb2val(rgb, minval, maxval):
     orig_val_part2 = maxval-minval
     orig_val = (orig_val_part1*orig_val_part2)+minval
     return orig_val
+
+def write2ply(topo_list, ply_path, square_face = False):
+    """
+    Writes the topologies to a ply file. only works for points and face
+ 
+    Parameters
+    ----------
+    topo_list : list of topo objects
+        Topos to be written to ply.
+        
+    ply_path : str
+        Path to write to.
+        
+    square_face : bool, optional
+        If you know all the faces have 4 vertices and you want to preserve that turn this to True.
+        
+    """
+    header = ['ply\n', 'format ascii 1.0\n', 'element vertex', 
+              'property float32 x\n', 'property float32 y\n', 
+              'property float32 z\n', 'element face',
+              'property list uint8 int32 vertex_index\n', 'end_header\n']
+    
+    cmp = create.composite(topo_list)
+    sorted_d = get.unpack_composite(cmp)    
+    #=================================================================================
+    #get all the topology that can viz as lines
+    #=================================================================================
+    # all_edges = []
+    # edges = sorted_d['edge']
+    # if len(edges) > 0:
+    #     all_edges = edges
+    
+    # wires = sorted_d['wire']
+    # if len(wires) > 0:
+    #     wires2edges = np.array([get.edges_frm_wire(wire) for wire in wires])
+    #     wires2edges = wires2edges.flatten()
+    #     all_edges = np.append(all_edges, wires2edges )
+    
+    # if len(all_edges) > 0:
+    #     line_vertices = modify.edges2lines(all_edges)
+    #     viz_lines = make_line(line_vertices, line_colour = rgb)
+    #     view3d.addItem(viz_lines)  
+        
+    #=================================================================================
+    #get all the topology that can be viz as mesh
+    #=================================================================================
+    all_faces = []
+    faces = sorted_d['face']
+    if len(faces) > 0:
+        all_faces = faces
+    
+    shells = sorted_d['shell']
+    if len(shells) > 0:
+        shells2faces = np.array([get.faces_frm_shell(shell) for shell in shells])
+        shells2faces = shells2faces.flatten()
+        all_faces = np.append(all_faces, shells2faces)
+    
+    solids = sorted_d['solid']
+    if len(solids) > 0:
+        solids2faces = np.array([get.faces_frm_solid(solid) for solid in solids])
+        solids2faces = solids2faces.flatten()
+        all_faces = np.append(all_faces, solids2faces)
+    
+    nverts = 0
+    verts = []
+    idxs = []
+    #if there are faces to be viz
+    if len(all_faces) > 0:
+        if square_face == True:
+            f_v = []
+            for f in all_faces:
+                f_v.extend(get.vertices_frm_face(f).tolist())
+
+            verts = [v.point.xyz.tolist() for v in f_v]
+            idxs = np.arange(len(verts))
+            idxs = np.reshape(idxs, [len(all_faces), 4])
+        else:
+            mesh_dict = modify.faces2mesh(all_faces)
+            verts = mesh_dict['vertices']
+            idxs = mesh_dict['indices']
+            #flip the vertices to be clockwise
+            idxs = np.flip(idxs, axis=1)
+            
+    #=================================================================================
+    #get all the topology that can viz as points
+    #=================================================================================
+    vertices = sorted_d['vertex']
+    if len(vertices) > 0:
+        points_vertices = [v.point.xyz.tolist() for v in vertices]
+        verts.extend(points_vertices)
+        
+    nverts = len(verts)
+    header[2] = 'element vertex ' + str(nverts) + '\n'
+    nfaces = len(idxs)
+    header[6] = 'element face ' + str(nfaces) + '\n'
+
+    for xyz in verts:
+        v_str = str(xyz[0]) + ' ' + str(xyz[1]) + ' ' + str(xyz[2]) + '\n'
+        header.append(v_str)
+    if square_face == True:
+        for idx in idxs:
+            i_str = '4 ' + str(idx[0]) + ' ' + str(idx[1]) + ' ' + str(idx[2]) + ' ' + str(idx[3]) + '\n'
+            header.append(i_str)
+    else:
+        for idx in idxs:
+            i_str = '3 ' + str(idx[0]) + ' ' + str(idx[1]) + ' ' + str(idx[2]) + '\n'
+            header.append(i_str)
+        
+    f = open(ply_path, "w")
+    f.writelines(header)
+    f.close()
