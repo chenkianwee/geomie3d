@@ -24,11 +24,6 @@ import colorsys
 
 import numpy as np
 
-import pyqtgraph as pg
-from pyqtgraph.parametertree import Parameter, ParameterTree
-from pyqtgraph.Qt import QtGui, QtCore
-import pyqtgraph.opengl as gl
-
 from . import modify
 from . import get
 from . import create
@@ -209,90 +204,6 @@ class Bbox(object):
         update_att.update(new_attributes)
         self.attributes = update_att
 
-class FalsecolourView(QtGui.QWidget):
-    def __init__(self):
-        QtGui.QWidget.__init__(self)
-        self.setupGUI()
-        
-    def setupGUI(self):
-        self.layout = QtGui.QVBoxLayout()
-        self.layout.setContentsMargins(0,0,0,0)
-        self.setLayout(self.layout)
-        #create the right panel
-        self.splitter = QtGui.QSplitter()
-        self.splitter.setOrientation(QtCore.Qt.Horizontal)
-        #create the parameter tree for housing the parameters
-        self.tree = ParameterTree(showHeader=False)
-        self.splitter.addWidget(self.tree)
-        # self.splitter.setStretchFactor(0,3)
-        #put the splitter 2 into the layout
-        self.layout.addWidget(self.splitter)
-        
-        self.view3d = gl.GLViewWidget()
-        #self.view3d.opts['distance'] = 10000
-        self.splitter.addWidget(self.view3d)
-    
-    def insert_fcolour(self, fmin_val, fmax_val, results):
-        self.min_val = min(results)
-        self.max_val = max(results)
-        falsecolour, int_ls, clr_ls = self.gen_falsecolour_bar(fmin_val, fmax_val)
-        self.falsecolour = falsecolour
-        
-        self.min_max = dict(name='Min Max', type='group', expanded = True, title = "Min Max Value",
-                            children=[dict(name='Min Value', type = 'float', title = "Min Value", value = self.min_val, readonly = True),
-                                      dict(name='Max Value', type = 'float', title = "Max Value", value = self.max_val, readonly = True)]
-                            )
-        self.params = Parameter.create(name = "Parmx", type = "group", children = [self.falsecolour,
-                                                                                     self.min_max])
-        
-        self.tree.setParameters(self.params, showTop=False)
-        return int_ls, clr_ls
-    
-    def gen_falsecolour_bar(self, min_val, max_val):
-        interval = 10.0
-        inc1 = (max_val-min_val)/(interval)
-        inc2 = inc1/2.0    
-        float_list = list(np.arange(min_val+inc2, max_val, inc1))
-        bcolour = calc_falsecolour(float_list, min_val, max_val)
-        new_c_list = []
-        for c in bcolour:
-            new_c = [c[0]*255, c[1]*255, c[2]*255]
-            new_c_list.append(new_c)
-            
-        rangex = max_val-min_val
-        intervals = rangex/10.0
-        intervals_half = intervals/2.0
-        interval_ls = []
-        str_list = []
-        fcnt = 0
-        for f in float_list:
-            mi = round(f - intervals_half, 2)
-            ma = round(f + intervals_half, 2)
-            if fcnt == 0:
-                strx = "<" + str(ma)
-            elif fcnt == 9:
-                strx = ">" + str(mi)
-            else:
-                strx = str(mi) + " - " + str(ma)
-                
-            str_list.append(strx)
-            interval_ls.append([mi,ma])
-            fcnt+=1
-            
-        falsecolourd = dict(name='Falsecolour', type='group', expanded = True, title = "Colour Legend",
-                                children =  [dict(name = str_list[9], type = 'color', value = new_c_list[9], readonly = True),
-                                             dict(name = str_list[8], type = 'color', value = new_c_list[8], readonly = True),
-                                             dict(name = str_list[7], type = 'color', value = new_c_list[7], readonly = True),
-                                             dict(name = str_list[6], type = 'color', value = new_c_list[6], readonly = True),
-                                             dict(name = str_list[5], type = 'color', value = new_c_list[5], readonly = True),
-                                             dict(name = str_list[4], type = 'color', value = new_c_list[4], readonly = True),
-                                             dict(name = str_list[3], type = 'color', value = new_c_list[3], readonly = True),
-                                             dict(name = str_list[2], type = 'color', value = new_c_list[2], readonly = True),
-                                             dict(name = str_list[1], type = 'color', value = new_c_list[1], readonly = True),
-                                             dict(name = str_list[0], type = 'color', value = new_c_list[0], readonly = True)]
-                            )
-        return falsecolourd, interval_ls, bcolour
-    
 def id_dup_indices_1dlist(lst):
     """
     This function returns numpy array of the indices of the repeating elements in a list.
@@ -508,61 +419,6 @@ def convert_topo_dictionary_list4viz(topo_dictionary_list, view3d):
     
     return bbox_list
 
-def viz_voxel(voxels, other_topo_dlist = []):
-    """
-    This function visualises voxels as glVolume object in Pyqggraph.
- 
-    Parameters
-    ----------
-    voxel : dictionary
-        Dictionary specifying the voxel grid.{(i,j,k):{}}
-    
-    other_topo_dlist : a list of dictionary, optional
-        A list of dictionary specifying the visualisation parameters.
-        topo_list: the topos to visualise
-        colour:  keywords (RED,ORANGE,YELLOW,GREEN,BLUE,BLACK,WHITE) or rgb tuple to specify the colours
-        draw_edges: bool whether to draw the edges of mesh, default is True
-        point_size: size of the point
-        px_mode: True or False, if true the size of the point is in pixel if not its in meters
-        att: name of the att to visualise with the topologies
-    
-    """
-    #TODO: finish the function to viz volumetric objects
-    import PyQt5
-    os.environ['PYQTGRAPH_QT_LIB'] = "PyQt5"
-    # Create a GL View widget to display data
-    QtGui.QApplication([])
-    w = gl.GLViewWidget()
-    data = [[[[0,0,0,1], [0,0,0,1]],
-             [[0,0,0,1], [0,0,0,1]]],
-            [[[255,0,0,0], [0,255,0,0]],
-             [[255,0,0,0], [0,255,0,0]]],
-            [[[255,0,0,0], [0,255,0,0]],
-             [[255,0,0,0], [0,255,0,0]]],
-            [[[255,0,0,0], [0,255,0,0]],
-             [[255,0,0,0], [0,255,0,0]]],
-            [[[255,0,0,0], [0,255,0,0]],
-             [[255,0,0,0], [0,255,0,0]]]]
-    
-    data = np.array(data)
-    print(data.shape)
-    vol = gl.GLVolumeItem(data, sliceDensity=1, glOptions='opaque')
-    
-    w.addItem(gl.GLAxisItem())
-    w.addItem(vol)
-    # overall_bbox = calculate.bbox_frm_bboxes(bbox_list)
-    # midpt = calculate.bbox_centre(overall_bbox)
-    # w.opts['center'] = PyQt5.QtGui.QVector3D(midpt[0], midpt[1], midpt[2])
-    
-    # lwr_left = [overall_bbox.minx, overall_bbox.miny, overall_bbox.minz]
-    # upr_right =  [overall_bbox.maxx, overall_bbox.maxy, overall_bbox.maxz]
-    # dist = calculate.dist_btw_xyzs(lwr_left, upr_right)
-    # w.opts['distance'] = dist*1.5
-    
-    w.show()
-    w.setWindowTitle('Geomie3D viz voxel')
-    QtGui.QApplication.instance().exec_()
-
 def viz_falsecolour(topo_list, results, false_min_max_val = None, other_topo_dlist = []):
     """
     This function visualises the topologies in falsecolour.
@@ -588,6 +444,11 @@ def viz_falsecolour(topo_list, results, false_min_max_val = None, other_topo_dli
         att: name of the att to visualise with the topologies
     
     """
+    import pyqtgraph as pg
+    from pyqtgraph.parametertree import Parameter, ParameterTree
+    from pyqtgraph.Qt import QtCore, QtWidgets, QtGui
+    import pyqtgraph.opengl as gl
+    
     def sort_topos(topo, topo_type, icnt, topo_int_ls):
         if topo_type == topobj.TopoType.VERTEX:
             pnt = topo.point.xyz
@@ -649,9 +510,94 @@ def viz_falsecolour(topo_list, results, false_min_max_val = None, other_topo_dli
             topo_int_ls[-1].append([])
             topo_int_ls[-1].append([])
         return topo_int_ls
+    
+    class FalsecolourView(QtWidgets.QWidget):
+        def __init__(self):
+            QtWidgets.QWidget.__init__(self)
+            self.setupGUI()
+            
+        def setupGUI(self):
+            self.layout = QtWidgets.QVBoxLayout()
+            self.layout.setContentsMargins(0,0,0,0)
+            self.setLayout(self.layout)
+            #create the right panel
+            self.splitter = QtWidgets.QSplitter()
+            self.splitter.setOrientation(QtCore.Qt.Orientation.Horizontal)
+            #create the parameter tree for housing the parameters
+            self.tree = ParameterTree(showHeader=False)
+            self.splitter.addWidget(self.tree)
+            # self.splitter.setStretchFactor(0,3)
+            #put the splitter 2 into the layout
+            self.layout.addWidget(self.splitter)
+            
+            self.view3d = gl.GLViewWidget()
+            #self.view3d.opts['distance'] = 10000
+            self.splitter.addWidget(self.view3d)
+        
+        def insert_fcolour(self, fmin_val, fmax_val, results):
+            self.min_val = min(results)
+            self.max_val = max(results)
+            falsecolour, int_ls, clr_ls = self.gen_falsecolour_bar(fmin_val, fmax_val)
+            self.falsecolour = falsecolour
+            
+            self.min_max = dict(name='Min Max', type='group', expanded = True, title = "Min Max Value",
+                                children=[dict(name='Min Value', type = 'float', title = "Min Value", value = self.min_val, readonly = True),
+                                          dict(name='Max Value', type = 'float', title = "Max Value", value = self.max_val, readonly = True)]
+                                )
+            self.params = Parameter.create(name = "Parmx", type = "group", children = [self.falsecolour,
+                                                                                         self.min_max])
+            
+            self.tree.setParameters(self.params, showTop=False)
+            return int_ls, clr_ls
+        
+        def gen_falsecolour_bar(self, min_val, max_val):
+            interval = 10.0
+            inc1 = (max_val-min_val)/(interval)
+            inc2 = inc1/2.0    
+            float_list = list(np.arange(min_val+inc2, max_val, inc1))
+            bcolour = calc_falsecolour(float_list, min_val, max_val)
+            new_c_list = []
+            for c in bcolour:
+                new_c = [c[0]*255, c[1]*255, c[2]*255]
+                new_c_list.append(new_c)
+                
+            rangex = max_val-min_val
+            intervals = rangex/10.0
+            intervals_half = intervals/2.0
+            interval_ls = []
+            str_list = []
+            fcnt = 0
+            for f in float_list:
+                mi = round(f - intervals_half, 2)
+                ma = round(f + intervals_half, 2)
+                if fcnt == 0:
+                    strx = "<" + str(ma)
+                elif fcnt == 9:
+                    strx = ">" + str(mi)
+                else:
+                    strx = str(mi) + " - " + str(ma)
+                    
+                str_list.append(strx)
+                interval_ls.append([mi,ma])
+                fcnt+=1
+                
+            falsecolourd = dict(name='Falsecolour', type='group', expanded = True, title = "Colour Legend",
+                                    children =  [dict(name = str_list[9], type = 'color', value = new_c_list[9], readonly = True),
+                                                 dict(name = str_list[8], type = 'color', value = new_c_list[8], readonly = True),
+                                                 dict(name = str_list[7], type = 'color', value = new_c_list[7], readonly = True),
+                                                 dict(name = str_list[6], type = 'color', value = new_c_list[6], readonly = True),
+                                                 dict(name = str_list[5], type = 'color', value = new_c_list[5], readonly = True),
+                                                 dict(name = str_list[4], type = 'color', value = new_c_list[4], readonly = True),
+                                                 dict(name = str_list[3], type = 'color', value = new_c_list[3], readonly = True),
+                                                 dict(name = str_list[2], type = 'color', value = new_c_list[2], readonly = True),
+                                                 dict(name = str_list[1], type = 'color', value = new_c_list[1], readonly = True),
+                                                 dict(name = str_list[0], type = 'color', value = new_c_list[0], readonly = True)]
+                                )
+            return falsecolourd, interval_ls, bcolour
     #========================================================================
-    import PyQt5
-    os.environ['PYQTGRAPH_QT_LIB'] = "PyQt5"
+    # import PyQt6
+    os.environ['PYQTGRAPH_QT_LIB'] = "PyQt6"
+    QtCore.QCoreApplication.setAttribute(QtCore.Qt.ApplicationAttribute.AA_ShareOpenGLContexts)
     pg.mkQApp()
     win = FalsecolourView()
     win.setWindowTitle("FalseColourView")
@@ -715,7 +661,7 @@ def viz_falsecolour(topo_list, results, false_min_max_val = None, other_topo_dli
     cmp = create.composite(topo_list)
     bbox = calculate.bbox_frm_topo(cmp)
     midpt = calculate.bbox_centre(bbox)
-    win.view3d.opts['center'] = PyQt5.QtGui.QVector3D(midpt[0], midpt[1], midpt[2])
+    win.view3d.opts['center'] = QtGui.QVector3D(midpt[0], midpt[1], midpt[2])
     
     lwr_left = [bbox.minx, bbox.miny, bbox.minz]
     upr_right =  [bbox.maxx, bbox.maxy, bbox.maxz]
@@ -727,7 +673,7 @@ def viz_falsecolour(topo_list, results, false_min_max_val = None, other_topo_dli
     win.show()
     win.resize(1100,700)
     if (sys.flags.interactive != 1) or not hasattr(QtCore, 'PYQT_VERSION'):
-        QtGui.QApplication.instance().exec_()
+        pg.exec()
         
 def viz(topo_dictionary_list):
     """
@@ -744,28 +690,92 @@ def viz(topo_dictionary_list):
         px_mode: True or False, if true the size of the point is in pixel if not its in meters
         att: name of the att to visualise with the topologies
     """
-    import PyQt5
-    os.environ['PYQTGRAPH_QT_LIB'] = "PyQt5"
+    import pyqtgraph as pg
+    import pyqtgraph.opengl as gl
+    from pyqtgraph.Qt import QtCore, QtGui
+    # import PyQt6
+    os.environ['PYQTGRAPH_QT_LIB'] = "PyQt6"
     # Create a GL View widget to display data
-    QtGui.QApplication([])
+    QtCore.QCoreApplication.setAttribute(QtCore.Qt.ApplicationAttribute.AA_ShareOpenGLContexts)
+    pg.mkQApp('')
     w = gl.GLViewWidget()
-    
+    w.clear()
     bbox_list = convert_topo_dictionary_list4viz(topo_dictionary_list, w)
     
     w.addItem(gl.GLAxisItem())
     overall_bbox = calculate.bbox_frm_bboxes(bbox_list)
     midpt = calculate.bbox_centre(overall_bbox)
-    w.opts['center'] = PyQt5.QtGui.QVector3D(midpt[0], midpt[1], midpt[2])
+    w.opts['center'] = QtGui.QVector3D(midpt[0], midpt[1], midpt[2])
     
     lwr_left = [overall_bbox.minx, overall_bbox.miny, overall_bbox.minz]
     upr_right =  [overall_bbox.maxx, overall_bbox.maxy, overall_bbox.maxz]
     dist = calculate.dist_btw_xyzs(lwr_left, upr_right)
     w.opts['distance'] = dist*1.5
-    w.setBackgroundColor('w')
+    # w.setBackgroundColor('w')
     w.show()
     w.setWindowTitle('Geomie3D viz')
-    QtGui.QApplication.instance().exec_()
-        
+    pg.exec()
+
+def viz_voxel(voxels, other_topo_dlist = []):
+    """
+    This function visualises voxels as glVolume object in Pyqggraph.
+ 
+    Parameters
+    ----------
+    voxel : dictionary
+        Dictionary specifying the voxel grid.{(i,j,k):{}}
+    
+    other_topo_dlist : a list of dictionary, optional
+        A list of dictionary specifying the visualisation parameters.
+        topo_list: the topos to visualise
+        colour:  keywords (RED,ORANGE,YELLOW,GREEN,BLUE,BLACK,WHITE) or rgb tuple to specify the colours
+        draw_edges: bool whether to draw the edges of mesh, default is True
+        point_size: size of the point
+        px_mode: True or False, if true the size of the point is in pixel if not its in meters
+        att: name of the att to visualise with the topologies
+    
+    """
+    #TODO: finish the function to viz volumetric objects
+    import pyqtgraph as pg
+    from pyqtgraph.Qt import QtCore
+    import pyqtgraph.opengl as gl
+    
+    # Create a GL View widget to display data
+    os.environ['PYQTGRAPH_QT_LIB'] = "PyQt6"
+    # Create a GL View widget to display data
+    QtCore.QCoreApplication.setAttribute(QtCore.Qt.ApplicationAttribute.AA_ShareOpenGLContexts)
+    pg.mkQApp('')
+    w = gl.GLViewWidget()
+    data = [[[[0,0,0,1], [0,0,0,1]],
+             [[0,0,0,1], [0,0,0,1]]],
+            [[[255,0,0,0], [0,255,0,0]],
+             [[255,0,0,0], [0,255,0,0]]],
+            [[[255,0,0,0], [0,255,0,0]],
+             [[255,0,0,0], [0,255,0,0]]],
+            [[[255,0,0,0], [0,255,0,0]],
+             [[255,0,0,0], [0,255,0,0]]],
+            [[[255,0,0,0], [0,255,0,0]],
+             [[255,0,0,0], [0,255,0,0]]]]
+    
+    data = np.array(data)
+    print(data.shape)
+    vol = gl.GLVolumeItem(data, sliceDensity=1, glOptions='opaque')
+    
+    w.addItem(gl.GLAxisItem())
+    w.addItem(vol)
+    # overall_bbox = calculate.bbox_frm_bboxes(bbox_list)
+    # midpt = calculate.bbox_centre(overall_bbox)
+    # w.opts['center'] = QtGui.QVector3D(midpt[0], midpt[1], midpt[2])
+    
+    # lwr_left = [overall_bbox.minx, overall_bbox.miny, overall_bbox.minz]
+    # upr_right =  [overall_bbox.maxx, overall_bbox.maxy, overall_bbox.maxz]
+    # dist = calculate.dist_btw_xyzs(lwr_left, upr_right)
+    # w.opts['distance'] = dist*1.5
+    
+    w.show()
+    w.setWindowTitle('Geomie3D viz voxel')
+    pg.exec()
+    
 def make_mesh(xyzs, indices, face_colours = [], shader = "shaded", 
               gloptions = "opaque", draw_edges = False, 
               edge_colours = [0,0,0,1]):
@@ -803,6 +813,9 @@ def make_mesh(xyzs, indices, face_colours = [], shader = "shaded",
     mesh : mesh object
         mesh for visualisation.
     """
+
+    import pyqtgraph.opengl as gl
+    
     if face_colours == []:
         mesh = gl.GLMeshItem(vertexes = xyzs, faces = indices, 
                              faceColors = None,
@@ -849,6 +862,8 @@ def make_line(xyzs, line_colour = (0,0,0,1), width = 1, antialias=True, mode="li
     line : line object
         line for visualisation.
     """
+
+    import pyqtgraph.opengl as gl
     line = gl.GLLinePlotItem(pos=xyzs, color= line_colour, width=width, antialias=antialias, mode = mode)
     return line
 
@@ -875,6 +890,7 @@ def make_points(xyzs, point_colours, sizes, pxMode = True):
     points : point object
         point for visualisation.
     """
+    import pyqtgraph.opengl as gl
     points = gl.GLScatterPlotItem(pos=xyzs, color=point_colours, size=sizes, pxMode = pxMode)
     return points
 
@@ -1002,26 +1018,7 @@ def write2ply(topo_list, ply_path, square_face = False):
               'property list uint8 int32 vertex_index\n', 'end_header\n']
     
     cmp = create.composite(topo_list)
-    sorted_d = get.unpack_composite(cmp)    
-    #=================================================================================
-    #get all the topology that can viz as lines
-    #=================================================================================
-    # all_edges = []
-    # edges = sorted_d['edge']
-    # if len(edges) > 0:
-    #     all_edges = edges
-    
-    # wires = sorted_d['wire']
-    # if len(wires) > 0:
-    #     wires2edges = np.array([get.edges_frm_wire(wire) for wire in wires])
-    #     wires2edges = wires2edges.flatten()
-    #     all_edges = np.append(all_edges, wires2edges )
-    
-    # if len(all_edges) > 0:
-    #     line_vertices = modify.edges2lines(all_edges)
-    #     viz_lines = make_line(line_vertices, line_colour = rgb)
-    #     view3d.addItem(viz_lines)  
-        
+    sorted_d = get.unpack_composite(cmp)
     #=================================================================================
     #get all the topology that can be viz as mesh
     #=================================================================================
@@ -1090,3 +1087,31 @@ def write2ply(topo_list, ply_path, square_face = False):
     f = open(ply_path, "w")
     f.writelines(header)
     f.close()
+    
+def write2pts(vertex_list, pts_path):
+    """
+    Writes the vetices to a pts file. only works for vertices.
+ 
+    Parameters
+    ----------
+    vertex_list : a list of vertex
+        A list of vertex topology. 
+        
+    pts_path : str
+        Path to write to.
+        
+    """
+    xyz_ls = []
+    for v in vertex_list:
+        xyz = v.point.xyz
+        normal = [0,0,0]
+        att = v.attributes
+        if 'normal' in att:
+            normal = att['normal']
+        v_str = str(xyz[0]) + ',' + str(xyz[1]) + ',' + str(xyz[2]) + ',' + str(normal[0]) + ',' + str(normal[1]) + ',' + str(normal[2]) + '\n'
+        xyz_ls.append(v_str)
+    
+    f = open(pts_path, "w")
+    f.writelines(xyz_ls)
+    f.close()
+    

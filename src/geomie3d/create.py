@@ -26,7 +26,7 @@ from . import utility
 
 from .geomdl import BSpline, utilities, construct
 
-def box(dimx, dimy, dimz, centre_pt = [0,0,1], attributes = {}):
+def box(dimx, dimy, dimz, centre_pt = [0,0,0], attributes = {}):
     """
     Constructs a box which is a solid topology where its bottom face midpt is at the origin (0,0,0).
  
@@ -121,6 +121,55 @@ def box(dimx, dimy, dimz, centre_pt = [0,0,1], attributes = {}):
     solid = topobj.Solid(shell)
     return solid
 
+def polygon_face_frm_midpt(centre_pt, dimx, dimy, attributes = {}):
+    """
+    Constructs a face from the midpt.
+ 
+    Parameters
+    ----------
+    centre_pt : tuple, optional
+        tuple with the xyz coordinates of the centre point of the box.
+        
+    dimx : float
+        length of face in the x-axis.
+    
+    dimy : float
+        length of face in the y-axis.
+        
+    attributes : dictionary, optional
+        dictionary of the attributes.
+ 
+    Returns
+    -------
+    face : face topology
+        A face of face topology
+    """
+    dimx_half = dimx/2
+    dimy_half = dimy/2
+    
+    mnx = centre_pt[0] - dimx_half
+    mny = centre_pt[1] - dimy_half
+    
+    mxx = centre_pt[0] + dimx_half
+    mxy = centre_pt[1] + dimy_half
+    
+    #bottom face
+    xyz_list1 = np.array([[mnx, mny, centre_pt[2]],
+                          [mnx, mxy, centre_pt[2]],
+                          [mxx, mxy, centre_pt[2]],
+                          [mxx, mny, centre_pt[2]]])
+    
+    xyz_list1 = np.array([[mxx, mny, centre_pt[2]],
+                          [mxx, mxy, centre_pt[2]],
+                          [mnx, mxy, centre_pt[2]],
+                          [mnx, mny, centre_pt[2]]
+                          ])
+    
+    vlist1 = vertex_list(xyz_list1)
+    face1 = polygon_face_frm_verts(vlist1)
+    
+    return face1
+
 def bbox(bbox_arr, attributes = {}):
     """
     Create a bounding box object
@@ -140,7 +189,45 @@ def bbox(bbox_arr, attributes = {}):
     """
     bbox = utility.Bbox(bbox_arr, attributes = attributes)
     return bbox
+
+def bbox_frm_midpt(midpt, xdim, ydim, zdim, attributes = {}):
+    """
+    Create a bounding box object with midpt and the x,y,z dimensions.
     
+    Parameters
+    ----------
+    midpt : tuple
+        xyz specifying the xyz position.
+        
+    xdim : float
+        the x dimension of the bounding box
+    
+    ydim : float
+        the y dimension of the bounding box
+    
+    zdim : float
+        the z dimension of the bounding box
+    
+    attributes : dictionary, optional
+        dictionary of the attributes.
+        
+    Returns
+    -------
+    bbox : bbox object
+        A bbox object
+    """
+    mnx = midpt[0] - (xdim/2)
+    mny = midpt[1] - (ydim/2)
+    mnz = midpt[2] - (zdim/2)
+    
+    mxx = midpt[0] + (xdim/2)
+    mxy = midpt[1] + (ydim/2)
+    mxz = midpt[2] + (zdim/2)
+    
+    bbox_arr = [mnx, mny, mnz, mxx, mxy, mxz]
+    bbox = utility.Bbox(bbox_arr, attributes = attributes)
+    return bbox
+
 def ray(xyz_orig, xyz_dir, attributes = {}):
     """
     This function constructs a ray object.
@@ -276,7 +363,7 @@ def polygon_face_frm_wires(bdry_wire, hole_wire_list = [], attributes = {}):
 def bspline_face_frm_ctrlpts(ctrlpts_xyz, knotvector_u, knotvector_v, deg_u, deg_v,
                              resolution = 0.06, attributes = {}):
     """
-    This function creates a bspline face with control points. Refer to for more help https://github.com/orbingol/geomdl-examples/blob/master/surface/ex_surface01.py
+    This function creates a bspline face with control points. For a surface on the xy-plane, arrange the points from top-down-left right for a +Z normal. Refer to for more help https://github.com/orbingol/geomdl-examples/blob/master/surface/ex_surface01.py
  
     Parameters
     ----------

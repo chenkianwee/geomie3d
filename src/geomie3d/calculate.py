@@ -840,8 +840,10 @@ def acct4obstruction(intPts, mags, rayIndxs, objIndxs):
     indx = np.arange(len(rayIndxs))
     dupIds = utility.id_dup_indices_1dlist(rayIndxs)
     dupIds_flat = list(chain(*dupIds))
+    # print(dupIds)
     non_obs_indx = utility.find_xs_not_in_ys(indx, dupIds_flat)
     for di in dupIds:
+        di.sort()
         mag = mags[di]
         index = np.where(mag == mag.min())[0]
         index = index.flatten()
@@ -1028,14 +1030,17 @@ def rays_xyz_bboxes_intersect(rays_xyz, bbox_list):
     nrays = len(rays_xyz)
     nbbox = len(bbox_list)
     bbox_arr_ls = np.array([bbox.bbox_arr for bbox in bbox_list])
+    bbox_arr_ls = np.around(bbox_arr_ls, decimals=precision)
     #sort the bbox to match the number of rays, each ray to all the bboxes
     bbox_tiled = np.tile(bbox_arr_ls, (nrays,1))
     bboxT = bbox_tiled.T
     #sort the rays to match the boxs 
     rays_repeat = np.repeat(rays_xyz, nbbox, axis=0)
     rays_stacked = np.stack(rays_repeat, axis=1)
-    rays_origs = rays_stacked[0]
-    rays_dirs = rays_stacked[1]
+    rays_origs = np.around(rays_stacked[0], decimals=precision)
+    rays_dirs = np.around(rays_stacked[1], decimals=precision)
+    # rays_origs = rays_stacked[0]
+    # rays_dirs = rays_stacked[1]
     rays_origsT = rays_origs.T
     rays_dirsT = rays_dirs.T
     rays_dirsT = np.where(rays_dirsT == 0, np.inf, rays_dirsT)
@@ -1061,16 +1066,18 @@ def rays_xyz_bboxes_intersect(rays_xyz, bbox_list):
     txmin = np.around(txmin, decimals=precision)
     txmax = np.around(txmax, decimals=precision)
     
-    txmin = np.where(txmin > txmax, txmax , txmin)
-    txmax = np.where(txmin > txmax, txmin , txmax)
-
+    txmin1 = txmin
+    txmax1 = txmax
+    txmin = np.where(txmin1 > txmax1, txmax1 , txmin1)
+    txmax = np.where(txmin1 > txmax1, txmin1 , txmax1)
+    
     rdirys = rays_dirsT[1]
     y0_true = np.where(rdirys == np.inf, True, False)
     tymin0 = bboxT[1] - rays_origsT[1] 
     tymin = tymin0 / rdirys
     tymax0 = bboxT[4] - rays_origsT[1]  
     tymax = tymax0 / rdirys
-    
+        
     tymin_neg = np.where(tymin0 < 0, True, False)
     tymax_neg = np.where(tymax0 < 0, True, False)
     
@@ -1083,11 +1090,13 @@ def rays_xyz_bboxes_intersect(rays_xyz, bbox_list):
     
     tymin = np.around(tymin, decimals=precision)
     tymax = np.around(tymax, decimals=precision)
-    
-    tymin = np.where(tymin > tymax, tymax , tymin)
-    tymax = np.where(tymin > tymax, tymin , tymax)
+    tymin1 = tymin
+    tymax1 = tymax
+    tymin = np.where(tymin1 > tymax1, tymax1, tymin1)
+    tymax = np.where(tymin1 > tymax1, tymin1, tymax1)
     #============================================
     #make the first judgement if there is any collisions
+    
     condxy = np.logical_or(txmin > tymax, tymin > txmax)
     condxy = np.logical_not(condxy)
     condxy_index = np.where(condxy)[0]
@@ -1097,8 +1106,11 @@ def rays_xyz_bboxes_intersect(rays_xyz, bbox_list):
     
     swapx_true1 = np.logical_and(condxy, tymin > txmin)
     swapx_true2 = np.logical_and(condxy, tymax < txmax)
-    txmin = np.where(swapx_true1, tymin , txmin)
-    txmax = np.where(swapx_true2, tymax , txmax)
+    txmin1 = txmin
+    txmax1 = txmax
+    txmin = np.where(swapx_true1, tymin , txmin1)
+    txmax = np.where(swapx_true2, tymax , txmax1)
+    
     #============================================
     # calcuate the z-dim
     rdirzs = rays_dirsT[2]
@@ -1120,8 +1132,10 @@ def rays_xyz_bboxes_intersect(rays_xyz, bbox_list):
     
     tzmin = np.around(tzmin, decimals=precision)
     tzmax = np.around(tzmax, decimals=precision)
-    tzmin = np.where(tzmin > tzmax, tzmax , tzmin)
-    tzmax = np.where(tzmin > tzmax, tzmin , tzmax)
+    tzmin1 = tzmin
+    tzmax1 = tzmax
+    tzmin = np.where(tzmin1 > tzmax1, tzmax1 , tzmin1)
+    tzmax = np.where(tzmin1 > tzmax1, tzmin1 , tzmax1)
     #============================================
     # make judgement on the zdim
     #make the first judgement if there is any collisions
@@ -1135,8 +1149,10 @@ def rays_xyz_bboxes_intersect(rays_xyz, bbox_list):
     
     swapz_true1 = np.logical_and(condxyz, tzmin > txmin)
     swapz_true2 = np.logical_and(condxyz, tzmax < txmax)
-    txmin = np.where(swapz_true1, tzmin , txmin)
-    txmax = np.where(swapz_true2, tzmax , txmax)
+    txmin1 = txmin
+    txmax1 = txmax
+    txmin = np.where(swapz_true1, tzmin , txmin1)
+    txmax = np.where(swapz_true2, tzmax , txmax1)
     
     tx_min_true = np.logical_not(txmin > 0)
     tx_min_true = np.logical_and(tx_min_true, condxyz)
@@ -1415,7 +1431,7 @@ def rays_bboxes_intersect(ray_list, bbox_list):
                 else:
                     rattribs = {'rays_bboxes_intersection':
                                     {'intersection': [intersect],
-                                      'hit_face': [bbox]}
+                                      'hit_bbox': [bbox]}
                                 }
                     bbox_ray.update_attributes(rattribs)
             elif nhits > 1:

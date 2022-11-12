@@ -52,5 +52,9 @@ examples/citygmlenv_examples/shapefile2daysim.py
 =======
 *.pyc
 
+#exclude build files 
+dist
+geomie3d.egg-info
+
 # exclude PyCharm files
 .idea/

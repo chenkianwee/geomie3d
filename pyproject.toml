@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "geomie3d"
+version = "0.0.2"
+authors = [
+  { name="Kian Wee CHEN", email="chenkianwee@gmail.com" },
+]
+description = 'Python library for processing 3d geometry'
+readme = "README.md"
+requires-python = "==3.11"
+classifiers = ["License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+               "Programming Language :: Python :: 3.11",
+               "Operating System :: OS Independent"]
+dependencies = ['numpy==1.23.4', 
+                'scipy==1.9.3', 
+                'sympy==1.11.1', 
+                'pyqtgraph==0.13.1', 
+                'PyOpenGL==3.1.6',
+                'PyQt6==6.4.0']
+
+[project.urls]
+"Homepage" = "https://github.com/chenkianwee/geomie3d"
+"Bug Tracker" = "https://github.com/pypa/sampleproject/issues"
