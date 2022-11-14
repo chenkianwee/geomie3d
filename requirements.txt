@@ -1,0 +1,6 @@
+numpy==1.23.4
+scipy==1.9.3
+sympy==1.11.1
+pyqtgraph==0.13.1
+PyOpenGL==3.1.6
+PyQt6==6.4.0
