@@ -132,7 +132,7 @@ class PolygonSurface(Surface):
         
         self.point_list = point_list
         self.calc_normal()
-        
+    
     def calc_normal(self):
         point_list = self.point_list
         #calculate the normal of the surface
@@ -142,4 +142,14 @@ class PolygonSurface(Surface):
         normal = calculate.cross_product(vector1, vector2)
         normal = calculate.normalise_vectors(normal)
         self.normal = normal
+    
+    def update(self, point_list,  hole_point_2dlist = []):
+        self.point_list = point_list
+        self.hole_point_2dlist = None
+        if len(hole_point_2dlist) !=0:
+            if type(hole_point_2dlist) != np.ndarray:
+                hole_point_2dlist = np.array(hole_point_2dlist)
+            self.hole_point_2dlist = hole_point_2dlist
+            
+        self.calc_normal()
         

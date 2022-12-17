@@ -111,7 +111,7 @@ def bbox_frm_xyzs(xyzs):
     
     if type(xyzs) != np.ndarray:
         xyzs = np.array(xyzs)
-    
+
     xyzs_t = xyzs.T
     x = xyzs_t[0]
     y = xyzs_t[1]
@@ -521,7 +521,7 @@ def cross_product(vector1, vector2):
         vector1 = np.array(vector1)
     if type(vector2) != np.ndarray:
         vector2 = np.array(vector2)
-       
+     
     cross_product = np.cross(vector1, vector2)
     return cross_product
 

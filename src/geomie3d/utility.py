@@ -21,6 +21,7 @@
 import os
 import sys
 import colorsys
+from itertools import chain
 
 import numpy as np
 
@@ -371,7 +372,7 @@ def convert_topo_dictionary_list4viz(topo_dictionary_list, view3d):
         
         wires = sorted_d['wire']
         if len(wires) > 0:
-            wires2edges = np.array([get.edges_frm_wire(wire) for wire in wires])
+            wires2edges = np.array([get.edges_frm_wire(wire) for wire in wires], dtype=object)
             wires2edges = wires2edges.flatten()
             all_edges = np.append(all_edges, wires2edges )
         
@@ -390,14 +391,14 @@ def convert_topo_dictionary_list4viz(topo_dictionary_list, view3d):
         
         shells = sorted_d['shell']
         if len(shells) > 0:
-            shells2faces = np.array([get.faces_frm_shell(shell) for shell in shells])
-            shells2faces = shells2faces.flatten()
+            shells2faces = np.array([get.faces_frm_shell(shell) for shell in shells], dtype=object)
+            shells2faces = list(chain(*shells2faces)) #shells2faces.flatten()
             all_faces = np.append(all_faces, shells2faces)
         
         solids = sorted_d['solid']
         if len(solids) > 0:
-            solids2faces = np.array([get.faces_frm_solid(solid) for solid in solids])
-            solids2faces = solids2faces.flatten()
+            solids2faces = np.array([get.faces_frm_solid(solid) for solid in solids], dtype=object)
+            solids2faces = list(chain(*solids2faces))#solids2faces.flatten()
             all_faces = np.append(all_faces, solids2faces)
         
         #if there are faces to be viz
@@ -464,7 +465,7 @@ def viz_falsecolour(topo_list, results, false_min_max_val = None, other_topo_dli
             faces = get.faces_frm_shell(topo)
             topo_int_ls[icnt][2].extend(faces)
         elif topo_type == topobj.TopoType.SOLID:
-            faces = get.faces_frm_shell(topo)
+            faces = get.faces_frm_solid(topo)
             topo_int_ls[icnt][2].extend(faces)
         elif topo_type == topobj.TopoType.COMPOSITE:
             sorted_d = get.unpack_composite(topo)
@@ -555,19 +556,14 @@ def viz_falsecolour(topo_list, results, false_min_max_val = None, other_topo_dli
             inc1 = (max_val-min_val)/(interval)
             inc2 = inc1/2.0    
             float_list = list(np.arange(min_val+inc2, max_val, inc1))
-            bcolour = calc_falsecolour(float_list, min_val, max_val)
-            new_c_list = []
-            for c in bcolour:
-                new_c = [c[0]*255, c[1]*255, c[2]*255]
-                new_c_list.append(new_c)
-                
+            
             rangex = max_val-min_val
             intervals = rangex/10.0
             intervals_half = intervals/2.0
+            
             interval_ls = []
             str_list = []
-            fcnt = 0
-            for f in float_list:
+            for fcnt,f in enumerate(float_list):
                 mi = round(f - intervals_half, 2)
                 ma = round(f + intervals_half, 2)
                 if fcnt == 0:
@@ -579,8 +575,16 @@ def viz_falsecolour(topo_list, results, false_min_max_val = None, other_topo_dli
                     
                 str_list.append(strx)
                 interval_ls.append([mi,ma])
-                fcnt+=1
                 
+            # bcolour = calc_falsecolour(float_list, min_val, max_val)
+            bcolour = [[0,0,0.5], [0,1,1], [0,0.5,0], [0,1,0], [1,1,0], 
+                       [1,0.59,0], [1,0,1], [0.42,0.33,0.33], [0.5,0,0], [1,0,0]]
+            
+            new_c_list = []
+            for c in bcolour:
+                new_c = [c[0]*255, c[1]*255, c[2]*255]
+                new_c_list.append(new_c)
+            
             falsecolourd = dict(name='Falsecolour', type='group', expanded = True, title = "Colour Legend",
                                     children =  [dict(name = str_list[9], type = 'color', value = new_c_list[9], readonly = True),
                                                  dict(name = str_list[8], type = 'color', value = new_c_list[8], readonly = True),
@@ -716,65 +720,38 @@ def viz(topo_dictionary_list):
     w.setWindowTitle('Geomie3D viz')
     pg.exec()
 
-def viz_voxel(voxels, other_topo_dlist = []):
+def viz_vx_dict(vx_dict, colour, wireframe = True):
     """
-    This function visualises voxels as glVolume object in Pyqggraph.
+    This function visualises the voxel dictionaries.
  
     Parameters
     ----------
-    voxel : dictionary
-        Dictionary specifying the voxel grid.{(i,j,k):{}}
+    vx_dict : voxel dictionary generated form modify.xyzs2vox
+        dictionary of voxels 
+        vox_dim: the dimension of the voxels
+        voxels: dictionary of voxels
     
-    other_topo_dlist : a list of dictionary, optional
-        A list of dictionary specifying the visualisation parameters.
-        topo_list: the topos to visualise
-        colour:  keywords (RED,ORANGE,YELLOW,GREEN,BLUE,BLACK,WHITE) or rgb tuple to specify the colours
-        draw_edges: bool whether to draw the edges of mesh, default is True
-        point_size: size of the point
-        px_mode: True or False, if true the size of the point is in pixel if not its in meters
-        att: name of the att to visualise with the topologies
+    colour :  str or tuple 
+        keywords (RED,ORANGE,YELLOW,GREEN,BLUE,BLACK,WHITE) or rgb tuple to specify the colours
+        
+    wireframe : bool, optional
+        default True. 
     
     """
-    #TODO: finish the function to viz volumetric objects
-    import pyqtgraph as pg
-    from pyqtgraph.Qt import QtCore
-    import pyqtgraph.opengl as gl
-    
-    # Create a GL View widget to display data
-    os.environ['PYQTGRAPH_QT_LIB'] = "PyQt6"
-    # Create a GL View widget to display data
-    QtCore.QCoreApplication.setAttribute(QtCore.Qt.ApplicationAttribute.AA_ShareOpenGLContexts)
-    pg.mkQApp('')
-    w = gl.GLViewWidget()
-    data = [[[[0,0,0,1], [0,0,0,1]],
-             [[0,0,0,1], [0,0,0,1]]],
-            [[[255,0,0,0], [0,255,0,0]],
-             [[255,0,0,0], [0,255,0,0]]],
-            [[[255,0,0,0], [0,255,0,0]],
-             [[255,0,0,0], [0,255,0,0]]],
-            [[[255,0,0,0], [0,255,0,0]],
-             [[255,0,0,0], [0,255,0,0]]],
-            [[[255,0,0,0], [0,255,0,0]],
-             [[255,0,0,0], [0,255,0,0]]]]
-    
-    data = np.array(data)
-    print(data.shape)
-    vol = gl.GLVolumeItem(data, sliceDensity=1, glOptions='opaque')
-    
-    w.addItem(gl.GLAxisItem())
-    w.addItem(vol)
-    # overall_bbox = calculate.bbox_frm_bboxes(bbox_list)
-    # midpt = calculate.bbox_centre(overall_bbox)
-    # w.opts['center'] = QtGui.QVector3D(midpt[0], midpt[1], midpt[2])
-    
-    # lwr_left = [overall_bbox.minx, overall_bbox.miny, overall_bbox.minz]
-    # upr_right =  [overall_bbox.maxx, overall_bbox.maxy, overall_bbox.maxz]
-    # dist = calculate.dist_btw_xyzs(lwr_left, upr_right)
-    # w.opts['distance'] = dist*1.5
-    
-    w.show()
-    w.setWindowTitle('Geomie3D viz voxel')
-    pg.exec()
+    vox_dim = vx_dict['voxel_dim']
+    voxs = vx_dict['voxels']
+    viz_ls = []
+    for cnt,key in enumerate(voxs.keys()):
+        vx = voxs[key]
+        midpt = vx['midpt']
+        box = create.box(vox_dim[0], vox_dim[1], vox_dim[2], centre_pt=midpt)
+        if wireframe == False:
+            viz_ls.append(box)
+        else:
+            bedges = get.edges_frm_solid(box)
+            viz_ls.extend(bedges)
+            
+    viz([{'topo_list':viz_ls, 'colour':colour}])
     
 def make_mesh(xyzs, indices, face_colours = [], shader = "shaded", 
               gloptions = "opaque", draw_edges = False, 

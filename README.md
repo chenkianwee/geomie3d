@@ -20,3 +20,8 @@ nurbs-python
 9. install 'pip install pyqtgraph==0.13.1'
 10. install 'pip install PyOpenGL==3.1.6'
 11. install 'pip install PyQt6==6.4.0'
+
+## Opengl issue with visualizing 3d geometries on Ubuntu 22.04
+If the openGL is giving you issue with the viz function do this to solve the issue 
+1. go to /etc/gdm3/custom.conf and uncomment WaylandEnable=false
+2. go to /etc/environment and add this line QT_QPA_PLATFORM=xcb to the file

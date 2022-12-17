@@ -249,6 +249,7 @@ def faces2mesh(face_list):
         srf_type = f.surface_type
         if srf_type == geom.SrfType.POLYGON or srf_type == geom.SrfType.BSPLINE:
             xyzs_indxs = triangulate_face(f, indices = True)
+
             if len(all_xyzs) == 0:
                 all_xyzs = xyzs_indxs[0]
             else:
@@ -259,7 +260,7 @@ def faces2mesh(face_list):
             else:
                 indxs_new =  xyzs_indxs[1] + idx_cnt
                 all_idxs = np.append(all_idxs, indxs_new, axis=0)
-            
+        
             idx_cnt += len(xyzs_indxs[0])
         
     return {"vertices":all_xyzs, "indices":all_idxs}
@@ -316,11 +317,11 @@ def move_topo(topo, target_xyz, ref_xyz = None):
     #TODO: account for different kind of geometries
     mv_topo = copy.deepcopy(topo)
     vs = get.topo_explorer(mv_topo, topobj.TopoType.VERTEX)
-    if ref_xyz == None:
+        
+    if ref_xyz is None:
         #find the midpt of the topo and use that as the ref xyz
         bbox = calculate.bbox_frm_topo(topo)
         ref_xyz = calculate.bbox_centre(bbox)
-        
     tx = target_xyz[0] - ref_xyz[0]
     ty = target_xyz[1] - ref_xyz[1]
     tz = target_xyz[2] - ref_xyz[2]
@@ -332,6 +333,68 @@ def move_topo(topo, target_xyz, ref_xyz = None):
     for cnt,v in enumerate(vs): v.point.xyz = trsf_xyzs[cnt]
     return mv_topo
 
+def rotate_topo(topo, axis, rotation, ref_xyz = None):
+    """
+    rotate topology
+ 
+    Parameters
+    ----------
+    topo : topo object
+        the topo object to move.
+        
+    axis: tuple
+        tuple specifying the axis to rotate along.
+    
+    rotation: float
+        rotation in degrees, anticlockwise.
+        
+    ref_xyz: np.ndarray
+        reference xyz position, if not specified will use midpt of the topology.
+ 
+    Returns
+    -------
+    mv_topo : topo
+        moved topo
+    """
+    #TODO: account for different kind of geometries
+
+    rot_topo = copy.deepcopy(topo)
+    if ref_xyz is None:
+        #find the midpt of the topo and use that as the ref xyz
+        bbox = calculate.bbox_frm_topo(topo)
+        ref_xyz = calculate.bbox_centre(bbox)
+    #move the topo to origin for the rotation
+    tx = 0 - ref_xyz[0]
+    ty = 0 - ref_xyz[1]
+    tz = 0 - ref_xyz[2]
+    trsl_mat = calculate.translate_matrice(tx, ty, tz)
+    rot_mat = calculate.rotate_matrice(axis, rotation)
+    trsl_mat2 = calculate.inverse_matrice(trsl_mat)
+    
+    vs = get.topo_explorer(rot_topo, topobj.TopoType.VERTEX)
+    xyzs = np.array([v.point.xyz for v in vs])
+    trsf_xyzs = calculate.trsf_xyzs(xyzs, trsl_mat2@rot_mat@trsl_mat)
+    # trsf_xyzs = calculate.trsf_xyzs(xyzs, trsl_mat)
+
+    for cnt,v in enumerate(vs): 
+        v.point.xyz = trsf_xyzs[cnt]
+    
+    #get all the surfaces and update their normals
+    if rot_topo.topo_type == topobj.TopoType.FACE:
+        faces = [rot_topo]
+    elif rot_topo.topo_type == topobj.TopoType.SHELL:
+        faces = get.faces_frm_solid(rot_topo)
+    elif rot_topo.topo_type == topobj.TopoType.SOLID:
+        faces = get.faces_frm_solid(rot_topo)
+    elif rot_topo.topo_type == topobj.TopoType.COMPOSITE:
+        faces = get.faces_frm_composite(rot_topo)
+    
+    if len(faces) != 0:
+        for f in faces:
+            f.update_polygon_surface()
+            
+    return rot_topo
+    
 def reverse_face_normal(face):
     """
     reverse the normal of the face
@@ -416,7 +479,7 @@ def xyzs2voxs(xyzs, xdim, ydim, zdim):
     
     Parameters
     ----------
-    xyzs1 : ndarray
+    xyzs : ndarray
         array defining the point.
     
     xdim : float
@@ -449,6 +512,7 @@ def xyzs2voxs(xyzs, xdim, ydim, zdim):
     j = np.fix((y - mny)/ydim)
     k = np.fix((z - mnz)/zdim)
     ijks = np.stack((i,j,k), axis=-1)
+    vox_props = {'voxel_dim': [xdim, ydim, zdim]}
     voxs = {}
     for cnt,ijk in enumerate(ijks):
         ijk = ijk.tolist()
@@ -461,8 +525,8 @@ def xyzs2voxs(xyzs, xdim, ydim, zdim):
             mpy = ijk[1] * ydim + (ydim/2) + mny
             mpz = ijk[2] * zdim + (zdim/2) + mnz
             voxs[ijk] = {'idx':[cnt], 'midpt':[mpx,mpy,mpz]}
-            
-    return voxs
+    vox_props['voxels'] = voxs
+    return vox_props
 
 def trsf_cs(cs1, cs2, topo):
     pass

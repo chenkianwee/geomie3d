@@ -18,6 +18,8 @@
 #    along with py4design.  If not, see <http://www.gnu.org/licenses/>.
 #
 # ==================================================================================================
+from itertools import chain
+
 import numpy as np
 
 from . import geom
@@ -79,9 +81,9 @@ def points_frm_wire(wire):
     
     #TODO need to inherit the attributes too
     vertex_2dlist = np.array([edge.vertex_list for edge in edge_list 
-                              if edge.curve_type == geom.CurveType.POLYLINE])
+                              if edge.curve_type == geom.CurveType.POLYLINE], dtype=object)
     
-    vertex_list = vertex_2dlist.flatten()
+    vertex_list = list(chain(*vertex_2dlist))
     point_list = np.array([v.point for v in vertex_list])
     #fused the points
     fused_pts = modify.fuse_points(point_list)
@@ -118,9 +120,9 @@ def vertices_frm_wire(wire):
         A list of vertices.
     """
     edge_list = wire.edge_list
-    vertex_2dlist = np.array([edge.vertex_list for edge in edge_list])
+    vertex_2dlist = np.array([edge.vertex_list for edge in edge_list], dtype=object)
     
-    vertex_list = vertex_2dlist.flatten()
+    vertex_list = np.array(list(chain(*vertex_2dlist)))
     #fused the points
     fused_vertices = modify.fuse_vertices(vertex_list)
     return fused_vertices
@@ -161,10 +163,9 @@ def vertices_frm_face(face):
     vertex_list = vertices_frm_wire(bdry_wire)
     
     hole_verts_2dlist = np.array([vertices_frm_wire(hole_wire) 
-                                  for hole_wire in hole_wires])
+                                  for hole_wire in hole_wires], dtype=object)
     
-    hole_verts = hole_verts_2dlist.flatten()
-    
+    hole_verts = np.array(list(chain(*hole_verts_2dlist)))
     return np.append(vertex_list, hole_verts)
 
 def bdry_vertices_frm_face(face):
@@ -201,7 +202,7 @@ def hole_vertices_frm_face(face):
     """
     hole_wires = face.hole_wire_list
     hole_verts_2dlist = np.array([vertices_frm_wire(hole_wire) 
-                                  for hole_wire in hole_wires])
+                                  for hole_wire in hole_wires], dtype=object)
     
     return hole_verts_2dlist
 
@@ -220,10 +221,10 @@ def vertices_frm_shell(shell):
         A list of vertices.
     """
     face_list = shell.face_list
-    vert2dlist = np.array([vertices_frm_face(face) for face in face_list])
-    vertex_list = vert2dlist.flatten()
+    vert2dlist = np.array([vertices_frm_face(face) for face in face_list], dtype=object)
+    vertex_list = list(chain(*vert2dlist))
     
-    return vertex_list
+    return np.array(vertex_list)
 
 def vertices_frm_solid(solid):
     """
@@ -267,32 +268,32 @@ def vertices_frm_composite(composite):
     
     edges = sorted_d['edge']
     if len(edges) > 0:
-        e_verts_2darr = np.array([vertices_frm_edge(e) for e in edges])
-        e_verts = e_verts_2darr.flatten()
+        e_verts_2darr = np.array([vertices_frm_edge(e) for e in edges], dtype=object)
+        e_verts = list(chain(*e_verts_2darr))
         vertex_list = np.append(vertex_list, e_verts)
     
     wires = sorted_d['wire']
     if len(wires) > 0:
-        w_verts_2darr = np.array([vertices_frm_wire(w) for w in wires])
-        w_verts = w_verts_2darr.flatten()
+        w_verts_2darr = np.array([vertices_frm_wire(w) for w in wires], dtype=object)
+        w_verts = list(chain(*w_verts_2darr))
         vertex_list = np.append(vertex_list, w_verts)
     
     faces = sorted_d['face']
     if len(faces) > 0:
-        f_verts_2darr = np.array([vertices_frm_face(f) for f in faces])
-        f_verts = f_verts_2darr.flatten()
+        f_verts_2darr = np.array([vertices_frm_face(f) for f in faces], dtype=object)
+        f_verts = list(chain(*f_verts_2darr))
         vertex_list = np.append(vertex_list, f_verts)
 
     shells = sorted_d['shell']
     if len(shells) > 0:
-        sh_verts_2darr = np.array([vertices_frm_shell(sh) for sh in shells])
-        sh_verts = sh_verts_2darr.flatten()
+        sh_verts_2darr = np.array([vertices_frm_shell(sh) for sh in shells], dtype=object)
+        sh_verts = list(chain(*sh_verts_2darr))
         vertex_list = np.append(vertex_list, sh_verts)
         
     solids = sorted_d['solid']
     if len(solids) > 0:
-        sl_verts_2darr = np.array([vertices_frm_solid(sl) for sl in solids])
-        sl_verts = sl_verts_2darr.flatten()
+        sl_verts_2darr = np.array([vertices_frm_solid(sl) for sl in solids], dtype=object)
+        sl_verts = list(chain(*sl_verts_2darr))
         vertex_list = np.append(vertex_list, sl_verts)
         
     return vertex_list
@@ -331,8 +332,8 @@ def edges_frm_face(face):
     hole_wire_list = face.hole_wire_list
     
     bdry_edges = edges_frm_wire(bdry_wire)
-    hole_edges_2dlist = np.array([edges_frm_wire(hw) for hw in hole_wire_list]) 
-    hole_edges = hole_edges_2dlist.flatten()
+    hole_edges_2dlist = np.array([edges_frm_wire(hw) for hw in hole_wire_list], dtype=object) 
+    hole_edges = list(chain(*hole_edges_2dlist))
     edge_list = np.append(bdry_edges, hole_edges)
     return edge_list
     
@@ -370,7 +371,7 @@ def hole_edges_frm_face(face):
         A list of edges.
     """
     hole_wire_list = face.hole_wire_list
-    hole_edges_2dlist = np.array([edges_frm_wire(hw) for hw in hole_wire_list]) 
+    hole_edges_2dlist = np.array([edges_frm_wire(hw) for hw in hole_wire_list], dtype=object) 
     return hole_edges_2dlist
 
 def edges_frm_shell(shell):
@@ -388,9 +389,9 @@ def edges_frm_shell(shell):
         A list of edges.
     """
     face_list = shell.face_list
-    edge_2dlist = np.array([edges_frm_face(f) for f in face_list])
-    edge_list = edge_2dlist.flatten()
-    return edge_list
+    edge_2dlist = np.array([edges_frm_face(f) for f in face_list], dtype=object)
+    edge_list = list(chain(*edge_2dlist))
+    return np.array(edge_list)
 
 def edges_frm_solid(solid):
     """
@@ -434,26 +435,26 @@ def edges_frm_composite(composite):
     
     wires = sorted_d['wire']
     if len(wires) > 0:
-        w_edges_2darr = np.array([edges_frm_wire(w) for w in wires])
-        w_edges = w_edges_2darr.flatten()
+        w_edges_2darr = np.array([edges_frm_wire(w) for w in wires], dtype=object)
+        w_edges = list(chain(*w_edges_2darr)) 
         edge_list = np.append(edge_list, w_edges)
     
     faces = sorted_d['face']
     if len(faces) > 0:
-        f_edges_2darr = np.array([edges_frm_face(f) for f in faces])
-        f_edges = f_edges_2darr.flatten()
+        f_edges_2darr = np.array([edges_frm_face(f) for f in faces], dtype=object)
+        f_edges = list(chain(*f_edges_2darr))
         edge_list = np.append(edge_list, f_edges)
 
     shells = sorted_d['shell']
     if len(shells) > 0:
-        sh_edges_2darr = np.array([edges_frm_shell(sh) for sh in shells])
-        sh_edges = sh_edges_2darr.flatten()
+        sh_edges_2darr = np.array([edges_frm_shell(sh) for sh in shells], dtype=object)
+        sh_edges = list(chain(*sh_edges_2darr))
         edge_list = np.append(edge_list, sh_edges)
         
     solids = sorted_d['solid']
     if len(solids) > 0:
-        sl_edges_2darr = np.array([edges_frm_solid(sl) for sl in solids])
-        sl_edges = sl_edges_2darr.flatten()
+        sl_edges_2darr = np.array([edges_frm_solid(sl) for sl in solids], dtype=object)
+        sl_edges = list(chain(*sl_edges_2darr))
         edge_list = np.append(edge_list, sl_edges)
         
     return edge_list
@@ -472,7 +473,7 @@ def wires_frm_face(face):
     wire_list : list of wires
         A list of wires.
     """
-    bdry_wire = np.array([face.bdry_wire])
+    bdry_wire = np.array([face.bdry_wire], dtype=object)
     hole_wire_list = face.hole_wire_list
     return np.append(bdry_wire, hole_wire_list)
 
@@ -490,7 +491,7 @@ def bdry_wires_frm_face(face):
     wire : wire
         A wire.
     """
-    bdry_wire = np.array([face.bdry_wire])
+    bdry_wire = np.array([face.bdry_wire], dtype=object)
 
     return bdry_wire
 
@@ -526,9 +527,9 @@ def wires_frm_shell(shell):
         A list of wires.
     """
     face_list = shell.face_list
-    wire_2dlist = np.array([wires_frm_face(f) for f in face_list])
-    wire_list = wire_2dlist.flatten()
-    return wire_list
+    wire_2dlist = np.array([wires_frm_face(f) for f in face_list], dtype=object)
+    wire_list = list(chain(*wire_2dlist))
+    return np.array(wire_list)
     
 def wires_frm_solid(solid):
     """
@@ -573,20 +574,20 @@ def wires_frm_composite(composite):
     
     faces = sorted_d['face']
     if len(faces) > 0:
-        f_wires_2darr = np.array([wires_frm_face(f) for f in faces])
-        f_wires = f_wires_2darr.flatten()
+        f_wires_2darr = np.array([wires_frm_face(f) for f in faces], dtype=object)
+        f_wires = list(chain(*f_wires_2darr))
         wire_list = np.append(wire_list, f_wires)
 
     shells = sorted_d['shell']
     if len(shells) > 0:
-        sh_wires_2darr = np.array([wires_frm_shell(sh) for sh in shells])
-        sh_wires = sh_wires_2darr.flatten()
+        sh_wires_2darr = np.array([wires_frm_shell(sh) for sh in shells], dtype=object)
+        sh_wires = list(chain(*sh_wires_2darr))
         wire_list = np.append(wire_list, sh_wires)
         
     solids = sorted_d['solid']
     if len(solids) > 0:
-        sl_wires_2darr = np.array([wires_frm_solid(sl) for sl in solids])
-        sl_wires = sl_wires_2darr.flatten()
+        sl_wires_2darr = np.array([wires_frm_solid(sl) for sl in solids], dtype=object)
+        sl_wires = list(chain(*sl_wires_2darr))
         wire_list = np.append(wire_list, sl_wires)
         
     return wire_list
@@ -647,14 +648,14 @@ def faces_frm_composite(composite):
 
     shells = sorted_d['shell']
     if len(shells) > 0:
-        sh_faces_2darr = np.array([faces_frm_shell(sh) for sh in shells])
-        sh_faces = sh_faces_2darr.flatten()
+        sh_faces_2darr = np.array([faces_frm_shell(sh) for sh in shells], dtype=object)
+        sh_faces = list(chain(*sh_faces_2darr))
         face_list = np.append(face_list, sh_faces)
         
     solids = sorted_d['solid']
     if len(solids) > 0:
-        sl_faces_2darr = np.array([faces_frm_solid(sl) for sl in solids])
-        sl_faces = sl_faces_2darr.flatten()
+        sl_faces_2darr = np.array([faces_frm_solid(sl) for sl in solids], dtype=object)
+        sl_faces = list(chain(*sl_faces_2darr))
         face_list = np.append(face_list, sl_faces)
         
     return face_list
@@ -698,8 +699,8 @@ def shells_frm_composite(composite):
         
     solids = sorted_d['solid']
     if len(solids) > 0:
-        sl_shells_2darr = np.array([shell_frm_solid(sl) for sl in solids])
-        sl_shells = sl_shells_2darr.flatten()
+        sl_shells_2darr = np.array([shell_frm_solid(sl) for sl in solids], dtype=object)
+        sl_shells = list(chain(*sl_shells_2darr))
         shell_list = np.append(shell_list, sl_shells)
         
     return shell_list

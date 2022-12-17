@@ -23,6 +23,9 @@ import numpy as np
 from . import geom
 from . import topobj
 from . import utility
+from . import get
+from . import modify
+from . import calculate
 
 from .geomdl import BSpline, utilities, construct
 
@@ -118,8 +121,91 @@ def box(dimx, dimy, dimz, centre_pt = [0,0,0], attributes = {}):
     vlist6 = vertex_list(xyz_list6)
     face6 = polygon_face_frm_verts(vlist6)
     shell = topobj.Shell(np.array([face1, face2, face3, face4, face5, face6]))
-    solid = topobj.Solid(shell)
+    solid = topobj.Solid(shell, attributes = attributes)
     return solid
+
+def extrude_polygon_face(face, direction, magnitude, attributes = {}):
+    """
+    Extrude a face according to the direction given.
+ 
+    Parameters
+    ----------
+    face : face topology
+        The polygon face to extrude
+    
+    direction : tuple
+        a 3 dimension tuple defining the direction in [x,y,z].
+    
+    magnitude : float
+        the magnitude of the extrusion.
+        
+    attributes : dictionary, optional
+        dictionary of the attributes.
+ 
+    Returns
+    -------
+    box : solid topology
+        Solid generated from the extrusion
+    """
+    def vertical_faces(vs1, vs2):
+        vert_faces = []
+        nverts = len(vs1)
+        for cnt in range(nverts):
+            if cnt != nverts - 1:
+                v1 = vs1[cnt]
+                v2 = vs2[cnt]
+                v3 = vs2[cnt+1]
+                v4 = vs1[cnt+1]
+            else:
+                v1 = vs1[cnt]
+                v2 = vs2[cnt]
+                v3 = vs2[0]
+                v4 = vs1[0]
+            
+            vert_f = polygon_face_frm_verts(np.array([v1,v2,v3,v4]))
+            # utility.viz([{'topo_list': [vert_f], 'colour': 'red'}])
+            vert_faces.append(vert_f)
+        return vert_faces
+    
+    if face.surface_type == geom.SrfType.POLYGON:
+        # ext_faces = []
+        #get the centre point of the polygon face
+        midxyz = calculate.face_midxyz(face)
+        dest_xyz = calculate.move_xyzs([midxyz], [direction], [magnitude])[0]
+        mv_face = modify.move_topo(face, dest_xyz, ref_xyz = midxyz)
+        vs1 = get.bdry_vertices_frm_face(face)
+        vs2 = get.bdry_vertices_frm_face(mv_face)
+        ext_faces = vertical_faces(vs1, vs2)
+        
+        if len(face.hole_wire_list) != 0:
+            vs3_2dls = get.hole_vertices_frm_face(face)
+            vs4_2dls = get.hole_vertices_frm_face(mv_face)
+            nholes = len(vs3_2dls)
+            for cnt in range(nholes):
+                ext_faces2 = vertical_faces(vs3_2dls[cnt], vs4_2dls[cnt])
+                ext_faces.extend(ext_faces2)
+        
+        #check for the face normal if it is the same as the extrusion direction
+        nrml = face.normal
+        angle = calculate.angle_btw_2vectors(nrml, direction)
+
+        if angle <= 90: #need to reverse the base face as it is facing its own extrusion
+            face = modify.reverse_face_normal(face)
+            
+        elif angle > 90:
+            mv_face = modify.reverse_face_normal(mv_face)
+        
+        
+        ext_faces.insert(0,face)
+        ext_faces.insert(-1,mv_face)
+        # print(ext_faces)
+        shell = topobj.Shell(np.array(ext_faces))
+        solid = topobj.Solid(shell, attributes = attributes)
+        return solid
+    
+    else:
+        print('ERROR SURFACE IS NOT POLYGON')
+    
 
 def polygon_face_frm_midpt(centre_pt, dimx, dimy, attributes = {}):
     """

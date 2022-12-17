@@ -279,6 +279,20 @@ class Face(Topology):
         self.surface = surface
         self.normal = surface.normal
     
+    def update_polygon_surface(self):
+        srf = self.surface
+        bdry_wire = self.bdry_wire
+        hole_wire_list = self.hole_wire_list 
+        
+        #get the point list from the bdry wire
+        pt_list = get.points_frm_wire(bdry_wire)
+        
+        hole_point_2dlist = [get.points_frm_wire(hole_wire) 
+                             for hole_wire in hole_wire_list]
+        
+        srf.update(pt_list,  hole_point_2dlist = hole_point_2dlist)
+        self.normal = srf.normal
+        
     def add_bspline_surface(self, bspline_srf):
         """
         This function adds a polygon to the face object.
@@ -393,7 +407,7 @@ class Composite(Topology):
         """Initialises the class"""
         super(Composite, self).__init__(attributes = attributes)
         if type(topology_list) != np.ndarray:
-            topology_list = np.array(topology_list)
+            topology_list = np.array(topology_list, dtype=object)
         self.topo_type = TopoType.COMPOSITE
         self.topology_list = topology_list
         self.vertex_list = None
@@ -415,6 +429,7 @@ class Composite(Topology):
         
         topo_list = self.topology_list
         for topo in topo_list:
+            # print(topo)
             if topo.topo_type == TopoType.VERTEX:
                 self.vertex_list.append(topo)
             elif topo.topo_type == TopoType.EDGE:
