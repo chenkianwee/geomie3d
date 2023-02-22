@@ -383,7 +383,7 @@ def viz_st(topo_2dlist, results2d, topo_datetime_ls, xvalues2d, yvalues2d, colou
             range_str = date_str_start + ' to ' + date_str_end
             self.params2.param('Parm3d').param('Data Range Loaded').setValue(range_str)
             #load the initial spatial time-series data
-            self.load_3dmodel()
+            self.load_3dmodel(zoom_extent=True)
             #load the time-series data
             self.load_time_series_data()
             
@@ -492,16 +492,16 @@ def viz_st(topo_2dlist, results2d, topo_datetime_ls, xvalues2d, yvalues2d, colou
                                     dict(name='Search Date', type = 'str', title = "Search Date", value = "yyyy-mm-ddTHH:MM:SS"),
                                     dict(name='Search', type = 'action', title = "Search"),
                                     dict(name='Search Result', type = 'str', value = '', readonly = True),
-                                    dict(name='Previous', type = 'action', title = "Previous"),
-                                    dict(name='Next', type = 'action', title = "Next")
+                                    dict(name='Next', type = 'action', title = "Next"),
+                                    dict(name='Previous', type = 'action', title = "Previous")
                                 ]
                         )
             self.animate_parm = dict(name='Animate Parms', type='group', expanded = False, title = "Animate Parameters",
                        children=[
                                    dict(name='Play Status', type = 'str', title = "Play Status", value = 'Pause(Forward)', readonly=True),
                                    dict(name='Pause/Play', type = 'action', title = "Pause/Play"),
-                                   dict(name='Rewind', type = 'action', title = "Rewind"),
                                    dict(name='Forward', type = 'action', title = "Forward"),
+                                   dict(name='Rewind', type = 'action', title = "Rewind"),
                                    dict(name='Seconds/Frame', type = 'float', title = "Seconds/Frame", value = 1.0),
                                    dict(name='Change Playback Speed', type = 'action', title = "Change Playback Speed")
                                 ]
@@ -516,7 +516,7 @@ def viz_st(topo_2dlist, results2d, topo_datetime_ls, xvalues2d, yvalues2d, colou
             self.params2.param('Animate Parms').param("Forward").sigActivated.connect(self.forward)
             self.params2.param('Animate Parms').param("Change Playback Speed").sigActivated.connect(self.change_speed)
         
-        def load_3dmodel(self):
+        def load_3dmodel(self, zoom_extent = False):
             #clear the 3dview
             self.clear_3dview()
             model3d_dict = self.model3d_dict
@@ -582,16 +582,16 @@ def viz_st(topo_2dlist, results2d, topo_datetime_ls, xvalues2d, yvalues2d, colou
                     self.view3d.addItem(viz_mesh)
                     
             self.view3d.addItem(gl.GLAxisItem())
-            cmp = create.composite(topo_list)
-            bbox = calculate.bbox_frm_topo(cmp)
-            midpt = calculate.bbox_centre(bbox)
-            self.view3d.opts['center'] = QtGui.QVector3D(midpt[0], midpt[1], midpt[2])
-            
-            
-            lwr_left = [bbox.minx, bbox.miny, bbox.minz]
-            upr_right =  [bbox.maxx, bbox.maxy, bbox.maxz]
-            dist = calculate.dist_btw_xyzs(lwr_left, upr_right)
-            self.view3d.opts['distance'] = dist*1.5
+            if zoom_extent == True:
+                cmp = create.composite(topo_list)
+                bbox = calculate.bbox_frm_topo(cmp)
+                midpt = calculate.bbox_centre(bbox)
+                self.view3d.opts['center'] = QtGui.QVector3D(midpt[0], midpt[1], midpt[2])
+                
+                lwr_left = [bbox.minx, bbox.miny, bbox.minz]
+                upr_right =  [bbox.maxx, bbox.maxy, bbox.maxz]
+                dist = calculate.dist_btw_xyzs(lwr_left, upr_right)
+                self.view3d.opts['distance'] = dist*1.5
             
             if len(other_topo_dlist) != 0:
                 _convert_topo_dictionary_list4viz(other_topo_dlist, self.view3d)
@@ -915,7 +915,7 @@ def viz_animate_falsecolour(topo_2dlist, results2d, topo_datetime_ls, false_min_
             range_str = date_str_start + ' to ' + date_str_end
             self.params2.param('Parm3d').param('Data Range Loaded').setValue(range_str)
             #load the initial spatial time-series data
-            self.load_3dmodel()
+            self.load_3dmodel(zoom_extent = True)
             
         def setupGUI(self):
             self.layout = QtWidgets.QVBoxLayout()
@@ -1009,16 +1009,16 @@ def viz_animate_falsecolour(topo_2dlist, results2d, topo_datetime_ls, false_min_
                                     dict(name='Search Date', type = 'str', title = "Search Date", value = "yyyy-mm-ddTHH:MM:SS"),
                                     dict(name='Search', type = 'action', title = "Search"),
                                     dict(name='Search Result', type = 'str', value = '', readonly = True),
-                                    dict(name='Previous', type = 'action', title = "Previous"),
-                                    dict(name='Next', type = 'action', title = "Next")
+                                    dict(name='Next', type = 'action', title = "Next"),
+                                    dict(name='Previous', type = 'action', title = "Previous")
                                 ]
                         )
             self.animate_parm = dict(name='Animate Parms', type='group', expanded = False, title = "Animate Parameters",
                        children=[
                                    dict(name='Play Status', type = 'str', title = "Play Status", value = 'Pause(Forward)', readonly=True),
                                    dict(name='Pause/Play', type = 'action', title = "Pause/Play"),
-                                   dict(name='Rewind', type = 'action', title = "Rewind"),
                                    dict(name='Forward', type = 'action', title = "Forward"),
+                                   dict(name='Rewind', type = 'action', title = "Rewind"),
                                    dict(name='Seconds/Frame', type = 'float', title = "Seconds/Frame", value = 1.0),
                                    dict(name='Change Playback Speed', type = 'action', title = "Change Playback Speed")
                                 ]
@@ -1033,7 +1033,7 @@ def viz_animate_falsecolour(topo_2dlist, results2d, topo_datetime_ls, false_min_
             self.params2.param('Animate Parms').param("Forward").sigActivated.connect(self.forward)
             self.params2.param('Animate Parms').param("Change Playback Speed").sigActivated.connect(self.change_speed)
         
-        def load_3dmodel(self):
+        def load_3dmodel(self, zoom_extent = False):
             #clear the 3dview
             self.clear_3dview()
             model3d_dict = self.model3d_dict
@@ -1099,16 +1099,17 @@ def viz_animate_falsecolour(topo_2dlist, results2d, topo_datetime_ls, false_min_
                     self.view3d.addItem(viz_mesh)
                     
             self.view3d.addItem(gl.GLAxisItem())
-            cmp = create.composite(topo_list)
-            bbox = calculate.bbox_frm_topo(cmp)
-            midpt = calculate.bbox_centre(bbox)
-            self.view3d.opts['center'] = QtGui.QVector3D(midpt[0], midpt[1], midpt[2])
-            
-            
-            lwr_left = [bbox.minx, bbox.miny, bbox.minz]
-            upr_right =  [bbox.maxx, bbox.maxy, bbox.maxz]
-            dist = calculate.dist_btw_xyzs(lwr_left, upr_right)
-            self.view3d.opts['distance'] = dist*1.5
+            if zoom_extent == True:
+                cmp = create.composite(topo_list)
+                bbox = calculate.bbox_frm_topo(cmp)
+                midpt = calculate.bbox_centre(bbox)
+                self.view3d.opts['center'] = QtGui.QVector3D(midpt[0], midpt[1], midpt[2])
+                
+                
+                lwr_left = [bbox.minx, bbox.miny, bbox.minz]
+                upr_right =  [bbox.maxx, bbox.maxy, bbox.maxz]
+                dist = calculate.dist_btw_xyzs(lwr_left, upr_right)
+                self.view3d.opts['distance'] = dist*1.5
             
             if len(other_topo_dlist) != 0:
                 _convert_topo_dictionary_list4viz(other_topo_dlist, self.view3d)
@@ -1347,7 +1348,7 @@ def viz_animate(topo_2ddlist, topo_datetime_ls):
             range_str = date_str_start + ' to ' + date_str_end
             self.params2.param('Parm3d').param('Data Range Loaded').setValue(range_str)
             #load the initial spatial time-series data
-            self.load_3dmodel()
+            self.load_3dmodel(zoom_extent = True)
             
         def setupGUI(self):
             self.layout = QtWidgets.QVBoxLayout()
@@ -1377,16 +1378,16 @@ def viz_animate(topo_2ddlist, topo_datetime_ls):
                                     dict(name='Search Date', type = 'str', title = "Search Date", value = "yyyy-mm-ddTHH:MM:SS"),
                                     dict(name='Search', type = 'action', title = "Search"),
                                     dict(name='Search Result', type = 'str', value = '', readonly = True),
-                                    dict(name='Previous', type = 'action', title = "Previous"),
-                                    dict(name='Next', type = 'action', title = "Next")
+                                    dict(name='Next', type = 'action', title = "Next"),
+                                    dict(name='Previous', type = 'action', title = "Previous")
                                 ]
                         )
             self.animate_parm = dict(name='Animate Parms', type='group', expanded = False, title = "Animate Parameters",
                        children=[
                                    dict(name='Play Status', type = 'str', title = "Play Status", value = 'Pause(Forward)', readonly=True),
                                    dict(name='Pause/Play', type = 'action', title = "Pause/Play"),
-                                   dict(name='Rewind', type = 'action', title = "Rewind"),
                                    dict(name='Forward', type = 'action', title = "Forward"),
+                                   dict(name='Rewind', type = 'action', title = "Rewind"),
                                    dict(name='Seconds/Frame', type = 'float', title = "Seconds/Frame", value = 1.0),
                                    dict(name='Change Playback Speed', type = 'action', title = "Change Playback Speed")
                                 ]
@@ -1401,7 +1402,7 @@ def viz_animate(topo_2ddlist, topo_datetime_ls):
             self.params2.param('Animate Parms').param("Forward").sigActivated.connect(self.forward)
             self.params2.param('Animate Parms').param("Change Playback Speed").sigActivated.connect(self.change_speed)
         
-        def load_3dmodel(self):
+        def load_3dmodel(self, zoom_extent = False):
             #clear the 3dview
             self.clear_3dview()
             model3d_dict = self.model3d_dict
@@ -1412,14 +1413,15 @@ def viz_animate(topo_2ddlist, topo_datetime_ls):
             current_unix_time = topo_unixtime_sorted[current_time_index]
             topo_dlist  = model3d_dict[current_unix_time] 
             bbox_list = _convert_topo_dictionary_list4viz(topo_dlist, self.view3d)
-            overall_bbox = calculate.bbox_frm_bboxes(bbox_list)
-            midpt = calculate.bbox_centre(overall_bbox)
-            self.view3d.opts['center'] = QtGui.QVector3D(midpt[0], midpt[1], midpt[2])
-            
-            lwr_left = [overall_bbox.minx, overall_bbox.miny, overall_bbox.minz]
-            upr_right =  [overall_bbox.maxx, overall_bbox.maxy, overall_bbox.maxz]
-            dist = calculate.dist_btw_xyzs(lwr_left, upr_right)
-            self.view3d.opts['distance'] = dist*1.5
+            if zoom_extent == True:
+                overall_bbox = calculate.bbox_frm_bboxes(bbox_list)
+                midpt = calculate.bbox_centre(overall_bbox)
+                self.view3d.opts['center'] = QtGui.QVector3D(midpt[0], midpt[1], midpt[2])
+                
+                lwr_left = [overall_bbox.minx, overall_bbox.miny, overall_bbox.minz]
+                upr_right =  [overall_bbox.maxx, overall_bbox.maxy, overall_bbox.maxz]
+                dist = calculate.dist_btw_xyzs(lwr_left, upr_right)
+                self.view3d.opts['distance'] = dist*1.5
             
             # date_str = datetime.datetime.utcfromtimestamp(current_unix_time).strftime('%Y-%m-%dT%H:%M:%S')
             date_str = datetime.datetime.fromtimestamp(current_unix_time).strftime('%Y-%m-%dT%H:%M:%S')
