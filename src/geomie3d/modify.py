@@ -314,10 +314,21 @@ def move_topo(topo, target_xyz, ref_xyz = None):
     mv_topo : topo
         moved topo
     """
-    #TODO: account for different kind of geometries
+    #TODO: implement for bspline geometries
+    topotype = topo.topo_type
+    if topotype == topobj.TopoType.EDGE:
+        print('I am in bspline edge')
+        if topo.curve_type == geom.CurveType.BSPLINE:
+            print('not yet implemented for bspline curve')
+            return None
+    
+    if topotype == topobj.TopoType.FACE:
+        if topo.surface_type == geom.SrfType.BSPLINE:
+            print('not yet implemented for bspline surface')
+            return None
+
     mv_topo = copy.deepcopy(topo)
     vs = get.topo_explorer(mv_topo, topobj.TopoType.VERTEX)
-        
     if ref_xyz is None:
         #find the midpt of the topo and use that as the ref xyz
         bbox = calculate.bbox_frm_topo(topo)
@@ -356,8 +367,18 @@ def rotate_topo(topo, axis, rotation, ref_xyz = None):
     mv_topo : topo
         moved topo
     """
-    #TODO: account for different kind of geometries
-
+    #TODO: implement for bspline geometries
+    topotype = topo.topo_type
+    if topotype == topobj.TopoType.EDGE:
+        if topo.curve_type == geom.CurveType.BSPLINE:
+            print('not yet implemented for bspline curve')
+            return None
+    
+    if topotype == topobj.TopoType.FACE:
+        if topo.surface_type == geom.SrfType.BSPLINE:
+            print('not yet implemented for bspline surface')
+            return None
+    
     rot_topo = copy.deepcopy(topo)
     if ref_xyz is None:
         #find the midpt of the topo and use that as the ref xyz

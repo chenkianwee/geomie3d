@@ -124,6 +124,30 @@ def box(dimx, dimy, dimz, centre_pt = [0,0,0], attributes = {}):
     solid = topobj.Solid(shell, attributes = attributes)
     return solid
 
+def boxes_frm_bboxes(bbox_ls):
+    """
+    Constructs boxes from bounding boxes.
+ 
+    Parameters
+    ----------
+    bbox_ls : lst of bboxes
+        list of bboxes to be converted to boxes.
+        
+    Returns
+    -------
+    boxes : list of solid topology
+        A list of boxes of solid topology
+    """
+    bx_ls = []
+    for bbox in bbox_ls:
+        midxyz = calculate.bbox_centre(bbox)
+        dimx = bbox.maxx - bbox.minx
+        dimy = bbox.maxy - bbox.miny
+        dimz = bbox.maxz - bbox.minz
+        bx = box(dimx, dimy, dimz, centre_pt = midxyz)
+        bx_ls.append(bx)
+    return bx_ls
+
 def extrude_polygon_face(face, direction, magnitude, attributes = {}):
     """
     Extrude a face according to the direction given.

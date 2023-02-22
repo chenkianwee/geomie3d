@@ -1498,3 +1498,52 @@ def rays_bboxes_intersect(ray_list, bbox_list):
     
     else:
         return [], ray_list, [], bbox_list
+
+def face_area(face):
+    """
+    Calculates the area of the face
+ 
+    Parameters
+    ----------    
+    face : the face object
+        the face object.
+    
+    Returns
+    -------
+    area : float
+        the area of the face.
+    """
+    def unit_normal(a, b, c):
+        x = np.linalg.det([[1,a[1],a[2]],
+             [1,b[1],b[2]],
+             [1,c[1],c[2]]])
+        y = np.linalg.det([[a[0],1,a[2]],
+             [b[0],1,b[2]],
+             [c[0],1,c[2]]])
+        z = np.linalg.det([[a[0],a[1],1],
+             [b[0],b[1],1],
+             [c[0],c[1],1]])
+        magnitude = (x**2 + y**2 + z**2)**.5
+        return (x/magnitude, y/magnitude, z/magnitude)
+    
+    if face.surface_type == geom.SrfType.POLYGON:
+        verts = get.vertices_frm_face(face)
+        nverts = len(verts)
+        if nverts < 3: #not a plane no area
+            return 0
+        total = [0, 0, 0]
+        for i in range(nverts):
+            vi1 = verts[i]
+            vi1 = vi1.point.xyz
+            vi2 = verts[(i+1) % nverts]
+            vi2 = vi2.point.xyz
+            prod = np.cross(vi1, vi2)
+            total[0] += prod[0]
+            total[1] += prod[1]
+            total[2] += prod[2]
+            
+        result = np.dot(total, unit_normal(verts[0].point.xyz, verts[1].point.xyz, verts[2].point.xyz))
+        return abs(result/2)
+    
+    elif face.surface_type == geom.SrfType.BSPLINE:
+        print('Area of face with Bspline surface not yet implemented, convert bspline to polygon surface')
