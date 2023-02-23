@@ -270,7 +270,8 @@ def viz_falsecolour(topo_list, results, false_min_max_val = None, other_topo_dli
 
 def viz_st(topo_2dlist, results2d, topo_datetime_ls, xvalues2d, yvalues2d, colour_ls, false_min_max_val = None, 
            other_topo_2ddlist = [], xlabel = None, xunit = None, ylabel = None, yunit = None, title = None, legend = None, 
-           inf_lines = None, regions = None):
+           inf_lines = None, regions = None, second_xvalues2d = None, second_yvalues2d = None, second_colour_ls = None, 
+           second_legend = None, second_ylabel = None, second_yunit = None):
     """
     This function visualises the spatial time-series data.
  
@@ -336,11 +337,30 @@ def viz_st(topo_2dlist, results2d, topo_datetime_ls, xvalues2d, yvalues2d, colou
         orientation: str, vertical or horizontal
         range: list of floats, [lwr_limit, upr_limit] e.g. [50,70] 
         colour: tuple, (r,g,b,a)
+        
+    second_xvalues2d : 2dlist of datetime
+        xvalues to plot on a second y-axis. You can input python datetime object for time-series data. For different set of data separate them into different list.
+        
+    second_yvalues2d : 2dlist of floats, optional
+        yvalues to plot on a second y-axis. For different set of data separate them into different list.
+        
+    second_colour_ls : list of tuple
+        list of tuples specifying the colour. The tuple is (R,G,B,A). e.g. [(255,255,255,255), (255,0,0,255)].
+    
+    second_legend : list of str, optional
+        list of strings for the data on the second axis.
+    
+    second_ylabel : str, optional
+        label for the second y-axis.
+    
+    second_yunit : str, optional
+        unit label for the second y-axis.
     """
     class StView(QtWidgets.QWidget):
         def __init__(self, topo_2dlist, results2d, topo_unixtime, xvalues2d, yvalues2d, colour_ls, false_min_max_val = None, 
                      other_topo_2ddlist = [], xlabel = None, xunit = None, ylabel = None, yunit = None, title = None, 
-                     legend = None, inf_lines = None, regions = None):
+                     legend = None, inf_lines = None, regions = None, second_xvalues2d = None, second_yvalues2d = None, 
+                     second_colour_ls = None, second_legend = None, second_ylabel = None, second_yunit = None):
             QtWidgets.QWidget.__init__(self)
             self.setupGUI()
             self.topo_2dlist = topo_2dlist
@@ -359,6 +379,12 @@ def viz_st(topo_2dlist, results2d, topo_datetime_ls, xvalues2d, yvalues2d, colou
             self.legend = legend
             self.inf_lines = inf_lines
             self.regions = regions
+            self.second_xvalues2d = second_xvalues2d
+            self.second_yvalues2d = second_yvalues2d
+            self.second_colour_ls = second_colour_ls
+            self.second_legend = second_legend
+            self.second_ylabel = second_ylabel
+            self.second_yunit = second_yunit
             
             #process data to visualise 3d model
             res_flat = list(chain(*results2d))
@@ -404,7 +430,8 @@ def viz_st(topo_2dlist, results2d, topo_datetime_ls, xvalues2d, yvalues2d, colou
             self.splitter2.setOrientation(QtCore.Qt.Orientation.Vertical)
             #setup the graph plot
             self.plot = pg.plot()
-            self.plot.setAxisItems(axisItems = {'bottom': pg.DateAxisItem()})
+            self.p1 = self.plot.plotItem
+            self.p1.setAxisItems(axisItems = {'bottom': pg.DateAxisItem()})
             self.plot.showGrid(x=True, y=True)
             #put the graph into the second 
             self.splitter2.addWidget(self.splitter)
@@ -759,16 +786,18 @@ def viz_st(topo_2dlist, results2d, topo_datetime_ls, xvalues2d, yvalues2d, colou
         
         def load_time_series_data(self):
             #load the time-series data
+            
+            p1 = self.p1
             self.scatterplot_ls = _plot_graph(self.xvalues2d, self.yvalues2d, self.colour_ls)
             legend_item = pg.LegendItem((80,60), offset=(70,20))
-            legend_item.setParentItem(self.plot.graphicsItem())
+            legend_item.setParentItem(p1.graphicsItem())
             if self.legend is None:
                 for cnt, scatter in enumerate(self.scatterplot_ls):
-                    self.plot.addItem(scatter)
+                    p1.addItem(scatter)
                     legend_item.addItem(scatter, 'legend' + str(cnt))
             else:
                 for cnt, scatter in enumerate(self.scatterplot_ls):
-                    self.plot.addItem(scatter)
+                    p1.addItem(scatter)
                     legend_item.addItem(scatter, self.legend[cnt])
             
             #add an infinite line to the graph
@@ -805,11 +834,41 @@ def viz_st(topo_2dlist, results2d, topo_datetime_ls, xvalues2d, yvalues2d, colou
                     lr = pg.LinearRegionItem(values=rangex, orientation=orient, brush=colour, pen=[255,255,255,80], movable=False)
                     label = pg.InfLineLabel(lr.lines[1], label, position=0.9, rotateAxis=(1,0), anchor=(1, 1))
                     self.plot.addItem(lr)
+            
+            
+            p1.addItem(self.infl)
+            p1.setTitle(self.title)
+            p1.setLabel('bottom', text = self.xlabel, units = self.xunit)
+            p1.setLabel('left', text = self.ylabel, units = self.yunit)
+            
+            if self.second_xvalues2d is not None and self.second_yvalues2d is not None and self.second_colour_ls:
+                #need to create a new second y-axis and link it
+                ## create a new ViewBox, link the right axis to its coordinate system
+                p2 = pg.ViewBox()
+                p1.showAxis('right')
+                p1.scene().addItem(p2)
+                p1.getAxis('right').linkToView(p2)
+                p2.setXLink(p1)
+                p1.setLabel('right', text = self.second_ylabel, units = self.second_yunit)
+                
+                ## Handle view resizing 
+                def updateViews():
+                    p2.setGeometry(p1.vb.sceneBoundingRect())
+                    p2.linkedViewChanged(p1.vb, p2.XAxis)
                     
-            self.plot.addItem(self.infl)
-            self.plot.setTitle(self.title)
-            self.plot.setLabel('bottom', text = self.xlabel, units = self.xunit)
-            self.plot.setLabel('left', text = self.ylabel, units = self.yunit)
+                updateViews()
+                p1.vb.sigResized.connect(updateViews)
+                
+                scatter_ls2 = _plot_graph(self.second_xvalues2d, self.second_yvalues2d, self.second_colour_ls, symbol = 't')
+                for scatter2 in scatter_ls2:
+                    p2.addItem(scatter2)
+                
+                if self.second_legend is None:
+                    for cnt, scatter2 in enumerate(scatter_ls2):
+                        legend_item.addItem(scatter2, 'legend' + str(cnt))
+                else:
+                    for cnt, scatter2 in enumerate(scatter_ls2):
+                        legend_item.addItem(scatter2, second_legend[cnt])
         
         def clear_3dview(self):
             view_3d = self.view3d
@@ -845,11 +904,18 @@ def viz_st(topo_2dlist, results2d, topo_datetime_ls, xvalues2d, yvalues2d, colou
         unix43d.append(unix_time)
     
     unix_2d_graph = _convert_datetime2unix(xvalues2d)
+    
+    if second_xvalues2d is not None:
+        second_xvalues2d  = _convert_datetime2unix(second_xvalues2d)
+        
     pg.mkQApp()
     win = StView(topo_2dlist, results2d, unix43d, unix_2d_graph, yvalues2d, colour_ls, false_min_max_val = false_min_max_val, 
                  other_topo_2ddlist = other_topo_2ddlist, xlabel = xlabel, xunit = xunit, ylabel = ylabel, yunit = yunit, 
-                 title = title, legend = legend, inf_lines = inf_lines, regions = regions)
+                 title = title, legend = legend, inf_lines = inf_lines, regions = regions, second_xvalues2d=second_xvalues2d,
+                 second_yvalues2d=second_yvalues2d, second_colour_ls=second_colour_ls,second_legend=second_legend,
+                 second_ylabel=second_ylabel, second_yunit=second_yunit)
     
+    global p1, p2
     win.setWindowTitle("SpatialTimeSeriesView")
     win.showMaximized()
     win.animate()
@@ -1599,7 +1665,8 @@ def viz_animate(topo_2ddlist, topo_datetime_ls):
     win.animate()
 
 def viz_graph(xvalues2d, yvalues2d, colour_ls, xlabel = None, xunit = None, ylabel = None, yunit = None, title = None, 
-              legend = None, inf_lines = None, regions = None):
+              legend = None, inf_lines = None, regions = None, second_xvalues2d = None, second_yvalues2d = None, 
+              second_colour_ls = None, second_legend = None, second_ylabel = None, second_yunit = None):
     """
     This function visualises time-series data.
  
@@ -1645,7 +1712,24 @@ def viz_graph(xvalues2d, yvalues2d, colour_ls, xlabel = None, xunit = None, ylab
         orientation: str, vertical or horizontal
         range: list of floats, [lwr_limit, upr_limit] e.g. [50,70] 
         colour: tuple, (r,g,b,a)
+    
+    second_xvalues2d : 2dlist of floats/datetime
+        xvalues to plot on a second y-axis. You can input python datetime object for time-series data. For different set of data separate them into different list.
         
+    second_yvalues2d : 2dlist of floats, optional
+        yvalues to plot on a second y-axis. For different set of data separate them into different list.
+        
+    second_colour_ls : list of tuple
+        list of tuples specifying the colour. The tuple is (R,G,B,A). e.g. [(255,255,255,255), (255,0,0,255)].
+    
+    second_legend : list of str, optional
+        list of strings for the data on the second axis.
+        
+    second_ylabel : str, optional
+        label for the second y-axis.
+    
+    second_yunit : str, optional
+        unit label for the second y-axis.
     """
     class GraphView(QtWidgets.QWidget):
         def __init__(self, is_time_series):
@@ -1658,8 +1742,9 @@ def viz_graph(xvalues2d, yvalues2d, colour_ls, xlabel = None, xunit = None, ylab
             self.setLayout(self.layout)
             
             self.plot = pg.plot()
+            self.p1 = self.plot.plotItem
             if is_time_series == True:
-                self.plot.setAxisItems(axisItems = {'bottom': pg.DateAxisItem()})
+                self.p1.setAxisItems(axisItems = {'bottom': pg.DateAxisItem()})
             
             self.plot.showGrid(x=True, y=True)
             self.layout.addWidget(self.plot)
@@ -1667,7 +1752,7 @@ def viz_graph(xvalues2d, yvalues2d, colour_ls, xlabel = None, xunit = None, ylab
         def add_scatter(self, scatterplot_ls):
             self.scatterplot_ls = scatterplot_ls
             for scatter in scatterplot_ls:
-                self.plot.addItem(scatter)
+                self.p1.addItem(scatter)
     #========================================================================
     pg.mkQApp()
     
@@ -1677,16 +1762,21 @@ def viz_graph(xvalues2d, yvalues2d, colour_ls, xlabel = None, xunit = None, ylab
         is_time_series = True
         unix_2d = _convert_datetime2unix(xvalues2d)
         xvalues2d = unix_2d
+        if second_xvalues2d is not None and second_yvalues2d is not None and second_colour_ls:
+            unix2_2d = _convert_datetime2unix(second_xvalues2d)
+            second_xvalues2d = unix2_2d
         
     win = GraphView(is_time_series)
     scatterplot_ls = _plot_graph(xvalues2d, yvalues2d, colour_ls)
+    global p1, p2
+    p1 = win.p1
     win.add_scatter(scatterplot_ls)
-    win.plot.setTitle(title)
-    win.plot.setLabel('bottom', text = xlabel, units = xunit)
-    win.plot.setLabel('left', text = ylabel, units = yunit)
+    p1.setTitle(title)
+    p1.setLabel('bottom', text = xlabel, units = xunit)
+    p1.setLabel('left', text = ylabel, units = yunit)
     
     legend_item = pg.LegendItem((80,60), offset=(70,20))
-    legend_item.setParentItem(win.plot.graphicsItem())
+    legend_item.setParentItem(p1.graphicsItem())
     if legend is None:
         for cnt, scatter in enumerate(win.scatterplot_ls):
             legend_item.addItem(scatter, 'legend' + str(cnt))
@@ -1719,9 +1809,39 @@ def viz_graph(xvalues2d, yvalues2d, colour_ls, xlabel = None, xunit = None, ylab
                           time.mktime(rangex[1].timetuple())]
             
             lr = pg.LinearRegionItem(values=rangex, orientation=orient, brush=colour, pen=[255,255,255,80], movable=False)
-            win.plot.addItem(lr)
             label = pg.InfLineLabel(lr.lines[1], label, position=0.9, rotateAxis=(1,0), anchor=(1, 1))
-
+            win.plot.addItem(lr)
+            
+        
+    if second_xvalues2d is not None and second_yvalues2d is not None and second_colour_ls:
+        #need to create a new second y-axis and link it
+        ## create a new ViewBox, link the right axis to its coordinate system
+        p2 = pg.ViewBox()
+        p1.showAxis('right')
+        p1.scene().addItem(p2)
+        p1.getAxis('right').linkToView(p2)
+        p2.setXLink(win.p1)
+        p1.setLabel('right', text = second_ylabel, units = second_yunit)
+        
+        ## Handle view resizing 
+        def updateViews():
+            p2.setGeometry(p1.vb.sceneBoundingRect())
+            p2.linkedViewChanged(p1.vb, p2.XAxis)
+            
+        updateViews()
+        p1.vb.sigResized.connect(updateViews)
+        
+        scatter_ls2 = _plot_graph(second_xvalues2d, second_yvalues2d, second_colour_ls, symbol = 't')
+        for scatter2 in scatter_ls2:
+            p2.addItem(scatter2)
+        
+        if second_legend is None:
+            for cnt, scatter2 in enumerate(scatter_ls2):
+                legend_item.addItem(scatter2, 'legend' + str(cnt))
+        else:
+            for cnt, scatter2 in enumerate(scatter_ls2):
+                legend_item.addItem(scatter2, second_legend[cnt])
+                
     win.setWindowTitle("GraphView")
     win.show()
     if (sys.flags.interactive != 1) or not hasattr(QtCore, 'PYQT_VERSION'):
@@ -2111,7 +2231,7 @@ def _convert_datetime2unix(datetime2d):
         unix2d.append(unix_ls)
     return unix2d
 
-def _plot_graph(xvalues2d, yvalues2d, colour_ls):
+def _plot_graph(xvalues2d, yvalues2d, colour_ls, symbol = 'o'):
     scatterplot_ls = []
     for cnt, xvalues in enumerate(xvalues2d):
         yvalues = yvalues2d[cnt]
@@ -2119,7 +2239,7 @@ def _plot_graph(xvalues2d, yvalues2d, colour_ls):
         zip_vals = list(zip(*all_vals))
         spots = []
         for zval in zip_vals:
-            spots.append({'pos': zval, 'size':10})
+            spots.append({'pos': zval, 'size':10, 'symbol':symbol})
         
         scatterplot = pg.ScatterPlotItem(size = 10, hoverable = True, 
                                          brush= pg.mkBrush(colour_ls[cnt][0], colour_ls[cnt][1],colour_ls[cnt][2], colour_ls[cnt][3]), 
