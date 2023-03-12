@@ -45,6 +45,99 @@ if sys.platform == 'linux' or sys.platform == 'linux2':
     os.environ['QT_QPA_PLATFORM'] = 'wayland-egl'
     # os.environ['PYOPENGL_PLATFORM'] = 'egl'
     
+def viz2(topo_dictionary_list):
+    """
+    This function visualises the topologies.
+ 
+    Parameters
+    ----------
+    topo_dictionary_list : a list of dictionary
+        A list of dictionary specifying the visualisation parameters.
+        topo_list: the topos to visualise
+        colour:  keywords (RED,ORANGE,YELLOW,GREEN,BLUE,BLACK,WHITE) or rgb tuple to specify the colours
+        draw_edges: bool whether to draw the edges of mesh, default is True
+        point_size: size of the point
+        px_mode: True or False, if true the size of the point is in pixel if not its in meters
+    """
+    class VizTopo(QtWidgets.QWidget):
+        def __init__(self, topo_dictionary_list):
+            QtWidgets.QWidget.__init__(self)
+            self.setupGUI()
+            self.insert_parm3d()
+            self.topo_dictionary_list = topo_dictionary_list
+            self.load_3dmodel(zoom_extent = True)
+            self.backgroundc = 'k'
+            
+        def setupGUI(self):
+            self.layout = QtWidgets.QVBoxLayout()
+            self.setLayout(self.layout)
+            #create the right panel
+            self.splitter = QtWidgets.QSplitter()
+            self.splitter.setOrientation(QtCore.Qt.Orientation.Horizontal)
+            #create the parameter tree for housing the parameters
+            self.tree = ParameterTree(showHeader=False)
+            self.splitter.addWidget(self.tree)
+            #create the 3d view
+            self.view3d = gl.GLViewWidget()
+            self.splitter.addWidget(self.view3d)
+            self.layout.addWidget(self.splitter)
+            
+            self.screen_width = self.screen().size().width()
+            self.screen_height = self.screen().size().height()
+            self.splitter.setSizes([int(self.screen_width/3), self.screen_width])
+            
+        def insert_parm3d(self):
+            self.export3d = dict(name='Export3d', type='group', expanded = True, title = "Export Image",
+                       children=[
+                                    dict(name='xpixels', type = 'int', title = "XPixels", value = 1000, readonly = False),
+                                    dict(name='ypixels', type = 'int', title = "YPixels", value = 1000, readonly = False),
+                                    dict(name = 'White/Black Background', type = 'action'),
+                                    dict(name = 'Export', type = 'action')
+                                ]
+                        )
+
+            self.params = Parameter.create(name = "Export", type = "group", children = [self.export3d])
+            self.params.param('Export3d').param('Export').sigActivated.connect(self.export)
+            self.params.param('Export3d').param('White/Black Background').sigActivated.connect(self.background)
+            self.tree.addParameters(self.params, showTop=False)
+        
+        def load_3dmodel(self, zoom_extent = False):
+            bbox_list = _convert_topo_dictionary_list4viz(self.topo_dictionary_list, self.view3d)
+            if zoom_extent == True:
+                overall_bbox = calculate.bbox_frm_bboxes(bbox_list)
+                midpt = calculate.bbox_centre(overall_bbox)
+                self.view3d.opts['center'] = QtGui.QVector3D(midpt[0], midpt[1], midpt[2])
+                
+                lwr_left = [overall_bbox.minx, overall_bbox.miny, overall_bbox.minz]
+                upr_right =  [overall_bbox.maxx, overall_bbox.maxy, overall_bbox.maxz]
+                dist = calculate.dist_btw_xyzs(lwr_left, upr_right)
+                self.view3d.opts['distance'] = dist*1.5
+            
+        def export(self):
+            fn = pg.FileDialog.getSaveFileName(self, "Choose File Path", "exported_data.jpg", 'PNG (*.png);; JPEG (*.jpg)')
+            
+            if fn == '':
+                return
+            
+            xpixels = self.params.param('Export3d').param('xpixels').value()
+            ypixels = self.params.param('Export3d').param('ypixels').value()
+            # make the background image transparent
+            self.view3d.setBackgroundColor([0,0,0,0])
+            d = self.view3d.renderToArray((xpixels, ypixels))
+            d = np.rot90(d)
+            pg.makeQImage(d).save(str(fn[0]))
+            self.view3d.setBackgroundColor('k')
+            
+    #-----------------------------------------------------------------------------------------------------
+    QtCore.QCoreApplication.setAttribute(QtCore.Qt.ApplicationAttribute.AA_ShareOpenGLContexts)
+    pg.mkQApp()
+    win = VizTopo(topo_dictionary_list)
+    win.setWindowTitle("Viz")
+    win.show()
+    win.resize(1100,700)
+    if (sys.flags.interactive != 1) or not hasattr(QtCore, 'PYQT_VERSION'):
+        pg.exec()
+        
 def viz(topo_dictionary_list):
     """
     This function visualises the topologies.
@@ -58,10 +151,10 @@ def viz(topo_dictionary_list):
         draw_edges: bool whether to draw the edges of mesh, default is True
         point_size: size of the point
         px_mode: True or False, if true the size of the point is in pixel if not its in meters
-    """    
+    """
+    #-----------------------------------------------------------------------------------------------------
     QtCore.QCoreApplication.setAttribute(QtCore.Qt.ApplicationAttribute.AA_ShareOpenGLContexts)
-    
-    pg.mkQApp('')
+    pg.mkQApp()    
     w = gl.GLViewWidget()
     w.clear()
     bbox_list = _convert_topo_dictionary_list4viz(topo_dictionary_list, w)
