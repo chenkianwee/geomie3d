@@ -45,7 +45,7 @@ if sys.platform == 'linux' or sys.platform == 'linux2':
     os.environ['QT_QPA_PLATFORM'] = 'wayland-egl'
     # os.environ['PYOPENGL_PLATFORM'] = 'egl'
     
-def viz2(topo_dictionary_list):
+def viz(topo_dictionary_list):
     """
     This function visualises the topologies.
  
@@ -91,14 +91,12 @@ def viz2(topo_dictionary_list):
                        children=[
                                     dict(name='xpixels', type = 'int', title = "XPixels", value = 1000, readonly = False),
                                     dict(name='ypixels', type = 'int', title = "YPixels", value = 1000, readonly = False),
-                                    dict(name = 'White/Black Background', type = 'action'),
                                     dict(name = 'Export', type = 'action')
                                 ]
                         )
 
             self.params = Parameter.create(name = "Export", type = "group", children = [self.export3d])
             self.params.param('Export3d').param('Export').sigActivated.connect(self.export)
-            self.params.param('Export3d').param('White/Black Background').sigActivated.connect(self.background)
             self.tree.addParameters(self.params, showTop=False)
         
         def load_3dmodel(self, zoom_extent = False):
@@ -114,7 +112,7 @@ def viz2(topo_dictionary_list):
                 self.view3d.opts['distance'] = dist*1.5
             
         def export(self):
-            fn = pg.FileDialog.getSaveFileName(self, "Choose File Path", "exported_data.jpg", 'PNG (*.png);; JPEG (*.jpg)')
+            fn = pg.FileDialog.getSaveFileName(self, "Choose File Path", "exported_img.png", 'PNG (*.png);; JPEG (*.jpg)')
             
             if fn == '':
                 return
@@ -138,40 +136,6 @@ def viz2(topo_dictionary_list):
     if (sys.flags.interactive != 1) or not hasattr(QtCore, 'PYQT_VERSION'):
         pg.exec()
         
-def viz(topo_dictionary_list):
-    """
-    This function visualises the topologies.
- 
-    Parameters
-    ----------
-    topo_dictionary_list : a list of dictionary
-        A list of dictionary specifying the visualisation parameters.
-        topo_list: the topos to visualise
-        colour:  keywords (RED,ORANGE,YELLOW,GREEN,BLUE,BLACK,WHITE) or rgb tuple to specify the colours
-        draw_edges: bool whether to draw the edges of mesh, default is True
-        point_size: size of the point
-        px_mode: True or False, if true the size of the point is in pixel if not its in meters
-    """
-    #-----------------------------------------------------------------------------------------------------
-    QtCore.QCoreApplication.setAttribute(QtCore.Qt.ApplicationAttribute.AA_ShareOpenGLContexts)
-    pg.mkQApp()    
-    w = gl.GLViewWidget()
-    w.clear()
-    bbox_list = _convert_topo_dictionary_list4viz(topo_dictionary_list, w)
-    
-    w.addItem(gl.GLAxisItem())
-    overall_bbox = calculate.bbox_frm_bboxes(bbox_list)
-    midpt = calculate.bbox_centre(overall_bbox)
-    w.opts['center'] = QtGui.QVector3D(midpt[0], midpt[1], midpt[2])
-    
-    lwr_left = [overall_bbox.minx, overall_bbox.miny, overall_bbox.minz]
-    upr_right =  [overall_bbox.maxx, overall_bbox.maxy, overall_bbox.maxz]
-    dist = calculate.dist_btw_xyzs(lwr_left, upr_right)
-    w.opts['distance'] = dist*1.5
-    # w.setBackgroundColor('w')
-    w.show()
-    w.setWindowTitle('Geomie3D viz')
-    pg.exec()
 
 def viz_falsecolour(topo_list, results, false_min_max_val = None, other_topo_dlist = []):
     """
@@ -217,6 +181,26 @@ def viz_falsecolour(topo_list, results, false_min_max_val = None, other_topo_dli
             
             self.view3d = gl.GLViewWidget()
             self.splitter.addWidget(self.view3d)
+            
+            self.screen_width = self.screen().size().width()
+            self.screen_height = self.screen().size().height()
+            self.splitter.setSizes([int(self.screen_width/3), self.screen_width])
+        
+        def insert_export_parm(self):
+            self.export3d = dict(name='Export3d', type='group', expanded = False, title = "Export Image",
+                       children=[
+                                    dict(name='xpixels', type = 'int', title = "XPixels", value = 1000, readonly = False),
+                                    dict(name='ypixels', type = 'int', title = "YPixels", value = 1000, readonly = False),
+                                    dict(name = 'Export', type = 'action')
+                                ]
+                        )
+            
+            self.params2 = Parameter.create(name = "Export", type = "group", children = [self.export3d])
+            self.params2.param('Export3d').param('Export').sigActivated.connect(self.export)
+            self.tree.addParameters(self.params2, showTop=False)
+        
+        def export(self):
+            pass
         
         def insert_fcolour(self, fmin_val, fmax_val, results):
             self.min_val = min(results)
@@ -231,7 +215,30 @@ def viz_falsecolour(topo_list, results, false_min_max_val = None, other_topo_dli
             self.params = Parameter.create(name = "Parmx", type = "group", children = [self.falsecolour,
                                                                                          self.min_max])
             
-            self.tree.setParameters(self.params, showTop=False)
+            self.tree.addParameters(self.params, showTop=False)
+            
+            
+            # set color based on z coordinates
+            color_map = pg.colormap.get("CET-L10")
+            
+            h = md.vertexes()[:, 2]
+            # remember these
+            h_max, h_min = h.max(), h.min()
+            h = (h - h_min) / (h_max - h_min)
+            colors = color_map.map(h, mode="float")
+            md.setFaceColors(colors)
+            m = gl.GLMeshItem(meshdata=md, smooth=True)
+            w.addItem(m)
+            
+            legendLabels = numpy.linspace(h_max, h_min, 5)
+            legendPos = numpy.linspace(1, 0, 5)
+            legend = dict(zip(map(str, legendLabels), legendPos))
+            
+            gll = gl.GLGradientLegendItem(
+                pos=(10, 10), size=(50, 300), gradient=color_map, labels=legend
+            )
+            w.addItem(gll)
+
             return int_ls, clr_ls
         
         def gen_falsecolour_bar(self, min_val, max_val):
@@ -292,7 +299,8 @@ def viz_falsecolour(topo_list, results, false_min_max_val = None, other_topo_dli
     else:
         int_ls, c_ls = win.insert_fcolour(false_min_max_val[0], 
                                           false_min_max_val[1], results)
-
+    
+    win.insert_export_parm()
     topo_int_ls = _create_topo_int_ls(int_ls)
     # print(len(topo_list))
     #sort all the topologies into the 10 intervals
@@ -360,7 +368,7 @@ def viz_falsecolour(topo_list, results, false_min_max_val = None, other_topo_dli
     win.resize(1100,700)
     if (sys.flags.interactive != 1) or not hasattr(QtCore, 'PYQT_VERSION'):
         pg.exec()
-
+    
 def viz_st(topo_2dlist, results2d, topo_datetime_ls, xvalues2d, yvalues2d, colour_ls, false_min_max_val = None, 
            other_topo_2ddlist = [], xlabel = None, xunit = None, ylabel = None, yunit = None, title = None, legend = None, 
            inf_lines = None, regions = None, second_xvalues2d = None, second_yvalues2d = None, second_colour_ls = None, 
@@ -2161,7 +2169,7 @@ def _convert_topo_dictionary_list4viz(topo_dictionary_list, view3d):
         wires = sorted_d['wire']
         if len(wires) > 0:
             wires2edges = np.array([get.edges_frm_wire(wire) for wire in wires], dtype=object)
-            wires2edges = wires2edges.flatten()
+            wires2edges = list(chain(*wires2edges)) #wires2edges.flatten()
             all_edges = np.append(all_edges, wires2edges )
         
         if len(all_edges) > 0:
@@ -2197,9 +2205,17 @@ def _convert_topo_dictionary_list4viz(topo_dictionary_list, view3d):
             idx = mesh_dict['indices']
             #flip the vertices to be clockwise
             idx = np.flip(idx, axis=1)
-            viz_mesh = _make_mesh(verts, idx,  draw_edges = draw_edges)
+            viz_mesh = _make_mesh(verts, idx,  draw_edges = False)
             viz_mesh.setColor(np.array(rgb))
-            view3d.addItem(viz_mesh)     
+            view3d.addItem(viz_mesh)
+            if draw_edges == True:
+                #get all the boundary edges of the faces
+                fcomp = create.composite(all_faces)
+                fedges = get.edges_frm_composite(fcomp)
+                fline_vertices = modify.edges2lines(fedges)
+                viz_flines = _make_line(fline_vertices, line_colour = [0,0,0,1])
+                view3d.addItem(viz_flines)  
+            
         #=================================================================================
         #find the bbox
         #=================================================================================
