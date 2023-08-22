@@ -177,14 +177,14 @@ def extrude_polygon_face(face, direction, magnitude, attributes = {}):
         for cnt in range(nverts):
             if cnt != nverts - 1:
                 v1 = vs1[cnt]
-                v2 = vs2[cnt]
+                v2 = vs1[cnt+1]
                 v3 = vs2[cnt+1]
-                v4 = vs1[cnt+1]
+                v4 = vs2[cnt]
             else:
                 v1 = vs1[cnt]
-                v2 = vs2[cnt]
+                v2 = vs1[0]
                 v3 = vs2[0]
-                v4 = vs1[0]
+                v4 = vs2[cnt]
             
             vert_f = polygon_face_frm_verts(np.array([v1,v2,v3,v4]))
             # utility.viz([{'topo_list': [vert_f], 'colour': 'red'}])
@@ -219,10 +219,14 @@ def extrude_polygon_face(face, direction, magnitude, attributes = {}):
         elif angle > 90:
             mv_face = modify.reverse_face_normal(mv_face)
         
-        
         ext_faces.insert(0,face)
-        ext_faces.insert(-1,mv_face)
-        # print(ext_faces)
+        ext_faces.append(mv_face)
+        # cmp = composite(ext_faces)
+        # edges = get.edges_frm_composite(cmp)
+        # from . import viz
+        # for f in ext_faces:
+        #     viz.viz([{'topo_list':[f], 'colour': 'blue'},
+        #              {'topo_list':edges, 'colour': 'white'}])
         shell = topobj.Shell(np.array(ext_faces))
         solid = topobj.Solid(shell, attributes = attributes)
         return solid
@@ -793,7 +797,47 @@ def composite(topo_list, attributes={}):
         A composite topology containing the topo list
     """
     return topobj.Composite(topo_list, attributes = attributes)
+
+def shell_frm_faces(face_list, attributes={}):
+    """
+    This function constructs a shell from a list of faces.
+ 
+    Parameters
+    ----------
+    face_list : a list of faces
+        A list of face topology
     
+    attributes : dictionary, optional
+        dictionary of the attributes.
+ 
+    Returns
+    -------
+    shell : shell topology
+        A shell topology 
+    """
+    shell = topobj.Shell(np.array(face_list), attributes = attributes)
+    return shell
+
+def solid_frm_shell(shell, attributes = {}):
+    """
+    This function constructs a solid from a shell.
+ 
+    Parameters
+    ----------
+    shell : shell
+        Shell topology
+    
+    attributes : dictionary, optional
+        dictionary of the attributes.
+ 
+    Returns
+    -------
+    solid : solid topology
+        A solid topology 
+    """
+    solid = topobj.Solid(shell, attributes=attributes)
+    return solid
+
 def shell_frm_delaunay(vertex_list, tolerance = 1e-6):
     """
     This function creates a TIN from a vertex list.

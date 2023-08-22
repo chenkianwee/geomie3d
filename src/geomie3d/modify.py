@@ -248,8 +248,11 @@ def faces2mesh(face_list):
     for f in face_list:
         srf_type = f.surface_type
         if srf_type == geom.SrfType.POLYGON or srf_type == geom.SrfType.BSPLINE:
+            # vs = get.vertices_frm_face(f)
+            # xyzs = [v.point.xyz for v in vs]
+            # print(xyzs)
             xyzs_indxs = triangulate_face(f, indices = True)
-
+            # print(xyzs_indxs)
             if len(all_xyzs) == 0:
                 all_xyzs = xyzs_indxs[0]
             else:
@@ -438,7 +441,7 @@ def reverse_face_normal(face):
         bxyzs = np.flip(bxyzs, axis=0)
         bverts = create.vertex_list(bxyzs)
         if len(hverts) == 0:    
-            flip_f = create.polygon_face_frm_verts(bverts)
+            flip_f = create.polygon_face_frm_verts(bverts, attributes=face.attributes)
         else:
             hverts_ls = []
             for h in hverts:     
@@ -447,7 +450,8 @@ def reverse_face_normal(face):
                 hverts = create.vertex_list(hxyzs)    
                 hverts_ls.append(hverts)
             flip_f = create.polygon_face_frm_verts(bverts, 
-                                                   hole_vertex_list = hverts_ls)
+                                                   hole_vertex_list = hverts_ls,
+                                                   attributes = face.attributes)
         return flip_f
     
     elif face.surface_type == geom.SrfType.BSPLINE:
@@ -463,7 +467,7 @@ def reverse_face_normal(face):
         
         deg_u = srf.degree_u
         deg_v = srf.degree_v
-        flip_f = create.bspline_face_frm_ctrlpts(cp, kv_u, kv_v, deg_u, deg_v)
+        flip_f = create.bspline_face_frm_ctrlpts(cp, kv_u, kv_v, deg_u, deg_v, attributes=face.attributes)
         return flip_f 
 
 def update_topo_att(topo, attributes):

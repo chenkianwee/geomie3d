@@ -21,12 +21,14 @@
 import math
 from itertools import chain
 import numpy as np
+from numpy.linalg import matrix_rank
 
 from . import topobj
 from . import get
 from . import utility
 from . import modify
 from . import geom
+from . import create
 
 def dist_btw_xyzs(xyzs1, xyzs2):
     """
@@ -74,24 +76,21 @@ def xyzs_mean(xyzs):
     midpt : xyz
         The mean of all the points.
     """
-
+    shape = np.shape(xyzs)
+    nshape = len(shape)
+    if nshape == 1:
+        raise ValueError("arrays have arrays of different length, this is not allowed")
+    
     if type(xyzs) != np.ndarray:
         xyzs = np.array(xyzs)
-        
-    zip_xyzs = xyzs.T
     
-    x_list = zip_xyzs[0]
-    y_list = zip_xyzs[1]
-    z_list = zip_xyzs[2]
-        
-    npts = len(x_list)
-    x_mean = (np.sum(x_list))/npts
-    y_mean = (np.sum(y_list))/npts
-    z_mean = (np.sum(z_list))/npts
+    if nshape == 2: #only 1 set of points
+        centre_pt = np.mean(xyzs, axis=0)
+        return centre_pt
     
-    centre_pt = np.array([x_mean, y_mean, z_mean])
-
-    return centre_pt
+    if nshape == 3:
+        centre_pt = np.mean(xyzs, axis=1)
+        return centre_pt
 
 def bbox_frm_xyzs(xyzs):
     """
@@ -191,10 +190,21 @@ def is_collinear(vertex_list):
     True or False : bool
         If True the list of points are collinear.
     """
-    from sympy import Point3D
-    sympts = [Point3D(v.point.xyz) for v in vertex_list]
-    collinear = Point3D.are_collinear(*sympts)
-    return collinear
+    if type(vertex_list) != np.ndarray:
+        vertex_list = np.array(vertex_list)
+    
+    is_2d = isinstance(vertex_list[0], np.ndarray)
+    
+    if not is_2d:
+        xyzs = [v.point.xyz for v in vertex_list]
+        
+    else:
+        xyzs = []
+        for verts in vertex_list:
+            xyz = [v.point.xyz for v in verts]
+            xyzs.append(xyz)
+            
+    return is_collinear_xyzs(xyzs)
 
 def is_coplanar(vertex_list):
     """
@@ -203,19 +213,114 @@ def is_coplanar(vertex_list):
     Parameters
     ----------
     vertex_list : ndarray
-        array of vertices.
+        array of vertices. It can be a 2darray of vertex list
         
     Returns
     -------
     True or False : bool
         If True the list of points are coplanar.
     """
-    from sympy import Point3D
-    sympts = [Point3D(v.point.xyz) for v in vertex_list]
+    if type(vertex_list) != np.ndarray:
+        vertex_list = np.array(vertex_list)
     
-    coplanar = Point3D.are_coplanar(*sympts)
-    return coplanar
+    is_2d = isinstance(vertex_list[0], np.ndarray)
+    
+    if not is_2d:
+        xyzs = [v.point.xyz for v in vertex_list]
+        
+    else:
+        xyzs = []
+        for verts in vertex_list:
+            xyz = [v.point.xyz for v in verts]
+            xyzs.append(xyz)
+            
+    return is_coplanar_xyzs(xyzs)
 
+def _affine_rank(xyzs):
+    """
+    This function calculate the affine rank of the xyzs. If having a 3d array.
+    
+    Parameters
+    ----------
+    xyzs : ndarray
+        array of xyzs, [xyzs1, xyzs2, xyzs3]. each xyz is defined as [x1,y1,z1]. This function takes multiple sets of points and check their coplanarity. [point_set1, point_set2, point_setx].
+        
+    Returns
+    -------
+    affine_rank : ndarray
+        affine rank of the given xyzs.
+    """
+    #--------------------------------------------------------------------------------------------------------------------------------
+    def rank_affine(xyzs):
+        centroid = xyzs_mean(xyzs)
+        centered_pts = xyzs - centroid
+        affine_rank = matrix_rank(centered_pts)
+        return affine_rank
+    #--------------------------------------------------------------------------------------------------------------------------------
+    shape = np.shape(xyzs)
+    nshape = len(shape)
+    if nshape == 1:
+        raise ValueError(
+            "this is a 1d array. This sometimes happens if arrays have arrays of different length, this is not allowed")
+
+    if type(xyzs) != np.ndarray:
+        xyzs = np.array(xyzs)
+
+    if nshape == 2:  # only 1 set of points
+        xyzs = np.unique(xyzs, axis=0)
+        affine_rank = rank_affine(xyzs)
+        return affine_rank
+
+    elif nshape == 3:
+        uniqs = [np.unique(u, axis=0) for u in xyzs]
+        shape1 = np.shape(uniqs)
+        nshape1 = len(shape1)
+        if nshape1 == 1:
+            affine_rank = [rank_affine(uniq) for uniq in uniqs]
+        elif nshape1 == 3:
+            uniqs = np.array(uniqs)
+            centroid = xyzs_mean(uniqs)
+            nrepeat = np.repeat([shape1[1]], shape1[0])
+            centroid = np.repeat(centroid, nrepeat, axis=0)
+            centroid = np.reshape(centroid, shape1)
+            centered_pts = uniqs - centroid
+            affine_rank = matrix_rank(centered_pts)
+            return affine_rank
+    
+def is_coplanar_xyzs(xyzs):
+    """
+    This function checks if the list of xyzs are coplanar.
+    
+    Parameters
+    ----------
+    xyzs : ndarray
+        array of xyzs, [xyzs1, xyzs2, xyzs3]. each xyz is defined as [x1,y1,z1]. This function takes multiple sets of points and check their coplanarity. [point_set1, point_set2, point_setx].
+        
+    Returns
+    -------
+    True or False : bool
+        If True the list of points are coplanar.
+    """
+    affine_rank = _affine_rank(xyzs)
+    return affine_rank <=2            
+
+def is_collinear_xyzs(xyzs):
+    """
+    This function checks if the list of xyzs are collinear.
+    
+    Parameters
+    ----------
+    xyzs : ndarray
+        array of xyzs, [xyzs1, xyzs2, xyzs3]. each xyz is defined as [x1,y1,z1]. This function takes multiple sets of points and check their coplanarity. [point_set1, point_set2, point_setx].
+        
+    Returns
+    -------
+    True or False : bool
+        If True the list of points are coplanar.
+    """
+    affine_rank = _affine_rank(xyzs)
+    return affine_rank <=1 
+    
 def bbox_frm_topo(topo):
     """
     calculate the bbox from a topology object.
@@ -546,10 +651,21 @@ def dot_product(vector1, vector2):
         vector1 = np.array(vector1)
     if type(vector2) != np.ndarray:
         vector2 = np.array(vector2)
-       
-    dot_product = np.dot(vector1, vector2)
-    return dot_product
-
+    
+    shape = np.shape(vector1)
+    nshape = len(shape)
+    if nshape == 1:
+        dot_product = np.dot(vector1, vector2)
+        return dot_product
+    elif nshape == 2:
+        v1T = vector1.T
+        v2T = vector2.T
+        a = v1T[0]*v2T[0]
+        b = v1T[1]*v2T[1]
+        c = v1T[2]*v2T[2]
+        dot_product = a+b+c
+        return dot_product
+        
 def normalise_vectors(vector_list):
     """
     This function normalise the vectors.
@@ -712,6 +828,7 @@ def cs2cs_matrice(orig_cs, dest_cs):
     # rot_angle = angle_btw_2vectors(yd1, yd2)
     # rot_mat = rotate_matrice(rot_axis1, rot_angle)
     # # print(trsl_mat)
+    pass
     
 def face_midxyz(face):
     """
@@ -795,7 +912,7 @@ def move_xyzs(xyzs, directions, magnitudes):
     magnitudes = np.reshape(magnitudes, [len(directions),1])
     moved_xyzs = xyzs + directions*magnitudes
     return moved_xyzs 
-
+    
 def is_anticlockwise(xyzs, ref_vec):
     """
     This function checks if the list of points are arranged anticlockwise in regards to the ref_pyvec. 
@@ -815,27 +932,58 @@ def is_anticlockwise(xyzs, ref_vec):
     True or False : bool
         If True the list of points are arranged in anticlockwise manner, if False they are not.
     """
-    total = [0,0,0]    
-    npts = len(xyzs)
-    for i in range(npts):
-        vec1 = xyzs[i]
-        if i == npts-1:
-            vec2 = xyzs[0]
-        else:
-            vec2 = xyzs[i+1]
-            
-        #cross the two pts
-        prod = cross_product(vec1, vec2)
-        total[0] += prod[0]
-        total[1] += prod[1]
-        total[2] += prod[2]
+    shape = np.shape(xyzs)
+    nshape = len(shape)
+    if nshape == 1:
+        raise ValueError("xyzs is a 1d array. This sometimes happens if it is a 2d arrays have arrays of different length, this is not allowed")
+        
+    if type(xyzs) != np.ndarray:
+        xyzs = np.array(xyzs)
     
-    res = dot_product(total, ref_vec)
-    if res < 0:
-        return False 
-    else:
-        return True
-
+    if type(ref_vec) != np.ndarray:
+        ref_vec = np.array(ref_vec)
+    
+    if nshape == 2: #only 1 set of points
+        xyzs2 = np.roll(xyzs, -1, axis=0)
+        prod = cross_product(xyzs, xyzs2)
+        ttl = np.sum(prod, axis=0)
+        res = dot_product(ttl, ref_vec)
+        if res < 0:
+            return False
+        elif res > 0:
+            return True
+        else: #if res == 0 means the points are collinear
+            return None
+        
+        # total = [0,0,0]    
+        # npts = len(xyzs)
+        # for i in range(npts):
+        #     vec1 = xyzs[i]
+        #     if i == npts-1:
+        #         vec2 = xyzs[0]
+        #     else:
+        #         vec2 = xyzs[i+1]
+        #     #cross the two pts
+        #     prod = cross_product(vec1, vec2)
+        #     total[0] += prod[0]
+        #     total[1] += prod[1]
+        #     total[2] += prod[2]
+        # res = dot_product(total, ref_vec)
+        
+    elif nshape == 3:
+        xyzs2 = np.roll(xyzs, -1, axis=1)
+        #reshape both of the xyzs
+        xyzs_rs = np.reshape(xyzs, (shape[0]*shape[1], shape[2]))
+        xyzs2_rs = np.reshape(xyzs2, (shape[0]*shape[1], shape[2]))
+        prod = cross_product(xyzs_rs, xyzs2_rs)
+        prod = np.reshape(prod, shape)
+        ttl = np.sum(prod, axis=1)
+        res = dot_product(ttl, ref_vec)
+        cond1 = np.logical_not(res <= 0) # bigger than 0 means its anticlockwise
+        cond2 = np.logical_not(res != 0) #find where are the 0
+        cond3 = np.where(cond2, None, cond1) #use the 0 cond rule to change the 0 to None    
+        return cond3
+        
 def acct4obstruction(intPts, mags, rayIndxs, objIndxs):
     indx = np.arange(len(rayIndxs))
     dupIds = utility.id_dup_indices_1dlist(rayIndxs)
@@ -883,24 +1031,6 @@ def rays_xyz_tris_intersect(rays_xyz, tris_xyz):
     tris_index : ndarray
         indices of the intersected triangles. Corresponds to the intersect pts.
     """
-    #============================================
-    def dot_product_2dx2d(vectors1, vectors2):
-        if type(vectors1) != np.ndarray:
-            vectors1 = np.array(vectors1)
-        
-        if type(vectors2) != np.ndarray:
-            vectors2 = np.array(vectors2)
-        
-        v1sT = vectors1.T
-        v2sT = vectors2.T
-        v1x = v1sT[0] * v2sT[0]
-        v1y = v1sT[1] * v2sT[1]
-        v1z = v1sT[2] * v2sT[2]
-        
-        dp = v1x + v1y+ v1z
-        return dp
-    
-    #============================================
     dets_threshold = 1e-06
     precision = 6
     if type(rays_xyz) != np.ndarray:
@@ -920,7 +1050,7 @@ def rays_xyz_tris_intersect(rays_xyz, tris_xyz):
     rays_repeat = np.repeat(rays_xyz, ntris, axis=0)
     raysT = np.stack(rays_repeat, axis=1)
     pvecs = cross_product(raysT[1], xyzs2_0)
-    dets = dot_product_2dx2d(xyzs1_0, pvecs)
+    dets = dot_product(xyzs1_0, pvecs)
     dets_round = np.around(dets, decimals=precision)
     # print('dets', dets)
     dets_true = np.logical_not(dets_round<dets_threshold)
@@ -940,7 +1070,7 @@ def rays_xyz_tris_intersect(rays_xyz, tris_xyz):
                     raysT[0] - trisT[0], 
                     np.zeros((len(raysT[0]), 3)))
     us = np.where(dets_true, 
-                  dot_product_2dx2d(tvecs, pvecs)*invDet, 
+                  dot_product(tvecs, pvecs)*invDet, 
                   np.zeros(len(dets_true)))
     
     us = np.around(us, decimals=precision)
@@ -958,7 +1088,7 @@ def rays_xyz_tris_intersect(rays_xyz, tris_xyz):
                      cross_product(tvecs, xyzs1_0),
                      np.zeros([len(tvecs),3]))
     vs = np.where(us_true, 
-                  dot_product_2dx2d(raysT[1], qvecs)*invDet,
+                  dot_product(raysT[1], qvecs)*invDet,
                   np.zeros([len(us_true)]))
     vs = np.around(vs, decimals = precision)
     vs_true1 = np.logical_not(vs < 0.0-dets_threshold)
@@ -968,7 +1098,7 @@ def rays_xyz_tris_intersect(rays_xyz, tris_xyz):
     vs_true = np.logical_and(vs_true1, vs_true2)
     vs_true = np.logical_and(vs_true, us_true)
     mags = np.where(vs_true, 
-                    dot_product_2dx2d(xyzs2_0, qvecs)*invDet,
+                    dot_product(xyzs2_0, qvecs)*invDet,
                     np.zeros([len(vs_true)]))
     
     mags = np.around(mags, decimals=precision)
@@ -1547,3 +1677,358 @@ def face_area(face):
     
     elif face.surface_type == geom.SrfType.BSPLINE:
         print('Area of face with Bspline surface not yet implemented, convert bspline to polygon surface')
+
+def linexyzs_from_t(ts, linexyzs):
+    """
+    get a pointxyz on a line with the parameter t. Based on this post https://mathworld.wolfram.com/Point-LineDistance3-Dimensional.html
+    
+    Parameters
+    ----------
+    ts : array of float
+        the t parameter, 0-1.
+    
+    linexyzs : ndarray
+        array of lines [line1, line2, ...]. Each line is define as [[x1,y1,z1],[x2,y2,z2]].
+        
+    Returns
+    -------
+    xyzs : ndarray
+        array of the xyz points on the line with parameter t.
+    """
+    if type(ts) != np.ndarray:
+        ts = np.array(ts)
+        
+    if type(linexyzs) != np.ndarray:
+        linexyzs = np.array(linexyzs)
+    
+    shape = np.shape(linexyzs)
+    xyzs= np.reshape(linexyzs, (shape[0]*shape[1], shape[2]))
+    xyzsT = xyzs.T
+    xs1 = xyzsT[0][0::2]
+    xs2 = xyzsT[0][1::2]
+    
+    ys1 = xyzsT[1][0::2]
+    ys2 = xyzsT[1][1::2]
+    
+    zs1 = xyzsT[2][0::2]
+    zs2 = xyzsT[2][1::2]
+    
+    xs_t = xs1 + ((xs2-xs1) * ts)
+    ys_t = ys1 + ((ys2-ys1) * ts)
+    zs_t = zs1 + ((zs2-zs1) * ts)
+    
+    xyzsT2 = np.array([xs_t, ys_t, zs_t])
+    xyzs_t = xyzsT2.T
+    
+    return xyzs_t
+    
+def dist_pointxyzs2linexyzs(pointxyzs, linexyzs, int_pts = False):
+    """
+    Find the distance between the points and the lines. If negative is to the xxx if positive is to the yyy. Based on this post https://mathworld.wolfram.com/Point-LineDistance3-Dimensional.html
+    
+    Parameters
+    ----------
+    pointxyzs : ndarray
+        array of points [point1, point2, ...]. Each point is define as [x,y,z].
+    
+    linexyzs : ndarray
+        array of edges [edge1, edge2, ...]. Each edge is define as [[x1,y1,z1],[x2,y2,z2],[x3,y3,z3]].
+    
+    int_pts: bool
+        if true will return the closest point on the line to the point. default == False
+        
+    Returns
+    -------
+    distances : ndarray
+        array of all the distances.
+    
+    closest_pts : ndarray, optional
+        the closest points on the line to the point. [point1, point2, pointx]. Each point is [x,y,z].
+    """
+    if type(pointxyzs) != np.ndarray:
+        pointxyzs = np.array(pointxyzs)
+        
+    if type(linexyzs) != np.ndarray:
+        linexyzs = np.array(linexyzs)
+    
+    shape = np.shape(linexyzs)
+    xyzs = np.reshape(linexyzs, (shape[0]*shape[1], shape[2]))
+    xyzs1 = xyzs[0::2]
+    xyzs2 = xyzs[1::2]
+    
+    a = xyzs1 - pointxyzs
+    b = xyzs2 - xyzs1
+    c = dot_product(a, b)
+    
+    dist = abs(dist_btw_xyzs(xyzs2, xyzs1))
+    distsq = np.square(dist)
+    ts = c/distsq
+    ts = ts*-1
+    ts = np.where(ts < 0, 0, ts)
+    ts = np.where(ts > 1, 1, ts)
+    int_xyzs = linexyzs_from_t(ts, linexyzs)
+    dists = dist_btw_xyzs(pointxyzs, int_xyzs)
+    if int_pts == False:
+        return dists
+    else:
+        return dists, int_xyzs
+
+def _extract_xyzs_from_lineedge(edge_list):
+    """
+    extract line xyzs from edges and throw an error if the curve is not a line. A line is a curve defined by only two points
+    
+    Parameters
+    ----------
+    edge_list : ndarray
+        array of edges [edge1, edge2, ...].
+    
+    Returns
+    -------
+    xyzs : ndarray
+        array of all the points.
+    """
+    linexyzs = []
+    for e in edge_list:
+        vs = get.vertices_frm_edge(e)
+        if len(vs) == 2:
+            xyzs = [v.point.xyz for v in vs]
+            linexyzs.append(xyzs)
+        else:
+            raise ValueError('The curve in the edge needs to be a line defined by 2 vertices')
+            
+    return linexyzs
+    
+def dist_vertex2line_edge(vertex_list, edge_list, int_pts = False):
+    """
+    Find the distance between the vertices to the edges. The edges cannot have curve that has more than 2 points. Only work with lines.
+    
+    Parameters
+    ----------
+    vertex_list : list of vertex
+        list of vertex.
+    
+    edge_list : list of edges
+        list of edges. The edges can only have line as geometry. That is polygon curve that is define by only two vertices.
+    
+    int_pts: bool
+        if true will return the closest point on the line to the point. default == False
+        
+    Returns
+    -------
+    distances : ndarray
+        array of all the distances.
+    
+    closest_verts : list of verts, optional
+        the closest vertices on the line to the point.
+    """
+    pointxyzs = [v.point.xyz for v in vertex_list]
+    
+    linexyzs = _extract_xyzs_from_lineedge(edge_list)
+    #TODO implement for more complex polygon curve can be achieve by breaking each curve into lines
+    
+    if int_pts == False:
+        dists = dist_pointxyzs2linexyzs(pointxyzs, linexyzs, int_pts = False)
+        return dists
+    else:
+        dists, int_pts = dist_pointxyzs2linexyzs(pointxyzs, linexyzs, int_pts = True)
+        vlist = create.vertex_list(int_pts)
+        return dists, vlist
+    
+def linexyzs_intersect(linexyzs1, linexyzs2):
+    """
+    Find the intersections between the lines.
+    
+    Parameters
+    ----------
+    linexyzs1 : ndarray
+        array of lines [line1, line2, ...]. Each line is define as [[x1,y1,z1],[x2,y2,z2]].
+    
+    linexyzs2 : ndarray
+        array of lines [line1, line2, ...]. Each line is define as [[x1,y1,z1],[x2,y2,z2]].
+        
+    Returns
+    -------
+    intersections : ndarray
+        array of all the intersection points.
+    """
+    if type(linexyzs1) != np.ndarray:
+        linexyzs1 = np.array(linexyzs1)
+    
+    if type(linexyzs2) != np.ndarray:
+        linexyzs2 = np.array(linexyzs2)
+    
+    shape1 = np.shape(linexyzs1)
+    shape2 = np.shape(linexyzs2)
+    
+    if shape1 != shape2:
+        raise ValueError("Both linexyzs have to be in the same shape")
+    
+    xyzs1 = np.reshape(linexyzs1, (shape1[0]*shape1[1], shape1[2]))
+    xyzs1_1 = xyzs1[0::2]
+    xyzs1_2 = xyzs1[1::2]
+    
+    xyzs2 = np.reshape(linexyzs2, (shape2[0]*shape2[1], shape2[2]))
+    xyzs2_1 = xyzs2[0::2]
+    xyzs2_2 = xyzs2[1::2]
+    
+    vector_ab = xyzs2_1 - xyzs1_1
+    linexyzs1_dir = xyzs1_2  - xyzs1_1 
+    linexyzs2_dir = xyzs2_2  - xyzs2_1 
+    vector_perpendicular = cross_product(linexyzs1_dir, linexyzs2_dir)
+    
+    num = cross_product(vector_ab, linexyzs2_dir)
+    num = dot_product(num, vector_perpendicular)
+    naxis = len(np.shape(vector_perpendicular))
+    denom = np.linalg.norm(vector_perpendicular, ord = 2, axis = naxis-1, keepdims=False)
+    denom = denom**2
+    cond1 = np.logical_not(num==0)
+    num = np.where(cond1, num, np.nan)
+    denom = np.where(cond1, denom, np.nan)
+    ts = np.where(cond1, num/denom, np.nan)
+    shape3 = np.shape(linexyzs1_dir)
+    ts = np.reshape(ts, (shape3[0],1))
+    cond2 = np.logical_and(ts >= 0, ts <= 1)
+    vector_a_scaled = linexyzs1_dir * ts
+    int_pts = xyzs1_1 + vector_a_scaled
+    int_pts = np.where(cond2, int_pts, np.nan)
+    coplanar_xyzs = np.append(linexyzs1, linexyzs2, axis=1)
+    is_planar = is_coplanar_xyzs(coplanar_xyzs)
+    is_planar = np.reshape(is_planar, (shape3[0],1))
+    int_pts = np.where(is_planar, int_pts, np.nan)
+    
+    dist = dist_pointxyzs2linexyzs(int_pts, linexyzs2, int_pts = False)
+    is_on_line2 = np.logical_not(dist!=0)
+    is_on_line2 = np.reshape(is_on_line2, (shape3[0],1))
+    int_pts = np.where(is_on_line2, int_pts, np.nan)
+
+    return int_pts
+
+def lineedge_intersect(edge_list1, edge_list2):
+    """
+    Find the intersections between the edge_list1 and edge_list2. The edges need to only have simple lines as curve geometry
+    
+    Parameters
+    ----------
+    edge_list1 : ndarray
+        array of edges [edge1, edge2, ...].
+    
+    edge_list2 : ndarray
+        array of edges [edge1, edge2, ...].
+        
+    Returns
+    -------
+    intersections : ndarray
+        array of all the intersection points.
+    """
+    linexyzs1 = _extract_xyzs_from_lineedge(edge_list1)
+    linexyzs2 = _extract_xyzs_from_lineedge(edge_list2)
+    #TODO implement for more complex polygon curve can be achieve by breaking each curve into lines
+    int_pts = linexyzs_intersect(linexyzs1, linexyzs2)
+    vlist = create.vertex_list(int_pts)
+    return vlist
+    
+def polyxyzs_intersections(clipping_polyxyzs, subject_polyxyzs, ref_vecs):
+    """
+    Find the intersections between the clipping polys and the subject polys. The clipping polygons must be convex. Both the polygons cannot have holes.
+    
+    Parameters
+    ----------
+    clipping_polys : ndarray
+        array of polygons [clipping_poly1, clipping_poly2, ...]. Each clipping_poly is define as [[x1,y1,z1],[x2,y2,z2],[x3,y3,z3]].
+    
+    subject_polys : ndarray
+        array of polygons [subject_poly1, subject_poly2, ...]. Each subject_poly is define as [[x1,y1,z1],[x2,y2,z2],[x3,y3,z3]].
+    
+    ref_vecs : ndarray
+        The reference vector must be perpendicular to the list of points. Array of vectors. A vec is a tuple that documents the xyz direction of a vector e.g. (x,y,z)
+        
+    Returns
+    -------
+    intersections : ndarray
+        array of all the intersection points.
+    """
+    shape1 = np.shape(clipping_polyxyzs)
+    shape2 = np.shape(subject_polyxyzs)
+    
+    nshape1 = len(shape1)
+    nshape2 = len(shape2)
+    
+    if nshape1 == 1 or nshape2 == 1:
+        raise ValueError("this is a 1d array. This sometimes happens if arrays have arrays of different length, this is not allowed")
+    
+    if nshape1 != nshape2:
+        raise ValueError("Both polyxyzs need to have the same dimension")
+    
+    if type(clipping_polyxyzs) != np.ndarray:
+        clipping_polyxyzs = np.array(clipping_polyxyzs)
+        
+    if type(subject_polyxyzs) != np.ndarray:
+        subject_polyxyzs = np.array(subject_polyxyzs)
+    
+    #create edge for the polygons
+    clipping_polyxyzs = np.repeat(clipping_polyxyzs, 2, axis=1)
+    #roll it so the points are arrange in edges
+    clipping_polyxyzs = np.roll(clipping_polyxyzs, -1, axis=1)
+    #reshape the arrays into edges
+    clipping_polyxyzs = np.reshape(clipping_polyxyzs, (shape1[0],shape1[1],2,shape1[2]))
+    #for the edges
+    clipping_polyxyzs_edges = np.repeat(clipping_polyxyzs, shape2[1], axis=1)
+    clip_edge_shape1 = np.shape(clipping_polyxyzs_edges)
+    clipping_polyxyzs_edges = np.reshape(clipping_polyxyzs_edges, (clip_edge_shape1[0]*clip_edge_shape1[1], clip_edge_shape1[2], clip_edge_shape1[3]))
+    #for testing ccw
+    #repeat the edges according to the number of edges the subject polygons have. We are setting up for a double for loop
+    clipping_polyxyzs = np.repeat(clipping_polyxyzs, shape2[1]*2, axis=1)
+    shape1_2 = np.shape(clipping_polyxyzs)
+    #repeat the edges according to the number of edges the clipping polygons have. We are setting up for a double for loop
+    subject_polyxyzs = np.repeat(subject_polyxyzs, 2, axis=1)
+    subject_polyxyzs = np.roll(subject_polyxyzs, -1, axis=1)
+    subject_polyxyzs = np.reshape(subject_polyxyzs, (shape2[0],shape2[1],2,shape2[2]))
+    subject_polyxyzs = np.repeat(subject_polyxyzs, shape1[1], axis=0)
+    #flatten the array to the level of the edges
+    subject_edge_shape1 = np.shape(subject_polyxyzs)
+    subject_polyxyzs_edges = np.reshape(subject_polyxyzs, (subject_edge_shape1[0]*subject_edge_shape1[1], subject_edge_shape1[2], subject_edge_shape1[3]))
+    #for testing ccw
+    subject_polyxyzs = np.reshape(subject_polyxyzs, (shape1_2[0], shape1_2[1], 1, shape1_2[3]))
+    
+    for_ccw = np.append(clipping_polyxyzs, subject_polyxyzs, axis=2)
+    shape1_3 = np.shape(for_ccw)
+    for_ccw = np.reshape(for_ccw, (shape1_3[0]*shape1_3[1], shape1_3[2], shape1_3[3]))
+    ref_vecs = np.repeat(ref_vecs, shape1_3[1], axis=0)
+    is_ccw = is_anticlockwise(for_ccw, ref_vecs)
+    # reshape the result to reflect both the 1st point and 2nd point of the subject polygon
+    is_ccw = np.reshape(is_ccw, (subject_edge_shape1[0]*subject_edge_shape1[1],2))
+    is_ccwT = is_ccw.T
+    # as long as either points from the subject polygon is ccw to the edge, we will perform an intersection to check
+    cond1 = np.logical_or(is_ccwT[0], is_ccwT[1]) 
+    cond1 = np.reshape(cond1, (len(cond1),1)) 
+    int_xyzs = np.where(cond1, linexyzs_intersect(clipping_polyxyzs_edges, subject_polyxyzs_edges), np.nan)
+    # if both subject polygon points is ccw, keep only the second point
+    cond2 = np.logical_and(is_ccwT[0], is_ccwT[1]) 
+    cond2 = np.reshape(cond2, (len(cond1),1))
+    print(is_ccw)
+    print(np.reshape(cond2, (int(len(cond1)/4), 4, 1)))
+    
+    if nshape1 == 2:  # only 1 set of polygons each
+        pass
+    
+    elif nshape1 == 3:
+        pass
+
+def polygons_intersections(clipping_polys, subject_polys):
+    """
+    Find the intersections between the clipping polys and the subject polys
+    
+    Parameters
+    ----------
+    clipping_polys : ndarray
+        array of polygons [clipping_poly1, clipping_poly2, ...]. Each clipping_poly is define as [[x1,y1,z1],[x2,y2,z2],[x3,y3,z3]].
+    
+    subject_polys : ndarray
+        array of polygons [subject_poly1, subject_poly2, ...]. Each subject_poly is define as [[x1,y1,z1],[x2,y2,z2],[x3,y3,z3]].
+        
+    Returns
+    -------
+    intersections : ndarray
+        array of all the intersection points.
+    """
+    pass

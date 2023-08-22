@@ -108,6 +108,13 @@ class Vertex(Topology):
         super(Vertex, self).__init__(attributes = attributes)
         self.topo_type = TopoType.VERTEX
         self.point = point
+    
+    def to_dict(self):
+        """
+        This function creates a vertex dictionary.
+        """
+        topod = {'topo_type': 0, 'attributes': self.attributes, 'point': self.point.xyz.tolist()}
+        return topod
         
 class Edge(Topology):
     """
@@ -181,6 +188,23 @@ class Edge(Topology):
         self.vertex_list = vertex_list
         self.start_vertex = vertex_list[0]
         self.end_vertex = vertex_list[-1]
+    
+    def to_dict(self):
+        """
+        This function creates a edge dictionary.
+        """
+        if self.curve_type == geom.CurveType.POLYLINE:
+            topod = {'topo_type': 1, 'attributes': self.attributes, 'curve_type': 0, 
+                     'vertex_list': [v.point.xyz.tolist() for v in self.vertex_list]}
+        elif self.curve_type == geom.CurveType.BSPLINE:
+            bcrv = self.curve
+            ctrlpts = bcrv.ctrlpts
+            degree = bcrv.degree
+            resolution = bcrv.delta
+            topod = {'topo_type': 1, 'attributes': self.attributes, 'curve_type': 1, 'ctrlpts': ctrlpts, 'degree': degree, 
+                     'resolution' : resolution}
+                
+        return topod
         
 class Wire(Topology):
     """
@@ -209,6 +233,13 @@ class Wire(Topology):
             edge_list = np.array(edge_list)
         self.topo_type = TopoType.WIRE
         self.edge_list = edge_list
+    
+    def to_dict(self):
+        """
+        This function creates a wire dictionary.
+        """
+        topod = {'topo_type': 2, 'attributes': self.attributes, 'edge_list': [e.to_dict() for e in self.edge_list]}
+        return topod
         
 class Face(Topology):
     """
@@ -334,7 +365,26 @@ class Face(Topology):
         self.bdry_wire = bdry_wire
         self.hole_wire_list = []
         self.normal = normal
+    
+    def to_dict(self):
+        """
+        This function creates a face dictionary.
+        """
+        if self.surface_type == geom.SrfType.BSPLINE:
+            print('bspline surface is not supported, face converted to polygon and write it to dictionary')
+            
+        verts = get.vertices_frm_wire(self.bdry_wire)
+        hole_vertex_list = []
+        for hw in self.hole_wire_list:
+            hvs = get.vertices_frm_wire(hw)
+            hole_vertex_list.append([hv.point.xyz.tolist() for hv in hvs])
+
+            
+        topod = {'topo_type': 3, 'attributes': self.attributes, 'surface_type': 0, 
+                 'vertex_list': [v.point.xyz.tolist() for v in verts], 'hole_vertex_list': hole_vertex_list}
         
+        return topod
+    
 class Shell(Topology):
     """
     A shell object
@@ -361,6 +411,13 @@ class Shell(Topology):
         self.topo_type = TopoType.SHELL
         self.face_list = face_list
         self.attributes = attributes
+    
+    def to_dict(self):
+        """
+        This function creates a shell dictionary.
+        """
+        topod = {'topo_type': 4, 'attributes': self.attributes, 'face_list': [f.to_dict() for f in self.face_list]}
+        return topod
 
 class Solid(Topology):
     """
@@ -385,6 +442,13 @@ class Solid(Topology):
         self.topo_type = TopoType.SOLID
         self.shell = shell
         self.attributes = attributes
+    
+    def to_dict(self):
+        """
+        This function creates a solid dictionary.
+        """
+        topod = {'topo_type': 5, 'attributes': self.attributes, 'shell': self.shell.to_dict()}
+        return topod
 
 class Composite(Topology):
     """
@@ -417,6 +481,7 @@ class Composite(Topology):
         self.shell_list = None
         self.solid_list = None
         self.composite_list = None
+        self.composite_list2 = None
         
     def sorted2dict(self):
         self.vertex_list = []
@@ -426,10 +491,10 @@ class Composite(Topology):
         self.shell_list = []
         self.solid_list = []
         self.composite_list = []
+        self.composite_list2 = []
         
         topo_list = self.topology_list
         for topo in topo_list:
-            # print(topo)
             if topo.topo_type == TopoType.VERTEX:
                 self.vertex_list.append(topo)
             elif topo.topo_type == TopoType.EDGE:
@@ -444,6 +509,7 @@ class Composite(Topology):
                 self.solid_list.append(topo)
             elif topo.topo_type == TopoType.COMPOSITE:
                 self.composite_list.append(topo.sorted2dict())
+                self.composite_list2.append(topo)
         
         return {'vertex': np.array(self.vertex_list), 
                 'edge': np.array(self.edge_list),
@@ -452,3 +518,19 @@ class Composite(Topology):
                 'shell': np.array(self.shell_list),
                 'solid': np.array(self.solid_list),
                 'composite': np.array(self.composite_list)}
+    
+    def to_dict(self):
+        """
+        This function creates a composite dictionary.
+        """
+        self.sorted2dict
+        topod = {'topo_type': 6, 'attributes': self.attributes,
+                 'vertex_list':[v.to_dict() for v in self.vertex_list],
+                 'edge_list': [e.to_dict() for e in self.edge_list],
+                 'wire_list': [w.to_dict() for w in self.wire_list],
+                 'face_list': [f.to_dict() for f in self.face_list],
+                 'shell_list': [sh.to_dict() for sh in self.shell_list],
+                 'solid_list': [so.to_dict() for so in self.solid_list],
+                 'composite_list': [c.to_dict() for c in self.composite_list2]}
+        
+        return topod

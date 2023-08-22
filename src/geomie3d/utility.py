@@ -19,6 +19,8 @@
 #
 # ==================================================================================================
 import csv
+import math
+import json
 import colorsys
 from itertools import chain
 
@@ -27,6 +29,8 @@ import numpy as np
 from . import modify
 from . import get
 from . import create
+from . import topobj
+from . import geom
 
 class CoordinateSystem(object):
     """
@@ -584,4 +588,521 @@ def read_csv(csv_path):
     # displaying the contents of the CSV file
     csvFile = list(csvFile)
     return csvFile
+
+def write2geomie3d(topo_list, res_path, attributes = {}):
+    """
+    Writes the topologies to a geomie3d file.
+ 
+    Parameters
+    ----------
+    topo_list : list of topo objects
+        Topos to be written to .geomie3d.
+        
+    res_path : str
+        Path to write to.
+        
+    """
+    model = {'model': [topo.to_dict() for topo in topo_list], 'attributes': attributes}
+    with open(res_path, 'w') as f:
+        json.dump(model, f)
+
+def read_geomie3d(path):
+    """
+    reads the topologies to a geomie3d file.
+ 
+    Parameters
+    ----------
+    path : str
+        file to read
     
+    Returns
+    -------
+    model_dictionary : dictionary of the geomie3d file
+        dictionary with keywords 'topo_list' and 'attributes'.
+    """
+    with open(path, 'r') as f:
+        data = json.load(f)
+    
+    model = data['model']
+    topo_list = []
+    for topod in model:
+        if topod['topo_type'] == 0:
+            topo = _read_vertex(topod)
+            topo_list.append(topo)
+        elif topod['topo_type'] == 1:
+            topo = _read_edge(topod)
+            topo_list.append(topo)
+        elif topod['topo_type'] == 2:
+            topo = _read_wire(topod)
+            topo_list.append(topo)
+        elif topod['topo_type'] == 3:
+            topo = _read_face(topod)
+            topo_list.append(topo)
+        elif topod['topo_type'] == 4:
+            topo = _read_shell(topod)
+            topo_list.append(topo)
+        elif topod['topo_type'] == 5:
+            topo = _read_solid(topod)
+            topo_list.append(topo)
+        elif topod['topo_type'] == 6:
+            topo = _read_composite(topod)
+            topo_list.append(topo)
+             
+    return {'topo_list': topo_list, 'attributes': data['attributes']}
+
+def _read_vertex(vertex_dict):
+    """
+    reads the vertex of a geomie3d file.
+ 
+    Parameters
+    ----------
+    vertex_dict : dictionary
+        dictionary of the vertex from the file. Refer to the Vertex object for the schema
+    
+    Returns
+    -------
+    vertex : vertex object
+        the vertex object.
+    """
+    v = create.vertex(vertex_dict['point'], attributes = vertex_dict['attributes'])
+    return v
+
+def _read_edge(edge_dict):
+    """
+    reads the edge of a geomie3d file.
+ 
+    Parameters
+    ----------
+    edge_dict : dictionary
+        dictionary of the edge from the file. Refer to the edge object for the schema
+    
+    Returns
+    -------
+    edge : edge object
+        the edge object.
+    """
+    crv_type = edge_dict['curve_type']
+    if crv_type == 0:
+        vlist = create.vertex_list(edge_dict['vertex_list'])
+        e = create.pline_edge_frm_verts(vlist, attributes = edge_dict['attributes'])
+    elif crv_type == 1:
+        e = create.bspline_edge_frm_xyzs(edge_dict['ctrlpts'], degree = edge_dict['degree'], resolution = edge_dict['resolution'],
+                                         attributes = edge_dict['attributes'])
+        
+    return e
+
+def _read_wire(wire_dict):
+    """
+    reads the wire of a geomie3d file.
+ 
+    Parameters
+    ----------
+    wire_dict : dictionary
+        dictionary of the wire from the file. Refer to the wire object for the schema
+    
+    Returns
+    -------
+    wire : wire object
+        the wire object.
+    """
+    edged_list = wire_dict['edge_list']
+    edge_list = [_read_edge(ed) for ed in edged_list]
+    w = create.wire_frm_edges(edge_list, attributes = wire_dict['attributes'])
+        
+    return w
+
+def _read_face(face_dict):
+    """
+    reads the face of a geomie3d file.
+ 
+    Parameters
+    ----------
+    face_dict : dictionary
+        dictionary of the face from the file. Refer to the face object for the schema
+    
+    Returns
+    -------
+    face : face object
+        the face object.
+    """
+    vlist = create.vertex_list(face_dict['vertex_list'])
+    hole_vlist2d = [create.vertex_list(h) for h in face_dict['hole_vertex_list'] ]
+    f = create.polygon_face_frm_verts(vlist, hole_vertex_list=hole_vlist2d, attributes = face_dict['attributes'])
+    return f
+
+def _read_shell(shell_dict):
+    """
+    reads the shell of a geomie3d file.
+ 
+    Parameters
+    ----------
+    shell_dict : dictionary
+        dictionary of the shell from the file. Refer to the shell object for the schema
+    
+    Returns
+    -------
+    shell : shell object
+        the shell object.
+    """
+    faced_list = shell_dict['face_list']
+    face_list = [_read_face(faced) for faced in faced_list]
+    s = create.shell_frm_faces(face_list, attributes = shell_dict['attributes'])
+    return s
+
+def _read_solid(solid_dict):
+    """
+    reads the shell of a geomie3d file.
+ 
+    Parameters
+    ----------
+    solid_dict : dictionary
+        dictionary of the solid from the file. Refer to the solid object for the schema
+    
+    Returns
+    -------
+    solid : solid object
+        the solid object.
+    """
+    shell = _read_shell(solid_dict['shell'])
+    s = create.solid_frm_shell(shell, attributes = solid_dict['attributes'])
+    return s
+
+def _read_composite(composite_dict):
+    """
+    reads the shell of a geomie3d file.
+ 
+    Parameters
+    ----------
+    solid_dict : dictionary
+        dictionary of the solid from the file. Refer to the solid object for the schema
+    
+    Returns
+    -------
+    solid : solid object
+        the solid object.
+    """
+    vertexds = composite_dict['vertex_list']
+    vertex_list = [_read_vertex(vd) for vd in vertexds]
+    
+    edgeds = composite_dict['edge_list']
+    edge_list = [_read_edge(ed) for ed in edgeds]
+    
+    wireds = composite_dict['wire_list']
+    wire_list = [_read_wire(wd) for wd in wireds]
+    
+    faceds = composite_dict['face_list']
+    face_list = [_read_face(fd) for fd in faceds]
+    
+    shellds = composite_dict['shell_list']
+    shell_list = [_read_shell(sd) for sd in shellds]
+    
+    solidds = composite_dict['solid_list']
+    solid_list = [_read_solid(sod) for sod in solidds]
+    
+    cmpds = composite_dict['composite_list']
+    composite_list = [_read_composite(cmpd) for cmpd in cmpds]
+    
+    topo_list = []
+    topo_list.extend(vertex_list)
+    topo_list.extend(edge_list)
+    topo_list.extend(wire_list)
+    topo_list.extend(face_list)
+    topo_list.extend(shell_list)
+    topo_list.extend(solid_list)
+    topo_list.extend(composite_list)
+    
+    c = create.composite(topo_list,attributes = composite_dict['attributes'])
+    return c
+
+def viz1axis_timeseries(data_dict_ls, plot_title, xaxis_label, yaxis_label, filepath,
+                        yaxis_lim = None, dateformat = None, legend_loc = None, tight_layout = True, inf_lines = None, regions = None):
+    """
+    Viz timeseries data in a 1 axis x-y plot
+    
+    Parameters
+    ----------
+    data_dict_ls : list of dictionary
+        dictionary with the following keys.
+        'datax', list of timestamps of the data
+        'datay', list of y-values of the data
+        'linestyle', tuple of str, 'solid', 'dotted', 'dashed', 'dashdot', (0, (1, 5, 5, 5))
+        'linewidth', float, width of the line
+        'marker', str, empty string for no markers '',the markers viz of the data set, https://matplotlib.org/stable/api/markers_api.html
+        'marker_size', int, the size of the marker
+        'color', str, color of the data set viz, https://matplotlib.org/stable/tutorials/colors/colors.html
+        'label', str the label of the data set in the legend
+    
+    plot_title : str
+        tite of the plot
+    
+    xaxis_label : str
+        label of the xaxis
+    
+    yaxis_label : str
+        label of the yaxis
+        
+    filepath : str
+        filepath to save the generated graph.
+    
+    yaxis_lim : tuple, optional
+        tuple specifying the lower and upper limit of the yaxis (lwr, uppr)
+    
+    dateformat : str, optional
+        specify how to viz the date time on the x-axis, e.g.'%Y-%m-%dT%H:%M:%S'. Default 'H:%M:%S' 
+    
+    legend_loc : dictionary, optional
+        specify the location of the legend
+        'loc', str, e.g. upper right, center left, lower center
+        'bbox_to_anchor',tuple, (x, y)
+        'ncol', int, number of columns for the legend box
+        
+    tight_layout : bool, optional
+        turn on tight layout. default True
+        
+    inf_lines : list of dictionary, optional
+        dictionary describing the infinite line.
+        label: str to describe the infinite line
+        angle: float, the angle of the infinite line, 0=horizontal, 90=vertical
+        pos: float, for horizontal and vertical line a single value is sufficient, for slanted line two points (x1,y1) and (x2,y2) is required.
+        colour: tuple, (r,g,b,a)
+    
+    regions : list of dictionary, optional
+        dictionary describing the region on the graph.
+        label: str to describe the region.
+        orientation: str, 'vertical', 'horizontal' or 'custom'
+        range: list of floats, [lwr_limit, upr_limit] e.g. [50,70], if 'custom', [[xrange], [yrange1], [yrange2]]
+        colour: tuple, (r,g,b,a)
+    """
+    import matplotlib.pyplot as plt
+    from matplotlib.dates import DateFormatter
+
+    fig, ax1 = plt.subplots()
+    plt.title(plot_title, fontsize=10 )
+    ax1.set_xlabel(xaxis_label, fontsize=10)
+    ax1.set_ylabel(yaxis_label, fontsize=10)
+    if yaxis_lim is not None:
+        plt.ylim(yaxis_lim[0],yaxis_lim[1])
+    
+    y = []
+    x = []
+    for dd in data_dict_ls:
+        x1 = list(dd['datax'])
+        y1 = list(dd['datay'])
+        y.extend(y1)
+        x.extend(x1)
+        ax1.plot(x1, y1, linestyle=dd['linestyle'], linewidth=dd['linewidth'], marker = dd['marker'], 
+                 markersize = dd['marker_size'], 
+                 c = dd['color'], label = dd['label'])
+    
+    if dateformat is None:
+        dateformat = '%H:%M:%S'
+        
+    formatter = DateFormatter(dateformat)
+    ax1.xaxis.set_major_formatter(formatter)
+    plt.gcf().autofmt_xdate()
+    for label in ax1.get_xticklabels():
+        label.set_rotation(40)
+    
+    if inf_lines is not None:
+        for l in inf_lines:
+            if l['angle'] == 0:
+                ax1.axhline(y=l['pos'], color=l['colour'], linestyle='--', label = l['label'])
+            elif l['angle'] == 90:
+                ax1.axvline(x=l['pos'], color=l['colour'], linestyle='--', label = l['label'])
+            else:
+                ax1.axline(l['pos'], slope=math.tan(l['angle']),  color=l['colour'], linestyle='--', label = l['label'])
+    
+    if regions is not None:
+        for r in regions:
+            if r['orientation'] == 'vertical':
+                if yaxis_lim is not None:
+                    ax1.fill_betweenx([yaxis_lim[0],yaxis_lim[1]], r['range'][0], r['range'][1], label = r['label'], color = r['colour'])
+                else:
+                    ax1.fill_betweenx([min(y), max(y)], r['range'][0], r['range'][1], label = r['label'], color = r['colour'])
+                    
+            elif r['orientation'] == 'horizontal':
+                ax1.fill_between([min(x), max(x)], r['range'][0], r['range'][1], label = r['label'], color = r['colour'])
+            
+            elif r['orientation'] == 'custom':
+                ax1.fill_between(r['range'][0], r['range'][1], r['range'][2], label = r['label'], color = r['colour'])
+    
+    if legend_loc is None:
+        ax1.legend(loc='best')
+    else:
+        ax1.legend(loc=legend_loc['loc'], 
+                   bbox_to_anchor=legend_loc['bbox_to_anchor'], 
+                   fancybox=True, ncol=legend_loc['ncol'])
+    
+    ax1.grid(True, axis = 'y', linestyle='--', linewidth = 0.3)
+    ax1.grid(True, axis = 'x', linestyle='--', linewidth = 0.3)
+    
+    if tight_layout==True:
+        plt.tight_layout()
+    
+    plt.savefig(filepath, bbox_inches = "tight", dpi = 300, transparent=False)
+    plt.show()
+
+def viz2axis_timeseries(y1_data_dict_ls, y2_data_dict_ls, plot_title, xaxis_label, yaxis1_label,
+                        yaxis2_label, filepath, yaxis1_lim = None, yaxis2_lim = None, yaxis2_color = 'b',
+                        dateformat = None, legend_loc1 = None, legend_loc2 = None, tight_layout = True, inf_lines = None, regions = None):
+    """
+    Viz timeseries data in a 1 axis x-y plot
+
+    Parameters
+    ----------
+    y1_data_dict_ls : list of dictionary
+        dictionary with the following keys.
+        'datax', list of timestamps of the data
+        'datay', list of y-values of the data
+        'linestyle', tuple of str, 'solid', 'dotted', 'dashed', 'dashdot', (0, (1, 5, 5, 5))
+        'linewidth', float, width of the line
+        'marker', str, '' for no markers, the markers viz of the data set, https://matplotlib.org/stable/api/markers_api.html
+        'marker_size', int, the size of the marker
+        'color', str, color of the data set viz, https://matplotlib.org/stable/tutorials/colors/colors.html
+        'label', str the label of the data set in the legend
+
+    y2_data_dict_ls : list of dictionary
+        dictionary with the same keys as y1_data_dict_ls. Data here will be viz on y2 axis.
+
+    plot_title : str
+        tite of the plot
+
+    xaxis_label : str
+        label of the xaxis
+
+    yaxis1_label : str
+        label of the yaxis1
+
+    yaxis2_label : str
+        label of the yaxis2
+
+    filepath : str
+        filepath to save the generated graph.
+
+    yaxis1_lim : tuple, optional
+        tuple specifying the lower and upper limit of the yaxis1 (lwr, uppr)
+
+    yaxis2_lim : tuple, optional
+        tuple specifying the lower and upper limit of the yaxis2 (lwr, uppr)
+        
+    yaxis2_color : str, optional
+        str specifying the color of the second yaxis, default is 'b' blue
+
+    dateformat : str, optional
+        specify how to viz the date time on the x-axis, e.g.'%Y-%m-%dT%H:%M:%S'. Default 'H:%M:%S'
+
+    legend_loc1 : dictionary, optional
+        specify the location of the legend of the first y-axis
+        'loc', str, e.g. upper right, center left, lower center
+        'bbox_to_anchor',tuple, (x, y)
+        'ncol', int, number of columns for the legend box
+
+    legend_loc2 : dictionary, optional
+        specify the location of the legend of the 2nd y-axis
+        'loc', str, e.g. upper right, center left, lower center
+        'bbox_to_anchor',tuple, (x, y)
+        'ncol', int, number of columns for the legend box
+
+    tight_layout : bool, optional
+        turn on tight layout. default True
+        
+    inf_lines : list of dictionary, optional
+        dictionary describing the infinite line.
+        label: str to describe the infinite line
+        angle: float, the angle of the infinite line, 0=horizontal, 90=vertical
+        pos: float, for horizontal and vertical line a single value is sufficient, for slanted line two points (x1,y1) and (x2,y2) is required.
+        colour: tuple, (r,g,b,a)
+    
+    regions : list of dictionary, optional
+        dictionary describing the region on the graph.
+        label: str to describe the region.
+        orientation: str, vertical or horizontal
+        range: list of floats, [lwr_limit, upr_limit] e.g. [50,70] 
+        colour: tuple, (r,g,b,a)
+
+    """
+    import matplotlib.pyplot as plt
+    from matplotlib.dates import DateFormatter
+
+    fig, ax1 = plt.subplots()
+    plt.title(plot_title, fontsize=10 )
+    ax1.set_xlabel(xaxis_label, fontsize=10)
+    ax1.set_ylabel(yaxis1_label, fontsize=10)
+    if yaxis1_lim is not None:
+        plt.ylim(yaxis1_lim[0],yaxis1_lim[1])
+    
+    y = []
+    x = []
+    for dd in y1_data_dict_ls:
+        x1 = list(dd['datax'])
+        y1 = list(dd['datay'])
+        y.extend(y1)
+        x.extend(x1)
+        ax1.plot(x1, y1,marker = dd['marker'], markersize = dd['marker_size'],
+                 linestyle = dd['linestyle'], linewidth=dd['linewidth'],
+                 c = dd['color'], label = dd['label'])
+
+    if dateformat is None:
+        dateformat = '%H:%M:%S'
+
+    formatter = DateFormatter(dateformat)
+    ax1.xaxis.set_major_formatter(formatter)
+    plt.gcf().autofmt_xdate()
+    for label in ax1.get_xticklabels():
+        label.set_rotation(40)
+    
+    if inf_lines is not None:
+        for l in inf_lines:
+            if l['angle'] == 0:
+                ax1.axhline(y=l['pos'], color=l['colour'], linestyle='--', label = l['label'])
+            elif l['angle'] == 90:
+                ax1.axvline(x=l['pos'], color=l['colour'], linestyle='--', label = l['label'])
+            else:
+                ax1.axline(l['pos'], slope=math.tan(l['angle']),  color=l['colour'], linestyle='--', label = l['label'])
+    
+    if regions is not None:
+        for r in regions:
+            if r['orientation'] == 'vertical':
+                if yaxis1_lim is not None:
+                    ax1.fill_betweenx([yaxis1_lim[0],yaxis1_lim[1]], r['range'][0], r['range'][1], label = r['label'], color = r['colour'])
+                else:
+                    ax1.fill_betweenx([min(y), max(y)], r['range'][0], r['range'][1], label = r['label'], color = r['colour'])
+            elif r['orientation'] == 'horizontal':
+                ax1.fill_between([min(x), max(x)], r['range'][0], r['range'][1], label = r['label'], color = r['colour'])
+    
+    if legend_loc1 is None:
+        ax1.legend(loc='best')
+    else:
+        ax1.legend(loc=legend_loc1['loc'],
+                   bbox_to_anchor=legend_loc1['bbox_to_anchor'],
+                   fancybox=True, ncol=legend_loc1['ncol'])
+
+    ax1.grid(True, axis = 'y', linestyle='--', linewidth = 0.3)
+    ax1.grid(True, axis = 'x', linestyle='--', linewidth = 0.3)
+
+    #=================================================================================================================================
+    #THE SECOND AXIS
+    #=================================================================================================================================
+    ax2 = ax1.twinx()
+
+    for dd in y2_data_dict_ls:
+        ax2.plot(list(dd['datax']), list(dd['datay']),
+                  linestyle = dd['linestyle'], linewidth=dd['linewidth'],
+                  marker = dd['marker'], markersize = dd['marker_size'],
+                  c = dd['color'], label = dd['label'])
+
+    ax2.set_ylabel(yaxis2_label, color='b', fontsize=10)
+    ax2.tick_params('y', colors = yaxis2_color)
+
+    if legend_loc2 is None:
+        ax2.legend(loc='best')
+    else:
+        ax2.legend(loc=legend_loc2['loc'],
+                   bbox_to_anchor=legend_loc2['bbox_to_anchor'],
+                   fancybox=True, ncol=legend_loc2['ncol'])
+
+    if tight_layout == True:
+      plt.tight_layout()
+
+    plt.savefig(filepath, bbox_inches = "tight", dpi = 300, transparent=False)
+    plt.show()
