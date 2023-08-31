@@ -1977,7 +1977,7 @@ def _map_gen_bar(user_min, user_max, real_min, real_max, results):
     colours = color_map.map(new_r, mode='float').round(2)
     colours = colours*255
     
-    legendLabels = np.round(np.linspace(user_max, user_min, 11))
+    legendLabels = np.round(np.linspace(user_max, user_min, 11), decimals = 2)
     legendLabels[0] = real_max
     legendLabels[-1] = real_min
     legendPos = np.linspace(1.0, 0.0, 11)
