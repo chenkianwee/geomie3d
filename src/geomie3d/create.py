@@ -20,12 +20,13 @@
 # ==================================================================================================
 import numpy as np
 
-from . import geom
-from . import topobj
-from . import utility
 from . import get
 from . import modify
 from . import calculate
+from . import utility
+from . import topobj
+from . import geom
+from . import d4pispace
 
 from .geomdl import BSpline, utilities, construct
 
@@ -124,19 +125,19 @@ def box(dimx, dimy, dimz, centre_pt = [0,0,0], attributes = {}):
     solid = topobj.Solid(shell, attributes = attributes)
     return solid
 
-def boxes_frm_bboxes(bbox_ls):
+def boxes_frm_bboxes(bbox_ls: list[utility.Bbox]) -> list[topobj.Topology]:
     """
     Constructs boxes from bounding boxes.
  
     Parameters
     ----------
-    bbox_ls : lst of bboxes
+    bbox_ls : list[utility.Bbox]
         list of bboxes to be converted to boxes.
         
     Returns
     -------
-    boxes : list of solid topology
-        A list of boxes of solid topology
+    boxes : list[topobj.Topology]
+        A list of boxes of solid topology. If the bbox has zdim==0, a polygon face is returned.
     """
     bx_ls = []
     for bbox in bbox_ls:
@@ -144,9 +145,105 @@ def boxes_frm_bboxes(bbox_ls):
         dimx = bbox.maxx - bbox.minx
         dimy = bbox.maxy - bbox.miny
         dimz = bbox.maxz - bbox.minz
-        bx = box(dimx, dimy, dimz, centre_pt = midxyz)
-        bx_ls.append(bx)
+        if dimz != 0:
+            topo = box(dimx, dimy, dimz, centre_pt = midxyz)
+        else:
+            topo = polygon_face_frm_midpt(midxyz, dimx, dimy)
+        bx_ls.append(topo)
     return bx_ls
+
+def grid3d_from_bbox(bbox: utility.Bbox, nx: int, ny: int, nz: int) -> list[utility.Bbox]:
+    """
+    divide a bbox into multiple smaller bboxes.
+ 
+    Parameters
+    ----------
+    bbox : utility.Bbox
+        the bbox to divide.
+    
+    nx : int
+        number of divisions in the x-direction
+
+    ny : int
+        number of divisions in the y-direction
+
+    nz : int
+        number of divisions in the z-direction. If nz == 0, it will produce bboxes with z-coordinate == minz.
+        
+    Returns
+    -------
+    divided_bboxes : list[utility.Bbox]
+        A list of bboxes from the division
+    """
+    bbox_arr = bbox.bbox_arr
+    xdiv = np.linspace(bbox_arr[0], bbox_arr[3], num = nx+1)
+    ydiv = np.linspace(bbox_arr[1], bbox_arr[4], num = ny+1)
+
+    xdims = xdiv[1] - xdiv[0]
+    ydims = ydiv[1] - ydiv[0]
+
+    xdiv = xdiv[:-1]
+    ydiv = ydiv[:-1]
+    if nz != 0:
+        zdiv = np.linspace(bbox_arr[2], bbox_arr[5], num = nz+1)
+        zdims = zdiv[1] - zdiv[0]
+        zdiv = zdiv[:-1]
+        # mesh the points
+        yy, zz, xx = np.meshgrid(ydiv,zdiv,xdiv)
+        xx = xx.flatten()
+        yy = yy.flatten()
+        zz = zz.flatten()
+
+    else:
+        zdims = 0
+        # mesh the points
+        xx, yy = np.meshgrid(xdiv,ydiv)
+        xx = xx.flatten()
+        yy = yy.flatten()
+        zz = np.array([bbox_arr[2]])
+        zz = np.repeat(zz, len(xx))
+
+    xyzs = np.vstack([xx, yy, zz])
+    xyzs = xyzs.T
+    nxyzs = len(xyzs)
+
+    xdims = np.repeat(xdims, nxyzs)
+    ydims = np.repeat(ydims, nxyzs)
+    zdims = np.repeat(zdims, nxyzs)
+
+    bboxes = bboxes_frm_lwr_left_pts(xyzs, xdims, ydims, zdims)
+    return bboxes
+
+def xyzs_frm_bboxes(bbox_ls: list[utility.Bbox]) -> np.ndarray:
+    """
+    Constructs xyzs from bounding boxes.
+ 
+    Parameters
+    ----------
+    bbox_ls : list[utility.Bbox]
+        list of bboxes to be converted to xyzs.
+        
+    Returns
+    -------
+    xyzs : np.ndarray
+        np.ndarray(shape(4, 3)). Bounding box is defined by 4 points.
+    """
+    bbox_arr_ls = np.array([bbox.bbox_arr for bbox in bbox_ls])
+    
+    xyzs1 = np.take(bbox_arr_ls, [0,1,2], axis=1)
+    xyzs2 = np.take(bbox_arr_ls, [3,1,2], axis=1)
+    xyzs3 = np.take(bbox_arr_ls, [3,4,2], axis=1)
+    xyzs4 = np.take(bbox_arr_ls, [0,4,2], axis=1)
+
+    xyzs5 = np.take(bbox_arr_ls, [0,1,5], axis=1)
+    xyzs6 = np.take(bbox_arr_ls, [3,1,5], axis=1)
+    xyzs7 = np.take(bbox_arr_ls, [3,4,5], axis=1)
+    xyzs8 = np.take(bbox_arr_ls, [0,4,5], axis=1)
+
+    xyzs = np.hstack([xyzs1, xyzs2, xyzs3, xyzs4, xyzs5, xyzs6, xyzs7, xyzs8])
+    xyzs_shape = xyzs.shape
+    xyzs = np.reshape(xyzs, (xyzs_shape[0], int(xyzs_shape[1]/3), 3))
+    return xyzs
 
 def extrude_polygon_face(face, direction, magnitude, attributes = {}):
     """
@@ -234,15 +331,14 @@ def extrude_polygon_face(face, direction, magnitude, attributes = {}):
     else:
         print('ERROR SURFACE IS NOT POLYGON')
     
-
-def polygon_face_frm_midpt(centre_pt, dimx, dimy, attributes = {}):
+def polygon_face_frm_midpt(centre_pt: list[float], dimx: float, dimy: float, attributes: dict = {}) -> topobj.Face:
     """
     Constructs a face from the midpt.
  
     Parameters
     ----------
-    centre_pt : tuple, optional
-        tuple with the xyz coordinates of the centre point of the box.
+    centre_pt : list[float]
+        list with the xyz coordinates of the centre point of the box. A numpy array will work too.
         
     dimx : float
         length of face in the x-axis.
@@ -255,7 +351,7 @@ def polygon_face_frm_midpt(centre_pt, dimx, dimy, attributes = {}):
  
     Returns
     -------
-    face : face topology
+    face : topobj.Face
         A face of face topology
     """
     dimx_half = dimx/2
@@ -284,63 +380,132 @@ def polygon_face_frm_midpt(centre_pt, dimx, dimy, attributes = {}):
     
     return face1
 
-def bbox(bbox_arr, attributes = {}):
+def bbox_frm_arr(bbox_arr: np.ndarray, attributes: dict = {}) -> utility.Bbox:
     """
     Create a bounding box object
     
     Parameters
     ----------
-    bbox_arr : tuple
+    bbox_arr : np.ndarray
         Array specifying [minx,miny,minz,maxx,maxy,maxz].
         
-    attributes : dictionary, optional
+    attributes : dict, optional
         dictionary of the attributes.
         
     Returns
     -------
-    bbox : bbox object
+    bbox : utility.Bbox
         A bbox object
     """
     bbox = utility.Bbox(bbox_arr, attributes = attributes)
     return bbox
 
-def bbox_frm_midpt(midpt, xdim, ydim, zdim, attributes = {}):
+def bboxes_frm_midpts(midpts: np.ndarray, xdims: np.ndarray, ydims: np.ndarray, zdims: np.ndarray, attributes_list: list[dict] = {}) -> list[utility.Bbox]:
     """
-    Create a bounding box object with midpt and the x,y,z dimensions.
+    Create bboxes based on midpts and the x,y,z dimensions.
     
     Parameters
     ----------
-    midpt : tuple
-        xyz specifying the xyz position.
+    midpts : np.ndarray
+        np.ndarray(shape(number of midpts, 3)) xyzs specifying the xyz position.
         
-    xdim : float
-        the x dimension of the bounding box
+    xdims : np.ndarray
+        np.ndarray(shape(number of midpts)) the x dimension of the bounding boxes
     
-    ydim : float
-        the y dimension of the bounding box
+    ydims : np.ndarray
+        np.ndarray(shape(number of midpts)) the y dimension of the bounding boxes
     
-    zdim : float
-        the z dimension of the bounding box
+    zdims : np.ndarray
+        np.ndarray(shape(number of midpts)) the z dimension of the bounding boxes
     
-    attributes : dictionary, optional
-        dictionary of the attributes.
+    attributes_list : list[dict], optional
+        list of attributes dictionary.
         
     Returns
     -------
-    bbox : bbox object
-        A bbox object
+    bboxes : list[utility.Bbox]
+        A list of bboxes.
     """
-    mnx = midpt[0] - (xdim/2)
-    mny = midpt[1] - (ydim/2)
-    mnz = midpt[2] - (zdim/2)
+    if type(midpts) != np.ndarray:
+        midpts = np.array(midpts)
     
-    mxx = midpt[0] + (xdim/2)
-    mxy = midpt[1] + (ydim/2)
-    mxz = midpt[2] + (zdim/2)
+    if type(xdims) != np.ndarray:
+        xdims = np.array(xdims)
     
-    bbox_arr = [mnx, mny, mnz, mxx, mxy, mxz]
-    bbox = utility.Bbox(bbox_arr, attributes = attributes)
-    return bbox
+    if type(ydims) != np.ndarray:
+        ydims = np.array(ydims)
+
+    if type(zdims) != np.ndarray:
+        zdims = np.array(zdims)
+
+    midptsT = midpts.T
+    xs = midptsT[0]
+    ys = midptsT[1]
+    zs = midptsT[2]
+    
+    mnxs = xs - (xdims/2)
+    mnys = ys - (ydims/2)
+    mnzs = zs - (zdims/2)
+
+    mxxs = xs + (xdims/2)
+    mxys = ys + (ydims/2)
+    mxzs = zs + (zdims/2)
+
+    bbox_arrs = np.vstack([mnxs, mnys, mnzs, mxxs, mxys, mxzs]).T
+    bboxes = [utility.Bbox(bbox_arr) for bbox_arr in bbox_arrs]
+    return bboxes
+
+def bboxes_frm_lwr_left_pts(lwr_left_pts: np.ndarray, xdims: np.ndarray, ydims: np.ndarray, zdims: np.ndarray, attributes_list: list[dict] = {}) -> list[utility.Bbox]:
+    """
+    Create bboxes based on lwr_left_pts and the x,y,z dimensions.
+    
+    Parameters
+    ----------
+    lwr_left_pts : np.ndarray
+        np.ndarray(shape(number of lwr_left_pts, 3)) xyzs specifying the xyz position.
+        
+    xdims : np.ndarray
+        np.ndarray(shape(number of lwr_left_pts)) the x dimension of the bounding boxes
+    
+    ydims : np.ndarray
+        np.ndarray(shape(number of lwr_left_pts)) the y dimension of the bounding boxes
+    
+    zdims : np.ndarray
+        np.ndarray(shape(number of lwr_left_pts)) the z dimension of the bounding boxes
+    
+    attributes_list : list[dict], optional
+        list of attributes dictionary.
+        
+    Returns
+    -------
+    bboxes : list[utility.Bbox]
+        A list of bboxes.
+    """
+    if type(lwr_left_pts) != np.ndarray:
+        lwr_left_pts = np.array(lwr_left_pts)
+    
+    if type(xdims) != np.ndarray:
+        xdims = np.array(xdims)
+    
+    if type(ydims) != np.ndarray:
+        ydims = np.array(ydims)
+
+    if type(zdims) != np.ndarray:
+        zdims = np.array(zdims)
+
+
+    lwr_left_ptsT = lwr_left_pts.T
+    xs = lwr_left_ptsT[0]
+    ys = lwr_left_ptsT[1]
+    zs = lwr_left_ptsT[2]
+
+    mxxs = xs + (xdims)
+    mxys = ys + (ydims)
+    mxzs = zs + (zdims)
+
+    bbox_arrs = np.vstack([xs, ys, zs, mxxs, mxys, mxzs]).T
+    bboxes = [utility.Bbox(bbox_arr) for bbox_arr in bbox_arrs]
+    return bboxes
 
 def ray(xyz_orig, xyz_dir, attributes = {}):
     """
@@ -364,7 +529,42 @@ def ray(xyz_orig, xyz_dir, attributes = {}):
     """
     ray = utility.Ray(xyz_orig, xyz_dir, attributes = attributes)
     return ray
+
+def rays_d4pi_frm_verts(verts: list[topobj.Vertex], ndirs: int = 360, vert_id: bool = True) -> list[utility.Ray]:
+    """
+    This function constructs a 4 pi space direction of rays for each of the given vert.
+ 
+    Parameters
+    ----------
+    verts : list[topobj.Vertex]
+        list or verts. Each vert will be use to generate a 4 pi space direction of rays.
+        
+    ndirs : int, optional
+        number of direction to generate for the 4 pi space.
     
+    vert_id : bool, optional
+        store an attribute 'vert_id' that identifies the rays generated from each vert.
+ 
+    Returns
+    -------
+    rays : list[utility.Ray]
+        list of all the rays generated.
+    """
+    unitball = d4pispace.tgDirs(ndirs)
+    #create the rays for each analyse pts
+    rays = []
+    if vert_id == True:
+        for cnt,v in enumerate(verts):
+            for dix in unitball.getDirList():
+                a_ray = ray(v.point.xyz, [dix.x, dix.y, dix.z])     
+                rays.append(a_ray)
+    else:
+        for v in verts:
+            for dix in unitball.getDirList():
+                a_ray = ray(v.point.xyz, [dix.x, dix.y, dix.z])        
+                rays.append(a_ray)
+    return rays
+
 def vertex(xyz, attributes = {}):
     """
     This function constructs a vertex topology.
@@ -420,6 +620,38 @@ def vertex_list(xyz_list, attributes_list = []):
         vlist = np.array([vertex(xyz_list[cnt]) for cnt in range(nxyz)])
     
     return vlist
+
+def vertex_list_frm_bbox(bbox: utility.Bbox) -> list[topobj.Vertex]:
+    """
+    This function constructs a list of vertex from bbox. The vertex_list will contain 8 vertices.
+ 
+    Parameters
+    ----------
+    bbox : utility.Bbox
+        utility.Bbox to be used for creating the vertex list.
+ 
+    Returns
+    -------
+    vertex_list : list[topobj.Vertex]
+        A list of vertices defining the bbox.
+    """
+    mnx = bbox.minx
+    mny = bbox.miny
+    mnz = bbox.minz
+    mxx = bbox.maxx
+    mxy = bbox.maxy
+    mxz = bbox.maxz
+
+    vert1 = vertex([mnx, mny, mnz])
+    vert2 = vertex([mnx, mxy, mnz])
+    vert3 = vertex([mxx, mxy, mnz])
+    vert4 = vertex([mxx, mny, mnz])
+
+    vert5 = vertex([mnx, mny, mxz])
+    vert6 = vertex([mnx, mxy, mxz])
+    vert7 = vertex([mxx, mxy, mxz])
+    vert8 = vertex([mxx, mny, mxz])
+    return [vert1, vert2, vert3, vert4, vert5, vert6, vert7, vert8]
 
 def polygon_face_frm_verts(vertex_list, hole_vertex_list = [], attributes = {}):
     """
@@ -646,7 +878,7 @@ def grid_pts_frm_bspline_face(face,columns,rows,xyzs=False):
     else:
         print('ERROR SURFACE IS NOT BSPLINE')
 
-def pline_edge_frm_verts(vertex_list, attributes = {}):
+def pline_edge_frm_verts(vertex_list: list[topobj.Vertex], attributes: dict = {}) -> topobj.Edge:
     """
     This function constructs a polyline edge from a list of vertices.
  
@@ -666,6 +898,88 @@ def pline_edge_frm_verts(vertex_list, attributes = {}):
     edge = topobj.Edge(attributes = attributes)
     edge.add_polyline_curve(vertex_list)
     return edge
+
+def pline_edges_frm_rays(rays: list[utility.Ray], attributes_list: list[dict] = []) -> list[topobj.Edge]:
+    """
+    This function constructs a polyline edges from a list of rays.
+ 
+    Parameters
+    ----------
+    rays : list[utility.Ray]
+        A list of rays that will be converted into edges
+    
+    attributes_list : list[dict], optional
+        list of dictionary of the attributes.
+ 
+    Returns
+    -------
+    pline_edges : list[topobj.Edge]
+        list[topoobj.Edge] created from the rays.
+    """
+    pline_edges = []
+    if len(attributes_list) != 0:
+        for cnt,r in enumerate(rays):
+            o = r.origin
+            dirx = r.dirx
+            d = calculate.move_xyzs([o], [dirx], [1])[0]
+            vs = vertex_list([o, d])
+            att = attributes_list[cnt]
+            e = pline_edge_frm_verts(vs, attributes=att)
+            pline_edges.append(e)
+    else:
+        for cnt,r in enumerate(rays):
+            o = r.origin
+            dirx = r.dirx
+            d = calculate.move_xyzs([o], [dirx], [1])[0]
+            vs = vertex_list([o, d])
+            e = pline_edge_frm_verts(vs)
+            pline_edges.append(e)
+    return pline_edges
+
+def pline_edges_frm_face_normals(faces: list[topobj.Face], magnitude: float = 1.0 , attributes_list: list[dict] = []) -> list[topobj.Edge]:
+    """
+    This function constructs a polyline edges from a list of list of normals extracted from the face.
+ 
+    Parameters
+    ----------
+    faces : list[topobj.Face]
+        A list of faces whoose normals that will be converted into edges
+    
+    attributes_list : list[dict], optional
+        list of dictionary of the attributes.
+ 
+    Returns
+    -------
+    pline_edges : list[topobj.Edge]
+        list[topoobj.Edge] created from the rays.
+    """
+    nfaces = len(faces)
+    midxyzs = []
+    nrmls = []
+    for f in faces:
+        nrml = get.face_normal(f)
+        midxyz = calculate.face_midxyz(f)
+        midxyzs.append(midxyz)
+        nrmls.append(nrml)
+
+    magnitudes = np.repeat(magnitude, nfaces)
+    moved_xyzs = calculate.move_xyzs(midxyzs, nrmls, magnitudes)
+
+    mid_vs = vertex_list(midxyzs)
+    moved_vs = vertex_list(moved_xyzs)
+
+    natt = len(attributes_list)
+    pline_edges = []
+    for cnt in range(nfaces):
+        v1 = mid_vs[cnt]
+        v2 = moved_vs[cnt]
+        if natt == 0:
+            edge = pline_edge_frm_verts([v1, v2])
+        else:
+            edge = pline_edge_frm_verts([v1, v2], attributes_list[cnt])
+        pline_edges.append(edge)
+    
+    return pline_edges
 
 def bspline_edge_frm_xyzs(ctrlpts_xyz, degree = 2, resolution = 0.01, attributes = {}):
     """
@@ -737,7 +1051,7 @@ def wire_frm_vertices(vertex_list, attributes = {}):
     
     return wire
 
-def wire_frm_edges(edge_list, attributes = {}):
+def wire_frm_edges(edge_list: list[topobj.Edge], attributes: dict = {}):
     """
     This function constructs a wire from a list of edges.
  
@@ -757,7 +1071,7 @@ def wire_frm_edges(edge_list, attributes = {}):
     wire = topobj.Wire(edge_list, attributes = attributes)
     return wire
     
-def coordinate_system(origin, x_dir, y_dir):
+def coordinate_system_frm_arrs(origin, x_dir, y_dir):
     """
     This function creates a coordinate system object.
  

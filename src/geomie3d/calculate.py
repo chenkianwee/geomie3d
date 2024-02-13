@@ -23,12 +23,12 @@ from itertools import chain
 import numpy as np
 from numpy.linalg import matrix_rank
 
-from . import topobj
 from . import get
-from . import utility
 from . import modify
 from . import geom
 from . import create
+from . import topobj
+from . import utility
 
 def dist_btw_xyzs(xyzs1, xyzs2):
     """
@@ -62,6 +62,25 @@ def dist_btw_xyzs(xyzs1, xyzs2):
     distance = np.sqrt(xyzsum)
     return distance
 
+def reverse_vectorxyz(vector_xyzs: np.ndarray) -> np.ndarray:
+    """
+    This function calculates the reverse of the vectorxyz . 
+ 
+    Parameters
+    ----------
+    vector_xyzs : np.ndarray
+        array defining the point.
+    
+    Returns
+    -------
+    reverse_vector : np.ndarray
+        The reverse of all the points.
+    """
+    if type(vector_xyzs) != np.ndarray:
+        vector_xyzs = np.array(vector_xyzs)
+
+    return vector_xyzs*-1
+    
 def xyzs_mean(xyzs):
     """
     This function calculates the mean of all points. 
@@ -128,19 +147,19 @@ def bbox_frm_xyzs(xyzs):
     bbox = utility.Bbox([mnx,mny,mnz,mxx,mxy,mxz])
     return bbox
     
-def bbox_centre(bbox):
+def bbox_centre(bbox: utility.Bbox) -> np.ndarray:
     """
     This function returns the centre point of the bbox .
     
     Parameters
     ----------
-    bbox : bbox object
+    bbox : utility.Bbox
         bbox object
        
     Returns
     -------
-    xyz : ndarray
-        array defining the point.
+    xyz : np.ndarray
+        np.ndarray(shape(1, 3)) array defining the point.
     """
     bbox_arr = bbox.bbox_arr
     midx = bbox_arr[0] + ((bbox_arr[3] - bbox_arr[0])/2)
@@ -149,19 +168,19 @@ def bbox_centre(bbox):
     
     return np.array([midx,midy,midz])
     
-def bbox_frm_bboxes(bbox_list):
+def bbox_frm_bboxes(bbox_list: list[utility.Bbox]) -> utility.Bbox:
     """
     This function recalculate the bbox from a list of bboxes.
     
     Parameters
     ----------
-    bbox_list : a list of bbox object
-        A list of bbox    
+    bbox_list : list[utility.Bbox]
+        A list of bboxes    
     
     Returns
     -------
-    bbox : bbox object
-        bbox object
+    bbox : utility.Bbox
+        the calculated bbox object
     """
     bbox_arr_ls = [bbox.bbox_arr.tolist() for bbox in bbox_list]
     zip_box = list(zip(*bbox_arr_ls))
@@ -175,6 +194,55 @@ def bbox_frm_bboxes(bbox_list):
     
     res_bbox = utility.Bbox([mnx,mny,mnz,mxx,mxy,mxz])
     return res_bbox
+
+def are_bboxes1_related2_bboxes2(bboxes1: list[utility.Bbox], bboxes2: list[utility.Bbox], zdim: bool = True) -> np.ndarray:
+    """
+    This function calculates if bbox1 is related to bbox2. Related include any form of intersection or touching.
+    
+    Parameters
+    ----------
+    bboxes1 : list[utility.Bbox]
+        the bboxes to check
+
+    bboxes2 : list[utility.Bbox]
+        the bboxes to check    
+    
+    zdim : bool, optional
+        If True will check the z-dimension. Default = True
+
+    Returns
+    -------
+    is_inside : np.ndarray
+        An array of True or False indicating the relationship between the two list of bboxes. True = bboxes are related, False = bboxes are not related.
+    """
+    def are_bboxes_related(bboxes1, bboxes2, nbboxes, zdim):
+        bbox_xyzs = create.xyzs_frm_bboxes(bboxes1)
+        bboxes_shape = bbox_xyzs.shape
+        bbox_xyzs1 = np.reshape(bbox_xyzs, (bboxes_shape[0]*bboxes_shape[1], bboxes_shape[2]))
+        indices = match_xyzs_2_bboxes(bbox_xyzs1, bboxes2, zdim = zdim)
+        are_related = np.array([False])
+        are_related = np.repeat(are_related, nbboxes)
+        if indices.size == 0:
+            return are_related 
+        else:
+            xyz_indices = indices[0]
+            bboxes1_indices = xyz_indices/8
+            bboxes1_indices = np.floor(bboxes1_indices)
+            bboxes2_indices = indices[1]
+            bboxes_indices = np.array([bboxes1_indices, bboxes2_indices])
+            same_indx = np.where(bboxes1_indices == bboxes2_indices)[0]
+            bboxes_indicesT = bboxes_indices.T
+            same = np.take(bboxes_indicesT, same_indx, axis=0)
+            same = np.unique(same, axis=0)
+            sameT = same.T[0].astype(int)
+            np.put(are_related, sameT, True)
+            return are_related
+
+    nbboxes = len(bboxes1)
+    are_related1 = are_bboxes_related(bboxes1, bboxes2, nbboxes, zdim)
+    are_related2 = are_bboxes_related(bboxes2, bboxes1, nbboxes, zdim)
+    are_related_res = np.logical_or(are_related1, are_related2)
+    return are_related_res
 
 def is_collinear(vertex_list):
     """
@@ -340,16 +408,16 @@ def bbox_frm_topo(topo):
     bbox = bbox_frm_xyzs(xyzs)
     return bbox
 
-def xyzs_in_bbox(xyzs, bbox, zdim = True, indices = False):
+def xyzs_in_bbox(xyzs: np.ndarray, bbox: utility.Bbox, zdim: bool = True, indices: bool = False) -> np.ndarray:
     """
     This function if the points are within the given boundary box.
  
     Parameters
     ----------
-    xyzs : ndarray
+    xyzs : np.ndarray
         array defining the points.
     
-    bbox : bbox object
+    bbox : utility.Bbox
         bbox object
         
     zdim : bool, optional
@@ -360,18 +428,16 @@ def xyzs_in_bbox(xyzs, bbox, zdim = True, indices = False):
     
     Returns
     -------
-    points_in_bdry : xyzs or indices
+    points_in_bdry : np.ndarray
         The points that is in the boundary. If indices==True, this will be the indices instead of the actual points.
     """
-    import numpy as np
-    
     if type(xyzs) != np.ndarray:
         xyzs = np.array(xyzs)
     
     zip_xyzs = xyzs.T
     xlist = zip_xyzs[0] 
-    ylist = zip_xyzs[0]
-    zlist = zip_xyzs[0]
+    ylist = zip_xyzs[1]
+    zlist = zip_xyzs[2]
     
     bbox_arr = bbox.bbox_arr
     mnx = bbox_arr[0]
@@ -391,8 +457,9 @@ def xyzs_in_bbox(xyzs, bbox, zdim = True, indices = False):
         
         z_valid = np.logical_and((mnz <= zlist),
                                  (mxz >= zlist))
-    
-        index_list = np.where(np.logical_and(x_valid, y_valid, z_valid))[0]
+        cond1 = np.logical_and(x_valid, y_valid)
+        cond2 = np.logical_and(cond1, z_valid)
+        index_list = np.where(cond2)[0]
     
     else:
         index_list = np.where(np.logical_and(x_valid, y_valid))[0]
@@ -448,16 +515,16 @@ def is_xyz_in_bbox(xyz, bbox, zdim = True):
     
     return in_bdry
     
-def match_xyzs_2_bboxes(xyzs, bbox_list, zdim = True):
+def match_xyzs_2_bboxes(xyzs: np.ndarray, bbox_list: list[utility.Bbox], zdim: bool = True) -> np.ndarray:
     """
     This function returns the point indices follow by the bbox indices which it is contained in.
     
     Parameters
     ----------
-    xyzs : ndarray
-        array defining the points.
+    xyzs : np.ndarray
+        np.ndarray(shape(nxyzs, 3)) array defining the points.
     
-    bbox_list : a list of bbox object
+    bbox_list : list[utility.Bbox]
         A list of bbox
         
     zdim : bool, optional
@@ -465,8 +532,8 @@ def match_xyzs_2_bboxes(xyzs, bbox_list, zdim = True):
 
     Returns
     -------
-    point_bbox_indices : nparray
-        point indices follow by the bbox indices.
+    point_bbox_indices : np.ndarray
+        np.ndarray(shape(2, number_of_matches)), point indices follow by the bbox indices. The two arrays corresponds to each other.
     """
     if type(xyzs) != np.ndarray:
         xyzs = np.array(xyzs)
@@ -507,11 +574,13 @@ def match_xyzs_2_bboxes(xyzs, bbox_list, zdim = True):
         zmax_list = reshape_bdry(tbdry[5], npts)
         z_valid = np.logical_and(zlist >= zmin_list,
                                  zlist <= zmax_list)
-        xyz_valid = np.logical_and(x_valid, y_valid, z_valid)
+        cond1 = np.logical_and(x_valid, y_valid)
+        xyz_valid = np.logical_and(cond1, z_valid)
     else:
         xyz_valid = np.logical_and(x_valid, y_valid)
     
     index = np.where(xyz_valid)
+    index = np.array(index)
     return index
 
 def id_bboxes_contain_xyzs(bbox_list, xyzs, zdim = True):
@@ -534,7 +603,6 @@ def id_bboxes_contain_xyzs(bbox_list, xyzs, zdim = True):
     bbox_indices : nparray
         Indices of the boundary that contains the point.
     """
-    import numpy as np
     indices = match_xyzs_2_bboxes(xyzs, bbox_list, zdim = zdim)
     bbox_indices = indices[1]
     bbox_indices = np.unique(bbox_indices)
@@ -561,7 +629,6 @@ def id_xyzs_in_bboxes(xyzs, bbox_list, zdim = False):
     pt_indices : nparray
         Indices of the points in the bboxes.
     """
-    import numpy as np
     indices = match_xyzs_2_bboxes(xyzs, bbox_list, zdim = zdim)
     pt_indices = indices[0]
     pt_indices = np.unique(pt_indices)
@@ -908,15 +975,15 @@ def move_xyzs(xyzs, directions, magnitudes):
         
     if type(magnitudes) != np.ndarray:
         magnitudes = np.array(magnitudes)
-    
+
     magnitudes = np.reshape(magnitudes, [len(directions),1])
     moved_xyzs = xyzs + directions*magnitudes
     return moved_xyzs 
     
 def is_anticlockwise(xyzs, ref_vec):
     """
-    This function checks if the list of points are arranged anticlockwise in regards to the ref_pyvec. 
-    The ref_pyvec must be perpendicular to the points.
+    This function checks if the list of points are arranged anticlockwise in regards to the ref_pyvec by calculating the winding number. When the number is negative they are clockwise.
+    The ref_pyvec must be perpendicular to the points. 
  
     Parameters
     ----------
@@ -954,21 +1021,6 @@ def is_anticlockwise(xyzs, ref_vec):
             return True
         else: #if res == 0 means the points are collinear
             return None
-        
-        # total = [0,0,0]    
-        # npts = len(xyzs)
-        # for i in range(npts):
-        #     vec1 = xyzs[i]
-        #     if i == npts-1:
-        #         vec2 = xyzs[0]
-        #     else:
-        #         vec2 = xyzs[i+1]
-        #     #cross the two pts
-        #     prod = cross_product(vec1, vec2)
-        #     total[0] += prod[0]
-        #     total[1] += prod[1]
-        #     total[2] += prod[2]
-        # res = dot_product(total, ref_vec)
         
     elif nshape == 3:
         xyzs2 = np.roll(xyzs, -1, axis=1)
@@ -2032,3 +2084,291 @@ def polygons_intersections(clipping_polys, subject_polys):
         array of all the intersection points.
     """
     pass
+
+def grp_faces_on_nrml(face_list: list[topobj.Face], return_idx: bool = False, decimals: int = None) -> tuple[list[list[topobj.Face]], list[topobj.Face]]:
+    """
+    Group the faces based on the normal of the faces
+    
+    Parameters
+    ----------
+    face_list: list[topobj.Face]
+        group these faces
+    
+    return_idx: bool, optional
+        only return the indices of the grouped faces. Default to False
+
+    decimals: int, optional
+        the number of decimals to round the normals of the faces. Default to 6 
+
+    Returns
+    -------
+    res_face : tuple[list[list[topobj.Face]], list[topobj.Face]]
+        list[Shape[Any,Any]] of grouped faces. list[Shape[Any]] of faces that do not belong to any group.
+        
+    """
+    # get the normals of each tri face
+    nrml_ls = np.array([get.face_normal(f) for f in face_list])
+    if decimals != None:
+        nrml_ls = np.round(nrml_ls, decimals=decimals)
+    uniq_nrml = np.unique(nrml_ls, axis=0, return_inverse = True)
+    idx = utility.separate_dup_non_dup(uniq_nrml[1])
+    non_dup_idx = idx[0]
+    dup_idx = idx[1]
+
+    if return_idx == False:
+        indv_faces = []
+        g_faces = []
+        if len(non_dup_idx) !=0:
+            indv_faces = np.take(face_list,non_dup_idx)
+        if len(dup_idx) != 0:
+            g_faces = [np.take(face_list, idx, axis=0) for idx in dup_idx]
+            
+        return g_faces, indv_faces
+    else:
+        return dup_idx, non_dup_idx
+
+def find_faces_outline(face_list: list[topobj.Face]) -> tuple[list[topobj.Edge], list[topobj.Edge]]:
+    """
+    Find non-duplicated edges from a list of faces. Can be used to find the outline of a triangulated surface.
+    
+    Parameters
+    ----------
+    face_list: list[topobj.Face]
+        find non-duplicated edges of these faces.
+    
+    Returns
+    -------
+    non_dup_edges : list[topobj.Edge]
+        list of non duplicated edges
+    
+    dup_edges : list[topobj.Edge]
+        list[Shape(Any, Any)] of duplicated edges
+    """
+    edge_ls = [get.edges_frm_face(f) for f in face_list]
+    edge_ls = list(chain(*edge_ls))
+    edge_ls = modify.edges2lineedges(edge_ls)
+    non_dup_edges, dup_edges = find_non_dup_lineedges(edge_ls)
+    return non_dup_edges, dup_edges
+
+def find_non_dup_lineedges(edge_list: list[topobj.Edge]) -> list[topobj.Edge]:
+    """
+    Find edges that are not duplicated.
+    
+    Parameters
+    ----------
+    edge_list: list[topobj.Edge]
+        find non duplicated edges from these edges.
+    
+    Returns
+    -------
+    non_dup_edges : list[topobj.Edge]
+        list of non duplicated edges
+    
+    dup_edges : list[topobj.Edge]
+        list[Shape(Any, Any)] of duplicated edges
+    """
+    edge_vert_list = [get.vertices_frm_edge(e) for e in edge_list]
+    edge_xyz_ls = []
+    for edge_verts in edge_vert_list:
+        edge_xyzs = [v.point.xyz for v in edge_verts]
+        edge_xyz_ls.append(edge_xyzs)
+
+    edge_xyz_ls = np.array(edge_xyz_ls)
+    non_dup_idx, dup_idx = find_non_dup_lineedges_xyz(edge_xyz_ls)
+    non_dup_edges = np.take(edge_list, non_dup_idx).tolist()
+    dup_edges = np.take(edge_list, dup_idx).tolist()
+    return non_dup_edges, dup_edges
+
+def find_non_dup_lineedges_xyz(edge_xyz_list: np.ndarray, index: bool = True) -> np.ndarray:
+    """
+    Find edges that are not duplicated.
+    
+    Parameters
+    ----------
+    edge_xyz_list: np.ndarray
+        np.ndarray(Shape[Any, 2, 3]) find non duplicated edges from these edges.
+    
+    index: bool, optional
+        Default = True, if True return the indices of the edges that are non-duplicated. False returns the xyzs. 
+    
+    Returns
+    -------
+    non_dup_edge_xyzs : np.ndarray
+        np.ndarray(Shape[Any, 2]) of non duplicated edges
+    
+    indices : np.ndarray
+        ndarray of the indices [[non_dup_idx], [[dup_idx1], [dup_idx2] ... [dup_idxn]]].
+    """
+    if type(edge_xyz_list) != np.ndarray:
+        np.array(edge_xyz_list)
+
+    arr_shape = np.shape(edge_xyz_list)
+    if arr_shape[1] != 2:
+        raise ValueError('This is not a line edge !! The edge has more than two vertices')
+    else:
+        xyz_list = np.reshape(edge_xyz_list, (arr_shape[0]*arr_shape[1], 3)) # flatten the list
+        uniq_xyzs = np.unique(xyz_list, axis=0, return_inverse = True) # index the vertices
+        edge_idxs = np.reshape(uniq_xyzs[1], (arr_shape[0], arr_shape[1])) # reshape it back to the edge shape
+        edge_idxs = np.sort(edge_idxs) # sort the edge indices 
+        uniq_edge_idxs = np.unique(edge_idxs, axis=0, return_inverse=True) # compare the edges and identify duplicates
+        non_dup_idx, dup_idx = utility.separate_dup_non_dup(uniq_edge_idxs[1]) # separate the dup from non dups
+        if index == True:
+            return non_dup_idx, dup_idx
+        else:
+            non_dup = np.take(edge_xyz_list, non_dup_idx)
+            return non_dup
+
+def a_connected_path_from_edges(edge_list: list[topobj.Edge], indx: bool = False) -> dict:
+    """
+    loop through the edges and find a path if the edges are connected. If there are multiple connected paths or branches in the edge list, branches are ignored. Only a single path is returned.
+ 
+    Parameters
+    ----------
+    edge_list : list[topobj.Edge]
+        the list of edge object to check if they are connected.
+    
+    indx : bool, optional
+        return the index instead of the edge object.
+
+    Returns
+    -------
+    result : dict
+        A dictionary {'connected': list[topobj.Edge], 'loose': list[topobj.Edge], 'is_path_closed': bool, 'branch': list[list[int]]}. If indx==True, return the indices instead.
+        'is_path_closed': indicate whether if the connected path is close or open. True is closed, False is opened.
+        'branches': a list of list of edge index indicating at which edge a branch occur.
+    """
+    nedges = len(edge_list)
+    all_indxs = range(nedges)
+    connected_indx_all = []
+    branches = []
+    prev_cnt_ls = []
+    cnt = 0
+    while nedges > 0:
+        if cnt not in prev_cnt_ls: # if 
+            edge_list_dup = edge_list[:]
+            del edge_list_dup[cnt]
+            res_dict = find_edges_connected2this_edge(edge_list[cnt], edge_list_dup, mode='end_start', indx=True)
+            connected_indxs = res_dict['connected']
+            n_connections = len(connected_indxs)
+            if n_connections != 0:
+                if n_connections > 1:
+                    branch_indxs = connected_indxs[1:]
+                    branch_indxs_calibrated = np.where(branch_indxs >= cnt, branch_indxs+1, branch_indxs)
+                    branch = np.insert(branch_indxs_calibrated, 0, cnt).tolist()
+                    branches.append(branch)
+
+                if cnt not in connected_indx_all:
+                    connected_indx_all.append(cnt)
+                first_connection = connected_indxs[0]
+                if first_connection >= cnt:
+                    first_connection += 1
+                connected_indx_all.append(first_connection)
+                prev_cnt_ls.append(cnt)
+                cnt = first_connection
+            else:
+                prev_cnt_ls.append(cnt)
+                not_in_cnt = utility.find_xs_not_in_ys(all_indxs, prev_cnt_ls).tolist()
+                cnt = not_in_cnt[0]
+
+        nedges = nedges-1
+    
+    is_path_closed = False
+    if connected_indx_all[0] == connected_indx_all[-1]:
+        is_path_closed = True
+        connected_indx_all = connected_indx_all[0:-1]
+
+    loose_indxs = utility.find_xs_not_in_ys(all_indxs, connected_indx_all).tolist()
+
+    if indx == True:
+        res = {'connected': connected_indx_all, 'loose': loose_indxs, 'is_path_closed': is_path_closed, 'branches': branches}
+    else:
+        connected_edges = np.take(edge_list, connected_indx_all).tolist()
+        loose_edges = np.take(edge_list, loose_indxs).tolist()
+        res = {'connected': connected_edges, 'loose': loose_edges, 'is_path_closed': is_path_closed, 'branches': branches}
+    return res
+
+def find_edges_connected2this_edge(this_edge: topobj.Edge, edge_list: list[topobj.Edge], mode: str = 'end_start', indx: bool = False) -> dict:
+    """
+    find the edges in the edge_list that is connected to this_edge. The algorithm use the end point of this_edge and check it with the start point of the edge_list, directionality of the edges matter.
+ 
+    Parameters
+    ----------
+    this_edge: topobj.Edge
+        the edge object.
+
+    edge_list : list[topobj.Edge]
+        the list of edge object to check if they are connected to this_edge.
+
+    mode : str, optional
+        the mode to determine the way edges are connected. Default to end_start
+        end_start: the end point of this_edge to the start point of the edge_list
+        start_end: the start point of this_edge to the end point of the edge_list
+        end_end: the end point of this_edge to the end point of the edge_list
+        start_start: the start point of this_edge to the start point of the edge_list 
+
+    indx : bool, optional
+        return the index instead of the actual edge object.
+ 
+    Returns
+    -------
+    connected_edges : dict
+        A dictionary {'connected': list[topobj.Edge], 'loose': list[topobj.Edge]}. If indx==True, return the indices instead.
+    """
+    if mode == 'end_start':
+        this_xyz = this_edge.end_vertex.point.xyz
+        xyz_ls = np.array([e.start_vertex.point.xyz for e in edge_list])
+    elif mode == 'start_end':
+        this_xyz = this_edge.start_vertex.point.xyz
+        xyz_ls = np.array([e.end_vertex.point.xyz for e in edge_list])
+    elif mode == 'end_end':
+        this_xyz = this_edge.end_vertex.point.xyz
+        xyz_ls = np.array([e.end_vertex_vertex.point.xyz for e in edge_list])
+    elif mode == 'start_start':
+        this_xyz = this_edge.start_vertex.point.xyz
+        xyz_ls = np.array([e.start_vertex.point.xyz for e in edge_list])
+    
+    all_indxs = range(len(xyz_ls))    
+    connected_indxs = find_xyzs_identical2this_xyz(this_xyz, xyz_ls)
+    loose_indxs = utility.find_xs_not_in_ys(all_indxs, connected_indxs)
+    
+    if indx == True:
+        result = {'connected': connected_indxs, 'loose': loose_indxs}
+    else:
+        connected_edges = np.take(edge_list, connected_indxs).tolist()
+        loose_edges = np.take(edge_list, loose_indxs).tolist()
+        result = {'connected': connected_edges, 'loose': loose_edges}
+    return result
+
+def find_xyzs_identical2this_xyz(this_xyz: np.ndarray, xyz_list: np.ndarray) -> np.ndarray:
+    """
+    Compare this_xyz to the xyz_list and find all the xyz that is the same as this_xyz. Returns the index of the identical xyz in the xyz_list.
+ 
+    Parameters
+    ----------
+    this_xyz : np.ndarray
+        a point [x,y,z].
+    
+    this_xyz : np.ndarray
+        a np.ndarray of shape [Nxyz, 3].
+ 
+    Returns
+    -------
+    index_list : np.ndarray
+        List of index of the identical xyzs in the xyz_list
+    """
+    if type(xyz_list) != np.ndarray:
+        xyz_list = np.array(xyz_list)
+
+    xyzT = xyz_list.T
+    xlist = xyzT[0]
+    ylist = xyzT[1]
+    zlist = xyzT[2]
+
+    xvalid = np.where(xlist == this_xyz[0], True, False)
+    yvalid = np.where(ylist == this_xyz[1], True, False)
+    zvalid = np.where(zlist == this_xyz[2], True, False)
+
+    cond1 = np.logical_and(xvalid, yvalid)
+    cond2 = np.logical_and(cond1, zvalid)
+    index_list = np.where(cond2)[0]
+    return index_list

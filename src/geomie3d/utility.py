@@ -30,7 +30,6 @@ from . import modify
 from . import get
 from . import create
 from . import topobj
-from . import geom
 
 class CoordinateSystem(object):
     """
@@ -138,13 +137,16 @@ class Bbox(object):
     Parameters
     ----------
     bbox_arr : tuple
-        Array specifying [minx,miny,minz,maxx,maxy,maxz].
+        Array specifying [minx, miny, minz, maxx, maxy, maxz].
         
     attributes : dictionary, optional
         dictionary of the attributes.
         
     Attributes
     ----------    
+    bbox_arr : np.ndarray
+        Array of [minx, miny, minz, maxx, maxy, maxz].
+        
     minx : float
         The min x.
     
@@ -287,7 +289,7 @@ def separate_dup_non_dup(lst):
     non_dup_indx = find_xs_not_in_ys(indx, dupIds_flat)
     return np.array([non_dup_indx, dupIds], dtype=object)
     
-def gen_gridxyz(xrange, yrange, zrange=None):
+def gen_gridxyz(xrange: list[int], yrange: list[int], zrange: list[int] = None) -> np.ndarray:
     """
     This function generate a 2d xy grid.
     
@@ -304,8 +306,8 @@ def gen_gridxyz(xrange, yrange, zrange=None):
         
     Returns
     -------
-    gridxy : 2d array
-        2d array with xyz. If zrange == None, xy.
+    gridxy : np.ndarray
+        np.ndarray(shape(number of grid pts, 3)), if zrange is specified: np.ndarray(shape(number of grid pts, 3)).
     """
     x = np.linspace(xrange[0], xrange[1], xrange[2])
     y = np.linspace(yrange[0], yrange[1], yrange[2])
@@ -319,7 +321,7 @@ def gen_gridxyz(xrange, yrange, zrange=None):
         return xys
     else:
         z = np.linspace(zrange[0], zrange[1], zrange[2])
-        xx, yy, zz = np.meshgrid(x,y,z)
+        yy, zz, xx = np.meshgrid(y,z,x)
         xx = xx.flatten()
         yy= yy.flatten()
         zz = zz.flatten()
@@ -429,7 +431,7 @@ def rgb2val(rgb, minval, maxval):
     orig_val = (orig_val_part1*orig_val_part2)+minval
     return orig_val
 
-def write2ply(topo_list, ply_path, square_face = False):
+def write2ply(topo_list: list[topobj.Topology], ply_path: str, square_face: bool = False):
     """
     Writes the topologies to a ply file. only works for points and face
  

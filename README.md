@@ -15,11 +15,11 @@ nurbs-python
 4. Install Spyder IDE using 'pip install spyder==5.4.0'
 5. Install geomie3d https://github.com/chenkianwee/geomie3d
 6. install dateutil 'pip install python-dateutil==2.8.2'
-7. Install 'pip install numpy==1.23.4'
-8. Install 'pip install scipy==1.9.3'
-9. install 'pip install pyqtgraph==0.13.1'
-10. install 'pip install PyOpenGL==3.1.6'
-11. install 'pip install PyQt6==6.4.0'
+7. Install 'pip install numpy==1.26.3'
+8. Install 'pip install scipy==1.11.4'
+9. install 'pip install pyqtgraph==0.13.3'
+10. install 'pip install PyOpenGL==3.1.7'
+11. install 'pip install PyQt6==6.6.1'
 
 ## Opengl issue with visualizing 3d geometries on Ubuntu 22.04
 if this happen when running geomie3d

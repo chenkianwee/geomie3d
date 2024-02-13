@@ -22,11 +22,11 @@ from itertools import chain
 
 import numpy as np
 
-from . import geom
-from . import topobj
 from . import modify
+from . import topobj
+from . import geom
 
-def topo_atts(topo):
+def topo_atts(topo: topobj.Topology):
     """
     Return attributes from the topology.
  
@@ -411,7 +411,6 @@ def edges_frm_solid(solid):
     edge_list = edges_frm_shell(shell)
     return edge_list
     
-
 def edges_frm_composite(composite):
     """
     Return edges from composite.

@@ -24,27 +24,32 @@ import numpy as np
 
 from . import get
 from . import create
-from . import utility
-from . import geom
 from . import earcut
 from . import calculate
+from . import geom
 from . import topobj
+from . import utility
 
-def fuse_vertices(vertex_list):
+
+def fuse_vertices(vertex_list: list[topobj.Vertex], decimals: int = 6) -> list[topobj.Vertex]:
     """
     This function fuses the vertices, duplicate vertices are fuse into a single vertex.
     
     Parameters
     ----------
-    vertex_list : a list of vertex
+    vertex_list : list[topobj.Vertex]
         A list of vertex topology to be fused.
- 
+    
+    decimals : int, optional
+        the precision of the calculation. Default = 6
+        
     Returns
     -------
-    fused_vertex_list : ndarray of vertex topology
+    fused_vertex_list : list[topobj.Vertex]
         A numpy array of the fused vertices
     """
     xyz_list = np.array([v.point.xyz for v in vertex_list])
+    xyz_list = np.round(xyz_list, decimals = decimals)
     vals, u_ids, inverse = np.unique(xyz_list, axis = 0,
                                       return_inverse=True,
                                       return_index=True)
@@ -58,25 +63,29 @@ def fuse_vertices(vertex_list):
         vertex_list[d_id[0]].update_attributes(new_dict)
         
     u_ids = np.sort(u_ids)
-    unique_v = vertex_list[u_ids]
+    unique_v = np.take(vertex_list, u_ids, axis=0)
     return unique_v
 
-def fuse_points(point_list):
+def fuse_points(point_list: list[geom.Point], decimals: int = 6) -> list[geom.Point]:
     """
     This function fuses the points, duplicate points are fuse into a single point.
     
     Parameters
     ----------
-    point_list : a list of point
+    point_list : list[geom.Point]
         A list of point object to be fused.
- 
+    
+    decimals : int, optional
+        the precision of the calculation. Default = 6
+
     Returns
     -------
-    fused_point_list : ndarray of point object
+    fused_point_list : list[geom.Point]
         A numpy array of the fused points
     """
     
     xyz_list = np.array([point.xyz for point in point_list])
+    xyz_list = np.round(xyz_list, decimals = decimals)
     vals, u_ids, inverse = np.unique(xyz_list, axis = 0,
                                       return_inverse=True,
                                       return_index=True)        
@@ -267,6 +276,38 @@ def faces2mesh(face_list):
             idx_cnt += len(xyzs_indxs[0])
         
     return {"vertices":all_xyzs, "indices":all_idxs}
+
+def edges2lineedges(edge_list: list[topobj.Edge]) -> list[topobj.Edge]:
+    """
+    converts edges to line edges.
+ 
+    Parameters
+    ----------
+    edge_list : list[topobj.Edge]
+        the list of edge object to convert to line edges.
+ 
+    Returns
+    -------
+    line_edges : list[topobj.Edge]
+        the list of converted line edges.
+    """
+    line_edge_list = []
+    
+    for e in edge_list:
+        vs = get.vertices_frm_edge(e)
+        if len(vs) == 2:
+            line_edge_list.append(e)
+        else:
+            xyzs = np.array([v.point.xyz for v in vs])
+            #repeat each point and remove the first and last point after the repeat
+            xyzs = np.repeat(xyzs, 2, axis=0)[1:-1]
+            xyzs = np.reshape(xyzs, (int(len(xyzs)/2), 2))
+            for e_xyz in xyzs:
+                v2 = create.vertex_list(e_xyz)
+                line_edge = create.pline_edge_frm_verts(v2)
+                line_edge_list.append(line_edge)
+
+    return line_edge_list 
 
 def edges2lines(edge_list):
     """

@@ -37,8 +37,8 @@ Submodules
 """
 
 from . import get
-from . import calculate
 from . import modify
+from . import calculate
 from . import create
 from . import utility
 from . import earcut

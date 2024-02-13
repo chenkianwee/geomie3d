@@ -1065,7 +1065,7 @@ def viz_animate_falsecolour(topo_2dlist, results2d, topo_datetime_ls, false_min_
     win.resize(1100,700)
     win.animate()
     
-def viz_animate(topo_2ddlist, topo_datetime_ls, gl_option = 'opaque'):
+def viz_animate(topo_2ddlist: list[list[dict]], topo_datetime_ls: list[datetime.datetime], gl_option: str = 'opaque'):
     """
     This function produces an animation window.
  
@@ -1795,7 +1795,7 @@ def _convert_topo_dictionary_list4viz(topo_dictionary_list, view3d, gl_option='o
     
     return bbox_list
     
-def _clr_topos(topos, colour, view3d, gl_option = 'opaque'):
+def _clr_topos(topos: list[topobj.Topology], colour: tuple, view3d: gl.GLViewWidget, gl_option: str = 'opaque'):
     """
     This function colours the topology for falsecolour visualization.
  
