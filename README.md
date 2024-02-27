@@ -1,25 +1,26 @@
 # geomie3d
 
 ## dependencies
-python-dateutil
 numpy
 scipy
 pyqtgraph
 pyopengl
+PyQt6
+python-dateutil
 nurbs-python
 
 ### If you want to manually install the library:
-1. Install Python 3.11 (https://www.python.org/)
+1. Install Python =<3.11 (https://www.python.org/)
 2. Create a virtual environment with 'py -m venv geomie3d' this will create a virtual environment in the directory ray of your current directory (https://realpython.com/python-virtual-environments-a-primer/#deactivate-it)
 3. Activate the environment geomie3d\Scripts\activate, for linux -> source geomie3d/bin/activate
-4. Install Spyder IDE using 'pip install spyder==5.4.0'
+4. Install VScode
 5. Install geomie3d https://github.com/chenkianwee/geomie3d
-6. install dateutil 'pip install python-dateutil==2.8.2'
-7. Install 'pip install numpy==1.26.3'
-8. Install 'pip install scipy==1.11.4'
-9. install 'pip install pyqtgraph==0.13.3'
-10. install 'pip install PyOpenGL==3.1.7'
-11. install 'pip install PyQt6==6.6.1'
+6. Install 'pip install numpy==1.26.3'
+7. Install 'pip install scipy==1.11.4'
+8. install 'pip install pyqtgraph==0.13.3'
+9. install 'pip install PyOpenGL==3.1.7'
+10. install 'pip install PyQt6==6.6.1'
+11. install dateutil 'pip install python-dateutil==2.8.2'
 
 ## Opengl issue with visualizing 3d geometries on Ubuntu 22.04
 if this happen when running geomie3d
