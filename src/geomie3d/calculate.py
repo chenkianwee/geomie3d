@@ -30,23 +30,24 @@ from . import create
 from . import topobj
 from . import utility
 
-def dist_btw_xyzs(xyzs1, xyzs2):
+def dist_btw_xyzs(xyzs1: np.ndarray, xyzs2: np.ndarray) -> np.ndarray:
     """
-    This function calculates the distance between two xyz.
+    This function calculates the distance between two xyzs. 
  
     Parameters
-    ----------    
-    xyzs1 : ndarray
-        array defining the point.
-        
-    xyzs2 : ndarray
-        array defining the point.
- 
+    ----------
+    xyzs1 : np.ndarray
+        np.ndarray(shape(number of points, 3)). array defining the point.
+    
+    xyzs2 : np.ndarray
+        np.ndarray(shape(number of points, 3)). array defining the point.
+    
     Returns
     -------
-    distance : float
-        the distance(s) between the points
+    distance : np.ndarray
+        np.ndarray(shape(number of points)). distances between the points.
     """
+
     if type(xyzs1) != np.ndarray:
         xyzs1 = np.array(xyzs1)
     if type(xyzs2) != np.ndarray:

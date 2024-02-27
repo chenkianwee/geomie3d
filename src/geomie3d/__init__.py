@@ -20,20 +20,23 @@
 # ==================================================================================================
 """
 geomie3d
-================================================
-Documentation is available in the docstrings and online at https://xxx.xxx.xx
+=========
+Documentation is available in the docstrings and online at https://chenkianwee.github.io/geomie3d
 
 Submodules
 -----------
-::
-    
- create                     --- Functions for constructing topologies. e.g. construct a face
-                                 dependencies: scipy, numpy (for delaunay function only)
- get                        --- Functions for getting information from the topologies. e.g. get points from face
- modify                     --- Functions for modifying the geometries. e.g. move the face from pointA to pointB
- calculate                  --- Functions for obtaining information from geometries through calculations.
-                                 e.g. calculate the mid point of a face
- utility                    --- Functions that does not fit into the previous four modules. e.g. visualise the face, export the face to stl
+- create
+    - Functions for constructing topologies. e.g. construct a face dependencies: scipy, numpy (for delaunay function only)
+- get
+    - Functions for getting information from the topologies. e.g. get points from face
+- modify
+    - Functions for modifying the geometries. e.g. move the face from pointA to pointB
+- calculate
+    - Functions for obtaining information from geometries through calculations. e.g. calculate the mid point of a face
+- utility
+    - Functions that does not fit into the previous four modules. e.g. visualise the face, export the face to stl
+- viz
+    - Functions for visualizing the geometries
 """
 
 from . import get
