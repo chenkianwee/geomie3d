@@ -147,26 +147,35 @@ def bbox_frm_xyzs(xyzs):
     bbox = utility.Bbox([mnx,mny,mnz,mxx,mxy,mxz])
     return bbox
     
-def bbox_centre(bbox: utility.Bbox) -> np.ndarray:
+def bboxes_centre(bboxes: list[utility.Bbox]) -> np.ndarray:
     """
     This function returns the centre point of the bbox .
     
     Parameters
     ----------
-    bbox : utility.Bbox
-        bbox object
+    bbox : list[utility.Bbox]
+        list[utility.Bbox] to calculate the center
        
     Returns
     -------
-    xyz : np.ndarray
-        np.ndarray(shape(1, 3)) array defining the point.
+    xyzs : np.ndarray
+        np.ndarray(shape(number of bboxes, 3)) array defining the points.
     """
-    bbox_arr = bbox.bbox_arr
-    midx = bbox_arr[0] + ((bbox_arr[3] - bbox_arr[0])/2)
-    midy = bbox_arr[1] + ((bbox_arr[4] - bbox_arr[1])/2)
-    midz = bbox_arr[2] + ((bbox_arr[5] - bbox_arr[2])/2)
-    
-    return np.array([midx,midy,midz])
+    bbox_arrs = np.array([bbox.bbox_arr for bbox in bboxes])
+    bbox_arrsT = bbox_arrs.T
+    mnxs = bbox_arrsT[0]
+    mnys = bbox_arrsT[1]
+    mnzs = bbox_arrsT[2]
+    mxxs = bbox_arrsT[3]
+    mxys = bbox_arrsT[4]
+    mxzs = bbox_arrsT[5]
+
+    midxs = mnxs + ((mxxs - mnxs)/2)
+    midys = mnys + ((mxys - mnys)/2)
+    midzs = mnzs + ((mxzs - mnzs)/2)
+    center_pts = np.vstack([midxs, midys, midzs]).T
+
+    return center_pts
     
 def bbox_frm_bboxes(bbox_list: list[utility.Bbox]) -> utility.Bbox:
     """

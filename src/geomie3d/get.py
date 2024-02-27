@@ -411,18 +411,18 @@ def edges_frm_solid(solid):
     edge_list = edges_frm_shell(shell)
     return edge_list
     
-def edges_frm_composite(composite):
+def edges_frm_composite(composite: topobj.Composite) -> list[topobj.Edge]:
     """
     Return edges from composite.
  
     Parameters
     ----------
-    composite : topo object
+    composite : topobj.Composite
         the topo object to explore.
         
     Returns
     -------
-    edge_list : list of edges
+    edge_list : list[topobj.Edge]
         A list of edges.
     """
     sorted_d = unpack_composite(composite)

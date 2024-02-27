@@ -141,7 +141,7 @@ def boxes_frm_bboxes(bbox_ls: list[utility.Bbox]) -> list[topobj.Topology]:
     """
     bx_ls = []
     for bbox in bbox_ls:
-        midxyz = calculate.bbox_centre(bbox)
+        midxyz = calculate.bboxes_centre([bbox])[0]
         dimx = bbox.maxx - bbox.minx
         dimy = bbox.maxy - bbox.miny
         dimz = bbox.maxz - bbox.minz
@@ -586,21 +586,21 @@ def vertex(xyz, attributes = {}):
     vertex = topobj.Vertex(point, attributes = attributes)
     return vertex
     
-def vertex_list(xyz_list, attributes_list = []):
+def vertex_list(xyz_list: np.ndarray, attributes_list: list[dict] = []) -> list[topobj.Vertex]:
     """
     This function constructs a list of vertex topology.
  
     Parameters
     ----------
-    xyz_list : list of tuple
-        list of tuple with the xyz coordinates.
+    xyz_list : np.ndarray
+        np.ndarray(shape(number of vertices, 3)).
         
-    attributes_list : list of dictionary, optional
+    attributes_list : list[dict], optional
         Dictionary of the attributes
  
     Returns
     -------
-    vertex_list : list of vertex topology
+    vertex_list : list[topobj.Vertex]
         A list of vertex topology.
     """
     nxyz = len(xyz_list)
@@ -1093,21 +1093,21 @@ def coordinate_system_frm_arrs(origin, x_dir, y_dir):
     """
     return utility.CoordinateSystem(origin, x_dir, y_dir)
 
-def composite(topo_list, attributes={}):
+def composite(topo_list: list[topobj.Topology], attributes: dict = {}) -> topobj.Composite:
     """
     This function add attributes to the list of topology.
  
     Parameters
     ----------
-    topo_list : Topo Object List
+    topo_list : list[topobj.Topology]
         List of Topo objects include Vertex, Edge, Wire, Face, Shell, Solid and Composite Topology Object.
         
-    attributes : dictionary
+    attributes : dict
         Dictionary of the attributes
  
     Returns
     -------
-    composite : composite topology
+    composite : topobj.Composite
         A composite topology containing the topo list
     """
     return topobj.Composite(topo_list, attributes = attributes)

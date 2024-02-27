@@ -208,19 +208,19 @@ class Bbox(object):
         update_att.update(new_attributes)
         self.attributes = update_att
 
-def id_dup_indices_1dlist(lst):
+def id_dup_indices_1dlist(lst: list) -> list[list]:
     """
     This function returns numpy array of the indices of the repeating elements in a list.
  
     Parameters
     ----------
-    lst : a 1D list
+    lst : list
         A 1D list to be analysed.
  
     Returns
     -------
-    indices : 2d ndarray
-        ndarray of the indices (Nduplicates, indices of each duplicate).
+    indices : list[list]
+        list[list(shape(Nduplicates, indices of each duplicate))].
     """
     if type(lst) != np.ndarray:    
         lst = np.array(lst)
@@ -237,21 +237,21 @@ def id_dup_indices_1dlist(lst):
     res = list(filter(lambda x: x.size > 1, res))
     return res
 
-def find_xs_not_in_ys(xlst, ylst):
+def find_xs_not_in_ys(xlst: list, ylst: list) -> np.ndarray:
     """
     This function compare the 2 list and find the elements in xlst that is not in ylst.
  
     Parameters
     ----------
-    xlst : a 1D list
+    xlst : list
         The lst to check if the elements exist in the ylst.
     
-    ylstt : a 1D list
+    ylstt : list
         The reference lst to compare xlst.
         
     Returns
     -------
-    not_in : 1d ndarray
+    not_in : np.ndarray
         the elements in xlst and not in ylst.
     """
     if type(xlst) != np.ndarray:    
@@ -266,19 +266,19 @@ def find_xs_not_in_ys(xlst, ylst):
     not_in = np.take(xlst, not_in_indx, axis=0)
     return not_in
 
-def separate_dup_non_dup(lst):
+def separate_dup_non_dup(lst: list) -> np.ndarray:
     """
     This function return the indices of non dup elements and duplicate elements.
  
     Parameters
     ----------
-    lst : a 1D list
+    lst : list
         The lst to identify which element is non duplicate, which is duplicate.
         
     Returns
     -------
-    indices : ndarray
-        ndarray of the indices [[non_dup_idx], [[dup_idx1], [dup_idx2] ... [dup_idxn]]].
+    indices : np.ndarray
+        np.ndarray of the indices [[non_dup_idx], [[dup_idx1], [dup_idx2] ... [dup_idxn]]].
     """
     if type(lst) != np.ndarray:    
         lst = np.array(lst)

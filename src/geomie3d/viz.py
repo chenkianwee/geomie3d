@@ -316,7 +316,7 @@ def viz(topo_dictionary_list, gl_option = 'opaque'):
             bbox_list = _convert_topo_dictionary_list4viz(self.topo_dictionary_list, self.view3d, gl_option=gl_option)
             if zoom_extent == True:
                 overall_bbox = calculate.bbox_frm_bboxes(bbox_list)
-                midpt = calculate.bbox_centre(overall_bbox)
+                midpt = calculate.bboxes_centre([overall_bbox])[0]
                 self.view3d.opts['center'] = QtGui.QVector3D(midpt[0], midpt[1], midpt[2])
                 
                 lwr_left = [overall_bbox.minx, overall_bbox.miny, overall_bbox.minz]
