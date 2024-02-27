@@ -1,13 +1,14 @@
 # geomie3d
 
 ## dependencies
-numpy
-scipy
-pyqtgraph
-pyopengl
-PyQt6
-python-dateutil
-nurbs-python
+- numpy
+- scipy
+- pyqtgraph
+- pyopengl
+- PyQt6
+- python-dateutil
+- nurbs-python
+- earcut-python
 
 ### If you want to manually install the library:
 1. Install Python =<3.11 (https://www.python.org/)
