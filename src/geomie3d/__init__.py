@@ -18,6 +18,7 @@
 #    along with py4design.  If not, see <http://www.gnu.org/licenses/>.
 #
 # ==================================================================================================
+
 """
 geomie3d
 =========
@@ -38,6 +39,7 @@ Submodules
 - viz
     - Functions for visualizing the geometries
 """
+__all__ = ['create', 'calculate', 'get', 'modify', 'viz', 'utility', 'topobj', 'geom']
 
 from . import get
 from . import modify
