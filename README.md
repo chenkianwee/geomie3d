@@ -1,6 +1,9 @@
 # geomie3d
 - documentation can be found at https://chenkianwee.github.io/geomie3d
 
+## Installation
+- pip install geomie3d
+
 ## dependencies
 - numpy
 - scipy
