@@ -45,7 +45,7 @@ jobs:
       - run: pip install pdoc
       # ADJUST THIS: build your documentation into docs/.
       # We use a custom build script for pdoc itself, ideally you just run `pdoc -o docs/ ...` here.
-      - run: pdoc -d numpy ./src/geomie3d/__init__.py ./src/geomie3d/create.py ./src/geomie3d/get.py ./src/geomie3d/modify.py ./src/geomie3d/calculate.py ./src/geomie3d/utility.py ./src/geomie3d/viz.py --output-dir docs/
+      - run: pdoc -d numpy ./src/geomie3d/__init__.py ./src/geomie3d/create.py ./src/geomie3d/get.py ./src/geomie3d/modify.py ./src/geomie3d/calculate.py ./src/geomie3d/utility.py ./src/geomie3d/viz.py ./src/geomie3d/geom.py ./src/geomie3d/topobj.py --output-dir docs/
       - uses: actions/upload-pages-artifact@v3
         with:
           path: docs/
