@@ -32,18 +32,18 @@ from . import create
 from . import topobj
 
 class CoordinateSystem(object):
-    def __init__(self, origin, x_dir, y_dir):
+    def __init__(self, origin: list[float], x_dir: list[float], y_dir:list[float]):
         """A coordinate system object
     
         Parameters
         ----------
-        origin : tuple
+        origin : list[float]
             The xyz defining the origin.
             
-        x_dir : tuple
+        x_dir : list[float]
             The xyz of a vector defining the x-axis
             
-        y_dir : tuple
+        y_dir : list[float]
             The xyz of a vector defining the y-axis
         """
         if type(origin) != np.ndarray:
@@ -61,19 +61,19 @@ class CoordinateSystem(object):
         """The xyz of a vector defining the y-axis"""
 
 class Ray(object):
-    def __init__(self, origin, dirx, attributes = {}):
+    def __init__(self, origin: list[float], dirx: list[float], attributes: dict = {}):
         """
         A ray object
         
         Parameters
         ----------
-        origin : tuple
+        origin : list[float]
             The xyz defining the origin.
             
-        dirx : tuple
+        dirx : list[float]
             The direction of the ray
         
-        attributes : dictionary, optional
+        attributes : dict, optional
             dictionary of the attributes.
 
         """
@@ -89,24 +89,24 @@ class Ray(object):
         self.attributes: dict = attributes
         """dictionary of the attributes"""
     
-    def overwrite_attributes(self, new_attributes):
+    def overwrite_attributes(self, new_attributes: dict):
         """
         This function overwrites the attribute dictionary with the new dictionary.
      
         Parameters
         ----------
-        new_attributes : dictionary
+        new_attributes : dict
             The dictionary of attributes appended to the object.
         """
         self.attributes = new_attributes
         
-    def update_attributes(self, new_attributes):
+    def update_attributes(self, new_attributes: dict):
         """
         This function overwrites the attribute dictionary with the new dictionary.
      
         Parameters
         ----------
-        new_attributes : dictionary
+        new_attributes : dict
             The dictionary of attributes appended to the object.
         """
         old_att = self.attributes
@@ -115,16 +115,16 @@ class Ray(object):
         self.attributes = update_att 
 
 class Bbox(object):
-    def __init__(self, bbox_arr, attributes = {}):
+    def __init__(self, bbox_arr: list[float], attributes: dict = {}):
         """
         A bounding box object
         
         Parameters
         ----------
-        bbox_arr : tuple
+        bbox_arr : list[float]
             Array specifying [minx, miny, minz, maxx, maxy, maxz].
             
-        attributes : dictionary, optional
+        attributes : dict, optional
             dictionary of the attributes.
         """
         if type(bbox_arr) != np.ndarray:
@@ -147,24 +147,24 @@ class Bbox(object):
         self.attributes: dict = attributes
         """dictionary of the attributes"""
     
-    def overwrite_attributes(self, new_attributes):
+    def overwrite_attributes(self, new_attributes: dict):
         """
         This function overwrites the attribute dictionary with the new dictionary.
      
         Parameters
         ----------
-        new_attributes : dictionary
+        new_attributes : dict
             The dictionary of attributes appended to the object.
         """
         self.attributes = new_attributes
         
-    def update_attributes(self, new_attributes):
+    def update_attributes(self, new_attributes: dict):
         """
         This function overwrites the attribute dictionary with the new dictionary.
      
         Parameters
         ----------
-        new_attributes : dictionary
+        new_attributes : dict
             The dictionary of attributes appended to the object.
         """
         old_att = self.attributes
@@ -293,7 +293,7 @@ def gen_gridxyz(xrange: list[int], yrange: list[int], zrange: list[int] = None) 
         xyzs = xyzs.T
         return xyzs
 
-def pseudocolor(val, minval, maxval, inverse = False):
+def pseudocolor(val: float, minval: float, maxval: float, inverse: bool = False) -> list[float]:
     """
     This function converts a value into a rgb value with reference to the minimum and maximum value.
  
@@ -313,7 +313,7 @@ def pseudocolor(val, minval, maxval, inverse = False):
         
     Returns
     -------
-    rgb value : tuple of floats
+    rgb value : list[float]
         The converted rgb value.
     """
     # convert val in range minval..maxval to the range 0..120 degrees which
@@ -338,13 +338,13 @@ def pseudocolor(val, minval, maxval, inverse = False):
     r, g, b = colorsys.hsv_to_rgb(h/360, 1., 1.)
     return r, g, b
     
-def calc_falsecolour(vals, minval, maxval, inverse = False):
+def calc_falsecolour(vals: list[float], minval: float, maxval: float, inverse: bool = False) -> list[list[float]]:
     """
     This function converts a list of values into a list of rgb values with reference to the minimum and maximum value.
  
     Parameters
     ----------
-    vals : list of float
+    vals : list[float]
         A list of values to be converted into rgb.
         
     minval : float
@@ -358,7 +358,7 @@ def calc_falsecolour(vals, minval, maxval, inverse = False):
         
     Returns
     -------
-    rgb value : list of tuple of floats
+    rgb value : list[list[float]]
         The converted list of rgb value.
     """
     res_colours = []
@@ -368,13 +368,13 @@ def calc_falsecolour(vals, minval, maxval, inverse = False):
         res_colours.append(colour)
     return res_colours
 
-def rgb2val(rgb, minval, maxval):
+def rgb2val(rgb: list[float], minval: float, maxval: float) -> float:
     """
     This function converts a rgb of value into its original value with reference to the minimum and maximum value.
  
     Parameters
     ----------
-    rgb : tuple of floats
+    rgb : list[float]
         The rgb value to be converted.
         
     minval : float
@@ -487,13 +487,13 @@ def write2ply(topo_list: list[topobj.Topology], ply_path: str, square_face: bool
     f.writelines(header)
     f.close()
     
-def write2pts(vertex_list, pts_path):
+def write2pts(vertex_list: list[topobj.Vertex], pts_path: str):
     """
     Writes the vetices to a pts file. only works for vertices.
  
     Parameters
     ----------
-    vertex_list : a list of vertex
+    vertex_list : list[topobj.Vertex]
         A list of vertex topology. 
         
     pts_path : str
@@ -514,17 +514,20 @@ def write2pts(vertex_list, pts_path):
     f.writelines(xyz_ls)
     f.close()
     
-def write2csv(rows2d, csv_path, mode = 'w'):
+def write2csv(rows2d: list[list], csv_path: str, mode: str = 'w'):
     """
     Writes the rows to a csv file.
  
     Parameters
     ----------
-    rows2d : a 2d list
+    rows2d : list[list]
         A 2d list to write to csv. e.g. [['time', 'datax', 'datay'],['2022-02-02', 10, 20]]
         
     csv_path : str
         Path to write to.
+    
+    mode : str, optional
+        Mode of writing. default = 'w', can be 'w', 'a' = append
     """
     # writing to csv file 
     with open(csv_path, mode, newline='') as csvfile: 
@@ -533,7 +536,7 @@ def write2csv(rows2d, csv_path, mode = 'w'):
         # writing the data rows 
         csvwriter.writerows(rows2d)
 
-def read_csv(csv_path):
+def read_csv(csv_path: str) -> list:
     """
     read the csv file.
  
@@ -544,7 +547,7 @@ def read_csv(csv_path):
         
     Returns
     -------
-    lines : list of lines
+    lines : list
         list of rows of the csv content.
     """
     with open(csv_path, mode ='r')as file:
@@ -555,24 +558,27 @@ def read_csv(csv_path):
     csvFile = list(csvFile)
     return csvFile
 
-def write2geomie3d(topo_list, res_path, attributes = {}):
+def write2geomie3d(topo_list: list[topobj.Topology], res_path: str, attributes: dict = {}):
     """
     Writes the topologies to a geomie3d file.
  
     Parameters
     ----------
-    topo_list : list of topo objects
+    topo_list : list[topobj.Topology]
         Topos to be written to .geomie3d.
         
     res_path : str
         Path to write to.
+    
+    attributes : dict, optional
+        attributes of the whole model.
         
     """
     model = {'model': [topo.to_dict() for topo in topo_list], 'attributes': attributes}
     with open(res_path, 'w') as f:
         json.dump(model, f)
 
-def read_geomie3d(path):
+def read_geomie3d(path: str) -> dict:
     """
     reads the topologies to a geomie3d file.
  
@@ -583,7 +589,7 @@ def read_geomie3d(path):
     
     Returns
     -------
-    model_dictionary : dictionary of the geomie3d file
+    model_dictionary : dict
         dictionary with keywords 'topo_list' and 'attributes'.
     """
     with open(path, 'r') as f:
@@ -616,35 +622,35 @@ def read_geomie3d(path):
              
     return {'topo_list': topo_list, 'attributes': data['attributes']}
 
-def _read_vertex(vertex_dict):
+def _read_vertex(vertex_dict: dict) -> topobj.Vertex:
     """
     reads the vertex of a geomie3d file.
  
     Parameters
     ----------
-    vertex_dict : dictionary
+    vertex_dict : dict
         dictionary of the vertex from the file. Refer to the Vertex object for the schema
     
     Returns
     -------
-    vertex : vertex object
+    vertex : topobj.Vertex
         the vertex object.
     """
     v = create.vertex(vertex_dict['point'], attributes = vertex_dict['attributes'])
     return v
 
-def _read_edge(edge_dict):
+def _read_edge(edge_dict: dict) -> topobj.Edge:
     """
     reads the edge of a geomie3d file.
  
     Parameters
     ----------
-    edge_dict : dictionary
+    edge_dict : dict
         dictionary of the edge from the file. Refer to the edge object for the schema
     
     Returns
     -------
-    edge : edge object
+    edge : topobj.Edge
         the edge object.
     """
     crv_type = edge_dict['curve_type']
@@ -657,18 +663,18 @@ def _read_edge(edge_dict):
         
     return e
 
-def _read_wire(wire_dict):
+def _read_wire(wire_dict: dict) -> topobj.Wire:
     """
     reads the wire of a geomie3d file.
  
     Parameters
     ----------
-    wire_dict : dictionary
+    wire_dict : dict
         dictionary of the wire from the file. Refer to the wire object for the schema
     
     Returns
     -------
-    wire : wire object
+    wire : topobj.Wire
         the wire object.
     """
     edged_list = wire_dict['edge_list']
@@ -677,18 +683,18 @@ def _read_wire(wire_dict):
         
     return w
 
-def _read_face(face_dict):
+def _read_face(face_dict: dict) -> topobj.Face:
     """
     reads the face of a geomie3d file.
  
     Parameters
     ----------
-    face_dict : dictionary
+    face_dict : dict
         dictionary of the face from the file. Refer to the face object for the schema
     
     Returns
     -------
-    face : face object
+    face : topobj.Face
         the face object.
     """
     vlist = create.vertex_list(face_dict['vertex_list'])
@@ -696,18 +702,18 @@ def _read_face(face_dict):
     f = create.polygon_face_frm_verts(vlist, hole_vertex_list=hole_vlist2d, attributes = face_dict['attributes'])
     return f
 
-def _read_shell(shell_dict):
+def _read_shell(shell_dict: dict) -> topobj.Shell:
     """
     reads the shell of a geomie3d file.
  
     Parameters
     ----------
-    shell_dict : dictionary
+    shell_dict : dict
         dictionary of the shell from the file. Refer to the shell object for the schema
     
     Returns
     -------
-    shell : shell object
+    shell : topobj.Shell
         the shell object.
     """
     faced_list = shell_dict['face_list']
@@ -715,37 +721,37 @@ def _read_shell(shell_dict):
     s = create.shell_frm_faces(face_list, attributes = shell_dict['attributes'])
     return s
 
-def _read_solid(solid_dict):
+def _read_solid(solid_dict: dict) -> topobj.Solid:
     """
     reads the shell of a geomie3d file.
  
     Parameters
     ----------
-    solid_dict : dictionary
+    solid_dict : dict
         dictionary of the solid from the file. Refer to the solid object for the schema
     
     Returns
     -------
-    solid : solid object
+    solid : topobj.Solid
         the solid object.
     """
     shell = _read_shell(solid_dict['shell'])
     s = create.solid_frm_shell(shell, attributes = solid_dict['attributes'])
     return s
 
-def _read_composite(composite_dict):
+def _read_composite(composite_dict: dict) -> topobj.Composite:
     """
     reads the shell of a geomie3d file.
  
     Parameters
     ----------
-    solid_dict : dictionary
+    solid_dict : dict
         dictionary of the solid from the file. Refer to the solid object for the schema
     
     Returns
     -------
-    solid : solid object
-        the solid object.
+    composite : topobj.Composite
+        the composite object.
     """
     vertexds = composite_dict['vertex_list']
     vertex_list = [_read_vertex(vd) for vd in vertexds]
@@ -780,23 +786,24 @@ def _read_composite(composite_dict):
     c = create.composite(topo_list,attributes = composite_dict['attributes'])
     return c
 
-def viz1axis_timeseries(data_dict_ls, plot_title, xaxis_label, yaxis_label, filepath,
-                        yaxis_lim = None, dateformat = None, legend_loc = None, tight_layout = True, inf_lines = None, regions = None):
+def viz1axis_timeseries(data_dict_ls: list[dict], plot_title: str, xaxis_label: str, yaxis_label: str, filepath: str,
+                        yaxis_lim: list[float] = None, dateformat: str = None, legend_loc: dict = None, tight_layout: bool = True, 
+                        inf_lines: list[dict] = None, regions: list[dict] = None):
     """
     Viz timeseries data in a 1 axis x-y plot
     
     Parameters
     ----------
-    data_dict_ls : list of dictionary
+    data_dict_ls : list[dict]
         dictionary with the following keys.
-        'datax', list of timestamps of the data
-        'datay', list of y-values of the data
-        'linestyle', tuple of str, 'solid', 'dotted', 'dashed', 'dashdot', (0, (1, 5, 5, 5))
-        'linewidth', float, width of the line
-        'marker', str, empty string for no markers '',the markers viz of the data set, https://matplotlib.org/stable/api/markers_api.html
-        'marker_size', int, the size of the marker
-        'color', str, color of the data set viz, https://matplotlib.org/stable/tutorials/colors/colors.html
-        'label', str the label of the data set in the legend
+        - 'datax', list of timestamps of the data
+        - 'datay', list of y-values of the data
+        - 'linestyle', tuple of str, 'solid', 'dotted', 'dashed', 'dashdot', (0, (1, 5, 5, 5))
+        - 'linewidth', float, width of the line
+        - 'marker', str, empty string for no markers '',the markers viz of the data set, https://matplotlib.org/stable/api/markers_api.html
+        - 'marker_size', int, the size of the marker
+        - 'color', str, color of the data set viz, https://matplotlib.org/stable/tutorials/colors/colors.html
+        - 'label', str the label of the data set in the legend
     
     plot_title : str
         tite of the plot
@@ -810,34 +817,34 @@ def viz1axis_timeseries(data_dict_ls, plot_title, xaxis_label, yaxis_label, file
     filepath : str
         filepath to save the generated graph.
     
-    yaxis_lim : tuple, optional
+    yaxis_lim : list[float], optional
         tuple specifying the lower and upper limit of the yaxis (lwr, uppr)
     
     dateformat : str, optional
         specify how to viz the date time on the x-axis, e.g.'%Y-%m-%dT%H:%M:%S'. Default 'H:%M:%S' 
     
-    legend_loc : dictionary, optional
+    legend_loc : dict, optional
         specify the location of the legend
-        'loc', str, e.g. upper right, center left, lower center
-        'bbox_to_anchor',tuple, (x, y)
-        'ncol', int, number of columns for the legend box
+        - 'loc', str, e.g. upper right, center left, lower center
+        - 'bbox_to_anchor',tuple, (x, y)
+        - 'ncol', int, number of columns for the legend box
         
     tight_layout : bool, optional
         turn on tight layout. default True
         
-    inf_lines : list of dictionary, optional
+    inf_lines : list[dict], optional
         dictionary describing the infinite line.
-        label: str to describe the infinite line
-        angle: float, the angle of the infinite line, 0=horizontal, 90=vertical
-        pos: float, for horizontal and vertical line a single value is sufficient, for slanted line two points (x1,y1) and (x2,y2) is required.
-        colour: tuple, (r,g,b,a)
+        - label: str to describe the infinite line
+        - angle: float, the angle of the infinite line, 0=horizontal, 90=vertical
+        - pos: float, for horizontal and vertical line a single value is sufficient, for slanted line two points (x1,y1) and (x2,y2) is required.
+        - colour: tuple, (r,g,b,a)
     
-    regions : list of dictionary, optional
+    regions : list[dict], optional
         dictionary describing the region on the graph.
-        label: str to describe the region.
-        orientation: str, 'vertical', 'horizontal' or 'custom'
-        range: list of floats, [lwr_limit, upr_limit] e.g. [50,70], if 'custom', [[xrange], [yrange1], [yrange2]]
-        colour: tuple, (r,g,b,a)
+        - label: str to describe the region.
+        - orientation: str, 'vertical', 'horizontal' or 'custom'
+        - range: list of floats, [lwr_limit, upr_limit] e.g. [50,70], if 'custom', [[xrange], [yrange1], [yrange2]]
+        - colour: tuple, (r,g,b,a)
     """
     import matplotlib.pyplot as plt
     from matplotlib.dates import DateFormatter
@@ -908,26 +915,27 @@ def viz1axis_timeseries(data_dict_ls, plot_title, xaxis_label, yaxis_label, file
     plt.savefig(filepath, bbox_inches = "tight", dpi = 300, transparent=False)
     plt.show()
 
-def viz2axis_timeseries(y1_data_dict_ls, y2_data_dict_ls, plot_title, xaxis_label, yaxis1_label,
-                        yaxis2_label, filepath, yaxis1_lim = None, yaxis2_lim = None, yaxis2_color = 'b',
-                        dateformat = None, legend_loc1 = None, legend_loc2 = None, tight_layout = True, inf_lines = None, regions = None):
+def viz2axis_timeseries(y1_data_dict_ls: list[dict], y2_data_dict_ls: list[dict], plot_title: str, xaxis_label: str, yaxis1_label: str,
+                        yaxis2_label: str, filepath: str, yaxis1_lim: list[float] = None, yaxis2_lim: list[float] = None, yaxis2_color: str = 'b',
+                        dateformat: str = None, legend_loc1: dict = None, legend_loc2: dict = None, tight_layout: bool = True, 
+                        inf_lines: list[dict] = None, regions: list[dict] = None):
     """
     Viz timeseries data in a 1 axis x-y plot
 
     Parameters
     ----------
-    y1_data_dict_ls : list of dictionary
+    y1_data_dict_ls : list[dict]
         dictionary with the following keys.
-        'datax', list of timestamps of the data
-        'datay', list of y-values of the data
-        'linestyle', tuple of str, 'solid', 'dotted', 'dashed', 'dashdot', (0, (1, 5, 5, 5))
-        'linewidth', float, width of the line
-        'marker', str, '' for no markers, the markers viz of the data set, https://matplotlib.org/stable/api/markers_api.html
-        'marker_size', int, the size of the marker
-        'color', str, color of the data set viz, https://matplotlib.org/stable/tutorials/colors/colors.html
-        'label', str the label of the data set in the legend
+        - 'datax', list of timestamps of the data
+        - 'datay', list of y-values of the data
+        - 'linestyle', tuple of str, 'solid', 'dotted', 'dashed', 'dashdot', (0, (1, 5, 5, 5))
+        - 'linewidth', float, width of the line
+        - 'marker', str, '' for no markers, the markers viz of the data set, https://matplotlib.org/stable/api/markers_api.html
+        - 'marker_size', int, the size of the marker
+        - 'color', str, color of the data set viz, https://matplotlib.org/stable/tutorials/colors/colors.html
+        - 'label', str the label of the data set in the legend
 
-    y2_data_dict_ls : list of dictionary
+    y2_data_dict_ls : list[dict]
         dictionary with the same keys as y1_data_dict_ls. Data here will be viz on y2 axis.
 
     plot_title : str
@@ -945,10 +953,10 @@ def viz2axis_timeseries(y1_data_dict_ls, y2_data_dict_ls, plot_title, xaxis_labe
     filepath : str
         filepath to save the generated graph.
 
-    yaxis1_lim : tuple, optional
+    yaxis1_lim : list[float], optional
         tuple specifying the lower and upper limit of the yaxis1 (lwr, uppr)
 
-    yaxis2_lim : tuple, optional
+    yaxis2_lim : list[float], optional
         tuple specifying the lower and upper limit of the yaxis2 (lwr, uppr)
         
     yaxis2_color : str, optional
@@ -957,34 +965,34 @@ def viz2axis_timeseries(y1_data_dict_ls, y2_data_dict_ls, plot_title, xaxis_labe
     dateformat : str, optional
         specify how to viz the date time on the x-axis, e.g.'%Y-%m-%dT%H:%M:%S'. Default 'H:%M:%S'
 
-    legend_loc1 : dictionary, optional
+    legend_loc1 : dict, optional
         specify the location of the legend of the first y-axis
-        'loc', str, e.g. upper right, center left, lower center
-        'bbox_to_anchor',tuple, (x, y)
-        'ncol', int, number of columns for the legend box
+        - 'loc', str, e.g. upper right, center left, lower center
+        - 'bbox_to_anchor',tuple, (x, y)
+        - 'ncol', int, number of columns for the legend box
 
-    legend_loc2 : dictionary, optional
+    legend_loc2 : dict, optional
         specify the location of the legend of the 2nd y-axis
-        'loc', str, e.g. upper right, center left, lower center
-        'bbox_to_anchor',tuple, (x, y)
-        'ncol', int, number of columns for the legend box
+        - 'loc', str, e.g. upper right, center left, lower center
+        - 'bbox_to_anchor',tuple, (x, y)
+        - 'ncol', int, number of columns for the legend box
 
     tight_layout : bool, optional
         turn on tight layout. default True
         
-    inf_lines : list of dictionary, optional
+    inf_lines : list[dict], optional
         dictionary describing the infinite line.
-        label: str to describe the infinite line
-        angle: float, the angle of the infinite line, 0=horizontal, 90=vertical
-        pos: float, for horizontal and vertical line a single value is sufficient, for slanted line two points (x1,y1) and (x2,y2) is required.
-        colour: tuple, (r,g,b,a)
+        - label: str to describe the infinite line
+        - angle: float, the angle of the infinite line, 0=horizontal, 90=vertical
+        - pos: float, for horizontal and vertical line a single value is sufficient, for slanted line two points (x1,y1) and (x2,y2) is required.
+        - colour: tuple, (r,g,b,a)
     
-    regions : list of dictionary, optional
+    regions : list[dict], optional
         dictionary describing the region on the graph.
-        label: str to describe the region.
-        orientation: str, vertical or horizontal
-        range: list of floats, [lwr_limit, upr_limit] e.g. [50,70] 
-        colour: tuple, (r,g,b,a)
+        - label: str to describe the region.
+        - orientation: str, vertical or horizontal
+        - range: list of floats, [lwr_limit, upr_limit] e.g. [50,70] 
+        - colour: tuple, (r,g,b,a)
 
     """
     import matplotlib.pyplot as plt

@@ -93,13 +93,13 @@ def fuse_points(point_list: list[geom.Point], decimals: int = 6) -> list[geom.Po
     unique_p = point_list[u_ids]
     return unique_p
 
-def triangulate_face(face, indices = False):
+def triangulate_face(face: topobj.Face, indices: bool = False) -> list[topobj.Face]:
     """
     Triangulates a face.
  
     Parameters
     ----------
-    face : topo object
+    face : topobj.Face
         the face object to be triangulated.
         
     indices : bool, optional
@@ -107,7 +107,7 @@ def triangulate_face(face, indices = False):
  
     Returns
     -------
-    list of face : list of face
+    list of face : list[topobj.Face]
         A list of triangles constructed from the meshing.
     """
     srf_type = face.surface_type
@@ -235,19 +235,19 @@ def triangulate_face(face, indices = False):
                 indx.append(tri2)
             return [np.array(gpts), np.array(indx)]
             
-def faces2mesh(face_list):
+def faces2mesh(face_list: list[topobj.Face]) -> dict:
     """
     This function converts faces to a mesh for visualisation.
  
     Parameters
     ----------
-    face_list : list of face object
+    face_list : list[topobj.Face]
         the list of face object to be triangulated.The face must be single facing, it
         cannot have regions that are facing itself.
  
     Returns
     -------
-    mesh_dictionary : dictionary
+    mesh_dictionary : dict
         vertices: ndarray of shape(Npoints,3) of the vertiices
         indices: ndarray of shape(Ntriangles,3) indices of the triangles.
     """
@@ -309,19 +309,19 @@ def edges2lineedges(edge_list: list[topobj.Edge]) -> list[topobj.Edge]:
 
     return line_edge_list 
 
-def edges2lines(edge_list):
+def edges2lines(edge_list: list[topobj.Edge]) -> np.ndarray:
     """
     converts edges to lines for visualisation.
  
     Parameters
     ----------
-    edge_list : list of edge object
+    edge_list : list[topobj.Edge]
         the list of edge object to convert to lines.
  
     Returns
     -------
-    vertices : shape(Npoints,3) of the vertiices
-        vertices of the lines
+    vertices : np.ndarray
+        np.ndarray(shape(Npoints,3)) vertices of the linea
     """
     all_xyzs = []
     
@@ -338,24 +338,24 @@ def edges2lines(edge_list):
     
     return all_xyzs 
 
-def move_topo(topo, target_xyz, ref_xyz = None):
+def move_topo(topo: topobj.Topology, target_xyz: list[float], ref_xyz: list[float] = None) -> topobj.Topology:
     """
     move topology to the target xyz
  
     Parameters
     ----------
-    topo : topo object
+    topo : topobj.Topology
         the topo object to move.
         
-    target_xyz: np.ndarray
+    target_xyz: list[float]
         target xyz position.
     
-    ref_xyz: np.ndarray
+    ref_xyz: list[float]
         reference xyz position, if not specified will use midpt of the topology.
  
     Returns
     -------
-    mv_topo : topo
+    mv_topo : topobj.Topology
         moved topo
     """
     #TODO: implement for bspline geometries
@@ -388,27 +388,27 @@ def move_topo(topo, target_xyz, ref_xyz = None):
     for cnt,v in enumerate(vs): v.point.xyz = trsf_xyzs[cnt]
     return mv_topo
 
-def rotate_topo(topo, axis, rotation, ref_xyz = None):
+def rotate_topo(topo: topobj.Topology, axis: list[float], rotation: float, ref_xyz: list[float] = None):
     """
     rotate topology
  
     Parameters
     ----------
-    topo : topo object
+    topo : topobj.Topology
         the topo object to move.
         
-    axis: tuple
+    axis: list[float]
         tuple specifying the axis to rotate along.
     
     rotation: float
         rotation in degrees, anticlockwise.
         
-    ref_xyz: np.ndarray
+    ref_xyz: list[float]
         reference xyz position, if not specified will use midpt of the topology.
  
     Returns
     -------
-    mv_topo : topo
+    mv_topo : topobj.Topology
         moved topo
     """
     #TODO: implement for bspline geometries
@@ -460,18 +460,18 @@ def rotate_topo(topo, axis, rotation, ref_xyz = None):
             
     return rot_topo
     
-def reverse_face_normal(face):
+def reverse_face_normal(face: topobj.Face) -> topobj.Face:
     """
     reverse the normal of the face
  
     Parameters
     ----------
-    face : topo object
+    face : topobj.Face
         the face to reverse.
         
     Returns
     -------
-    reversed_face : topo
+    reversed_face : topobj.Face
         the reversed face
     """
     #check the surface type of the face
@@ -511,41 +511,41 @@ def reverse_face_normal(face):
         flip_f = create.bspline_face_frm_ctrlpts(cp, kv_u, kv_v, deg_u, deg_v, attributes=face.attributes)
         return flip_f 
 
-def update_topo_att(topo, attributes):
+def update_topo_att(topo: topobj.Topology, attributes: dict):
     """
     update the attributes of the topology
  
     Parameters
     ----------
-    topo : topo object
+    topo : topobj.Topology
         topology to update.
     
-    attributes: dictionary
+    attributes: dict
         the attributes
     """
     topo.update_attributes(attributes)
 
-def overwrite_topo_att(topo, attributes):
+def overwrite_topo_att(topo: topobj.Topology, attributes: dict):
     """
-    update the attributes of the topology
+    overwrite the attributes of the topology
  
     Parameters
     ----------
-    topo : topo object
+    topo : topobj.Topology
         topology to update.
     
-    attributes: dictionary
+    attributes: dict
         the attributes
     """
     topo.overwrite_attributes(attributes)
 
-def xyzs2voxs(xyzs, xdim, ydim, zdim):
+def xyzs2voxs(xyzs: np.ndarray, xdim: float, ydim: float, zdim: float) -> dict:
     """
     This function group the vertices into a 3d voxel grid.
     
     Parameters
     ----------
-    xyzs : ndarray
+    xyzs : np.ndarray
         array defining the point.
     
     xdim : float
@@ -559,7 +559,7 @@ def xyzs2voxs(xyzs, xdim, ydim, zdim):
     
     Returns
     -------
-    voxel_dictionary : a dictionary of voxels
+    voxel_dictionary : dict
         a dictionary with key (i,j,k) for each voxel and the value as the index of the point
     """
     if type(xyzs) != np.ndarray:
@@ -594,5 +594,5 @@ def xyzs2voxs(xyzs, xdim, ydim, zdim):
     vox_props['voxels'] = voxs
     return vox_props
 
-def trsf_cs(cs1, cs2, topo):
+def trsf_cs(cs1: utility.CoordinateSystem, cs2: utility.CoordinateSystem, topo: topobj.Topology) -> topobj.Topology:
     pass

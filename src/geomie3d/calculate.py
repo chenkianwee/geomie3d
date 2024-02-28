@@ -82,18 +82,18 @@ def reverse_vectorxyz(vector_xyzs: np.ndarray) -> np.ndarray:
 
     return vector_xyzs*-1
     
-def xyzs_mean(xyzs):
+def xyzs_mean(xyzs: np.ndarray) -> np.ndarray:
     """
     This function calculates the mean of all points. 
  
     Parameters
     ----------
-    xyzs : ndarray
+    xyzs : np.ndarray
         array defining the point.
     
     Returns
     -------
-    midpt : xyz
+    midpt : np.ndarray
         The mean of all the points.
     """
     shape = np.shape(xyzs)
@@ -112,22 +112,20 @@ def xyzs_mean(xyzs):
         centre_pt = np.mean(xyzs, axis=1)
         return centre_pt
 
-def bbox_frm_xyzs(xyzs):
+def bbox_frm_xyzs(xyzs: np.ndarray) -> utility.Bbox:
     """
     This function returns the bbox of the xyzs.
     
     Parameters
     ----------
-    xyzs : ndarray
+    xyzs : np.ndarray
         array defining the point.
 
     Returns
     -------
-    bbox : bbox object
+    bbox : utility.Bbox
         bbox object
     """
-    import numpy as np
-    
     if type(xyzs) != np.ndarray:
         xyzs = np.array(xyzs)
 
@@ -254,13 +252,13 @@ def are_bboxes1_related2_bboxes2(bboxes1: list[utility.Bbox], bboxes2: list[util
     are_related_res = np.logical_or(are_related1, are_related2)
     return are_related_res
 
-def is_collinear(vertex_list):
+def is_collinear(vertex_list: list[topobj.Vertex]) -> bool:
     """
     This function checks if the list of points are collinear. 
  
     Parameters
     ----------
-    vertex_list : ndarray
+    vertex_list : list[topobj.Vertex]
         array of vertices.
         
     Returns
@@ -284,13 +282,13 @@ def is_collinear(vertex_list):
             
     return is_collinear_xyzs(xyzs)
 
-def is_coplanar(vertex_list):
+def is_coplanar(vertex_list: list[topobj.Vertex]) -> bool:
     """
     This function checks if the list of points are coplanar. 
  
     Parameters
     ----------
-    vertex_list : ndarray
+    vertex_list : list[topobj.Vertex]
         array of vertices. It can be a 2darray of vertex list
         
     Returns
@@ -314,18 +312,18 @@ def is_coplanar(vertex_list):
             
     return is_coplanar_xyzs(xyzs)
 
-def _affine_rank(xyzs):
+def _affine_rank(xyzs: np.ndarray) -> np.ndarray:
     """
     This function calculate the affine rank of the xyzs. If having a 3d array.
     
     Parameters
     ----------
-    xyzs : ndarray
-        array of xyzs, [xyzs1, xyzs2, xyzs3]. each xyz is defined as [x1,y1,z1]. This function takes multiple sets of points and check their coplanarity. [point_set1, point_set2, point_setx].
+    xyzs : np.ndarray
+        np.ndarray(shape(number of points, 3)). This function takes multiple sets of points and check their coplanarity. [point_set1, point_set2, point_setx].
         
     Returns
     -------
-    affine_rank : ndarray
+    affine_rank : np.ndarray
         affine rank of the given xyzs.
     """
     #--------------------------------------------------------------------------------------------------------------------------------
@@ -365,14 +363,14 @@ def _affine_rank(xyzs):
             affine_rank = matrix_rank(centered_pts)
             return affine_rank
     
-def is_coplanar_xyzs(xyzs):
+def is_coplanar_xyzs(xyzs: np.ndarray) -> bool:
     """
     This function checks if the list of xyzs are coplanar.
     
     Parameters
     ----------
-    xyzs : ndarray
-        array of xyzs, [xyzs1, xyzs2, xyzs3]. each xyz is defined as [x1,y1,z1]. This function takes multiple sets of points and check their coplanarity. [point_set1, point_set2, point_setx].
+    xyzs : np.ndarray
+        np.ndarray(shape(number of points, 3)). This function takes multiple sets of points and check their coplanarity. [point_set1, point_set2, point_setx].
         
     Returns
     -------
@@ -382,14 +380,14 @@ def is_coplanar_xyzs(xyzs):
     affine_rank = _affine_rank(xyzs)
     return affine_rank <=2            
 
-def is_collinear_xyzs(xyzs):
+def is_collinear_xyzs(xyzs: np.ndarray) -> bool:
     """
     This function checks if the list of xyzs are collinear.
     
     Parameters
     ----------
-    xyzs : ndarray
-        array of xyzs, [xyzs1, xyzs2, xyzs3]. each xyz is defined as [x1,y1,z1]. This function takes multiple sets of points and check their coplanarity. [point_set1, point_set2, point_setx].
+    xyzs : np.ndarray
+        np.ndarray(shape(number of points, 3)). This function takes multiple sets of points and check their coplanarity. [point_set1, point_set2, point_setx].
         
     Returns
     -------
@@ -399,18 +397,18 @@ def is_collinear_xyzs(xyzs):
     affine_rank = _affine_rank(xyzs)
     return affine_rank <=1 
     
-def bbox_frm_topo(topo):
+def bbox_frm_topo(topo: topobj.Topology) -> utility.Bbox:
     """
     calculate the bbox from a topology object.
     
     Parameters
     ----------
-    topo : topology object
+    topo : topobj.Topology
         The topology to analyse
 
     Returns
     -------
-    bbox : bbox object
+    bbox : utility.Bbox
         bbox object
     """
     verts = get.topo_explorer(topo, topobj.TopoType.VERTEX)
@@ -439,7 +437,7 @@ def xyzs_in_bbox(xyzs: np.ndarray, bbox: utility.Bbox, zdim: bool = True, indice
     Returns
     -------
     points_in_bdry : np.ndarray
-        The points that is in the boundary. If indices==True, this will be the indices instead of the actual points.
+        The points that is in the boundary np.ndarray(shape(number of points, 3)). If indices==True, this will be the indices instead of the actual points.
     """
     if type(xyzs) != np.ndarray:
         xyzs = np.array(xyzs)
@@ -483,16 +481,16 @@ def xyzs_in_bbox(xyzs: np.ndarray, bbox: utility.Bbox, zdim: bool = True, indice
         pts_in_bdry = np.take(xyzs, index_list, axis = 0)
         return pts_in_bdry
 
-def is_xyz_in_bbox(xyz, bbox, zdim = True):
+def is_xyz_in_bbox(xyz: np.ndarray, bbox: utility.Bbox, zdim: bool = True) -> bool:
     """
     This function check if a point is in bounding box.  
  
     Parameters
     ----------
-    xyz : ndarray
-        array defining the point.
+    xyz : np.ndarray
+        array defining the point np.ndarray(shape(3)).
         
-    bbox : bbox object
+    bbox : utility.Bbox
         bbox object
         
     zdim : bool, optional
@@ -593,24 +591,24 @@ def match_xyzs_2_bboxes(xyzs: np.ndarray, bbox_list: list[utility.Bbox], zdim: b
     index = np.array(index)
     return index
 
-def id_bboxes_contain_xyzs(bbox_list, xyzs, zdim = True):
+def id_bboxes_contain_xyzs(bbox_list: list[utility.Bbox], xyzs: np.ndarray, zdim: bool = True) -> np.ndarray:
     """
     This function returns the indices of the bbox which contains the points.
     
     Parameters
     ----------
-    bbox_list : a list of bbox object
+    bbox_list : list[utility.Bbox]
         A list of bbox
         
-    xyzs : ndarray
-        array defining the points.
+    xyzs : np.ndarray
+        array defining the points np.ndarray(shape(number of points, 3)).
             
     zdim : bool, optional
         If True will check the z-dimension.
 
     Returns
     -------
-    bbox_indices : nparray
+    bbox_indices : np.ndarray
         Indices of the boundary that contains the point.
     """
     indices = match_xyzs_2_bboxes(xyzs, bbox_list, zdim = zdim)
@@ -619,16 +617,16 @@ def id_bboxes_contain_xyzs(bbox_list, xyzs, zdim = True):
     
     return bbox_indices
 
-def id_xyzs_in_bboxes(xyzs, bbox_list, zdim = False):
+def id_xyzs_in_bboxes(xyzs: np.ndarray, bbox_list: list[utility.Bbox], zdim: bool = False) -> np.ndarray:
     """
     This function returns the indices of the points that are contained by bboxes.
     
     Parameters
     ----------
-    xyzs : ndarray
-        array defining the points.
+    xyzs : np.ndarray
+        array defining the points np.ndarray(shape(number of points, 3)).
         
-   bbox_list : a list of bbox object
+   bbox_list : list[utility.Bbox]
        A list of bbox
        
     zdim : bool, optional
@@ -636,7 +634,7 @@ def id_xyzs_in_bboxes(xyzs, bbox_list, zdim = False):
 
     Returns
     -------
-    pt_indices : nparray
+    pt_indices : np.ndarray
         Indices of the points in the bboxes.
     """
     indices = match_xyzs_2_bboxes(xyzs, bbox_list, zdim = zdim)
@@ -645,16 +643,16 @@ def id_xyzs_in_bboxes(xyzs, bbox_list, zdim = False):
     
     return pt_indices
 
-def angle_btw_2vectors(vector1, vector2):
+def angle_btw_2vectors(vector1: np.ndarray, vector2: np.ndarray) -> float:
     """
     This function calculate the angle between two vectors.
  
     Parameters
     ----------    
-    vector1 : ndarray
+    vector1 : np.ndarray
         array defining the vector(s).
         
-    vector2 : ndarray
+    vector2 : np.ndarray
         array defining the vector(s).
  
     Returns
@@ -682,21 +680,21 @@ def angle_btw_2vectors(vector1, vector2):
     angle = np.degrees(angle_rad)
     return angle 
 
-def cross_product(vector1, vector2):
+def cross_product(vector1: np.ndarray, vector2: np.ndarray) -> np.ndarray:
     """
     This function cross product two vectors.It is a wrap of the numpy cross function
  
     Parameters
     ----------    
-    vector1 : ndarray
+    vector1 : np.ndarray
         array defining the vector(s).
         
-    vector2 : ndarray
+    vector2 : np.ndarray
         array defining the vector(s).
  
     Returns
     -------
-    cross_product : ndarray
+    cross_product : np.ndarray
         numpy array of the cross product
     """
     if type(vector1) != np.ndarray:
@@ -707,21 +705,21 @@ def cross_product(vector1, vector2):
     cross_product = np.cross(vector1, vector2)
     return cross_product
 
-def dot_product(vector1, vector2):
+def dot_product(vector1: np.ndarray, vector2: np.ndarray) -> np.ndarray:
     """
     This function cross product two vectors. Wrap of numpy dot function
  
     Parameters
     ----------    
-    vector1 : ndarray
+    vector1 : np.ndarray
         array defining the vector.
         
-    vector2 : ndarray
+    vector2 : np.ndarray
         array defining the vector.
  
     Returns
     -------
-    dot_product : ndarray
+    dot_product : np.ndarray
         numpy array of the dot product
     """
     if type(vector1) != np.ndarray:
@@ -743,26 +741,26 @@ def dot_product(vector1, vector2):
         dot_product = a+b+c
         return dot_product
         
-def normalise_vectors(vector_list):
+def normalise_vectors(vector_list: np.ndarray) -> np.ndarray:
     """
     This function normalise the vectors.
  
     Parameters
     ----------    
-    vector_list : 2d ndarray
-        numpy array of the vectors.
+    vector_list : np.ndarray
+        numpy array of the vectors np.ndarray(shape(number of vectors, 3)).
  
     Returns
     -------
-    normalise_vector : ndarray
-        normalise vector.
+    normalise_vector : np.ndarray
+        normalise vectors np.ndarray(shape(number of vectors, 3)).
     """
     if type(vector_list) != np.ndarray:
         vector_list = np.array(vector_list)
     naxis = len(vector_list.shape)
     return vector_list/np.linalg.norm(vector_list, ord = 2, axis = naxis-1, keepdims=True)
     
-def translate_matrice(tx,ty,tz):
+def translate_matrice(tx: float, ty: float, tz: float) -> np.ndarray:
     """
     This function calculate a 4x4 translation matrice.
  
@@ -779,7 +777,7 @@ def translate_matrice(tx,ty,tz):
  
     Returns
     -------
-    matrice : ndarray
+    matrice : np.ndarray
         4x4 translation matrice.
     """
     mat = np.array([[1, 0, 0, tx],
@@ -789,7 +787,7 @@ def translate_matrice(tx,ty,tz):
     
     return mat
 
-def scale_matrice(sx,sy,sz):
+def scale_matrice(sx: float, sy: float, sz: float) -> np.ndarray:
     """
     This function calculate a 4x4 translation matrice.
  
@@ -806,7 +804,7 @@ def scale_matrice(sx,sy,sz):
  
     Returns
     -------
-    matrice : ndarray
+    matrice : np.ndarray
         4x4 scaling matrice.
     """
     
@@ -816,13 +814,13 @@ def scale_matrice(sx,sy,sz):
                     [0, 0, 0, 1]])
     return mat
 
-def rotate_matrice(axis, rotation):
+def rotate_matrice(axis: list[float], rotation: float) -> np.ndarray:
     """
     This function calculate a 4x4 translation matrice. The rotation in counter-clockwise.
  
     Parameters
     ----------    
-    axis : tuple
+    axis : list[float]
         the axis for rotation, must be a normalised vector.
     
     rotation : float
@@ -830,7 +828,7 @@ def rotate_matrice(axis, rotation):
  
     Returns
     -------
-    matrice : ndarray
+    matrice : np.ndarray
         4x4 rotation matrice.
     """
     x = axis[0]
@@ -857,38 +855,38 @@ def rotate_matrice(axis, rotation):
                     [0, 0, 0, 1]])
     return np.round(mat, decimals = 6)
 
-def inverse_matrice(matrice):
+def inverse_matrice(matrice: np.ndarray) -> np.ndarray:
     """
     This function calculate a 4x4 translation matrice. The rotation in counter-clockwise.
  
     Parameters
     ----------    
-    matrice : ndarray
+    matrice : np.ndarray
         4x4 matrice to inverse.
     
     Returns
     -------
-    matrice : ndarray
+    matrice : np.ndarray
         inverted 4x4 matrice.
     """
     return np.linalg.inv(matrice)
     
-def cs2cs_matrice(orig_cs, dest_cs):
+def cs2cs_matrice(orig_cs: utility.CoordinateSystem, dest_cs: utility.CoordinateSystem) -> np.ndarray:
     """
     This function calculate a 4x4 matrice for transforming one coordinate to
     another coordinate system.
  
     Parameters
     ----------    
-    orig_cs : coordinate system object
+    orig_cs : utility.CoordinateSystem
         the original coordinate system.
     
-    dest_cs : coordinate system object
+    dest_cs : utility.CoordinateSystem
         the coordinate system to transform to.
  
     Returns
     -------
-    matrice : ndarray
+    matrice : np.ndarray
         4x4 matrice.
     """
     # #TODO FINISH THE FUNCTION
@@ -907,18 +905,18 @@ def cs2cs_matrice(orig_cs, dest_cs):
     # # print(trsl_mat)
     pass
     
-def face_midxyz(face):
+def face_midxyz(face: topobj.Face) -> np.ndarray:
     """
     Calculates the midpt of the face
  
     Parameters
     ----------    
-    face : the face object
+    face : topobj.Face
         the face object.
     
     Returns
     -------
-    midxyz : ndarray
+    midxyz : np.ndarray
         array defining the midpt.
     """
     if face.surface_type == geom.SrfType.POLYGON:
@@ -931,18 +929,21 @@ def face_midxyz(face):
         mid_xyz = np.array(bspline_srf.evaluate_single([0.5,0.5]))
     return mid_xyz
 
-def trsf_xyzs(xyzs, trsf_mat):
+def trsf_xyzs(xyzs: np.ndarray, trsf_mat: np.ndarray) -> np.ndarray:
     """
     Calculates the transformed xyzs based on the given matrice
  
     Parameters
     ----------    
-    xyzs : ndarray
-        array defining the points.
+    xyzs : np.ndarray
+        array defining the points np.ndarray(shape(number of points, 3)).
+
+    trsf_mat : np.ndarray
+        4x4 matrice.
     
     Returns
     -------
-    trsf_xyzs : ndarray
+    trsf_xyzs : np.ndarray
         the transformed xyzs.
     """
     if type(xyzs) != np.ndarray:
@@ -957,25 +958,25 @@ def trsf_xyzs(xyzs, trsf_mat):
     
     return trsf_xyzs
 
-def move_xyzs(xyzs, directions, magnitudes):
+def move_xyzs(xyzs: np.ndarray, directions: np.ndarray, magnitudes: np.ndarray) -> np.ndarray:
     """
     Calculates the moved xyzs based on a direction vectors and magnitudes
  
     Parameters
     ----------    
-    xyzs : ndarray
-        array defining the points.
+    xyzs : np.ndarray
+        array defining the points np.ndarray(shape(number of points, 3)).
     
-    directions : ndarray
+    directions : np.ndarray
         array defining the directions.
     
-    magnitudes : 1d array
+    magnitudes : np.ndarray
         array defining the magnitude to move.
         
     Returns
     -------
-    moved_xyzs : ndarray
-        the moved xyzs.
+    moved_xyzs : np.ndarray
+        the moved xyzs np.ndarray(shape(number of points, 3)).
     """
     if type(xyzs) != np.ndarray:
         xyzs = np.array(xyzs)
@@ -990,17 +991,17 @@ def move_xyzs(xyzs, directions, magnitudes):
     moved_xyzs = xyzs + directions*magnitudes
     return moved_xyzs 
     
-def is_anticlockwise(xyzs, ref_vec):
+def is_anticlockwise(xyzs: np.ndarray, ref_vec: list[float]) -> bool:
     """
     This function checks if the list of points are arranged anticlockwise in regards to the ref_pyvec by calculating the winding number. When the number is negative they are clockwise.
     The ref_pyvec must be perpendicular to the points. 
  
     Parameters
     ----------
-    xyzs : ndarray
-        array defining the points.
+    xyzs : np.ndarray
+        array defining the points np.ndarray(shape(number of points, 3)).
     
-    ref_vec : tuple of floats
+    ref_vec : list[float]
         The reference vector must be perpendicular to the list of points. 
         A vec is a tuple that documents the xyz direction of a vector e.g. (x,y,z)
         
@@ -1046,7 +1047,38 @@ def is_anticlockwise(xyzs, ref_vec):
         cond3 = np.where(cond2, None, cond1) #use the 0 cond rule to change the 0 to None    
         return cond3
         
-def acct4obstruction(intPts, mags, rayIndxs, objIndxs):
+def acct4obstruction(intPts: np.ndarray, mags: np.ndarray, rayIndxs: np.ndarray, objIndxs: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """
+    accounts for obstruction when shooting rays
+ 
+    Parameters
+    ----------
+    intPts : np.ndarray
+        xyzs np.ndarray(shape(number of points, 3)).
+    
+    mags : np.ndarray
+        array of magnitudes
+    
+    rayIndxs : np.ndarray
+        array of ray indices
+    
+    objIndxs : np.ndarray
+        array of obstruction indices
+        
+    Returns
+    -------
+    intersect_pts : np.ndarray
+        points of unobstructed intersection. If no intersection returns an empty array
+        
+    magnitudes : np.ndarray
+        array of unobstructed magnitude of the rays to the intersection points. If no intersection return an empty array
+        
+    ray_index : np.ndarray
+        indices of the unobstructed rays. Corresponds to the intersect pts.
+    
+    tris_index : np.ndarray
+        indices of the unobstructed obj. Corresponds to the intersect pts.
+    """
     indx = np.arange(len(rayIndxs))
     dupIds = utility.id_dup_indices_1dlist(rayIndxs)
     dupIds_flat = list(chain(*dupIds))
@@ -1067,30 +1099,30 @@ def acct4obstruction(intPts, mags, rayIndxs, objIndxs):
     nb_objIndxs = np.take(objIndxs, non_obs_indx, axis=0)
     return nb_intPts, nb_mags, nb_rayIndxs, nb_objIndxs
 
-def rays_xyz_tris_intersect(rays_xyz, tris_xyz):
+def rays_xyz_tris_intersect(rays_xyz: np.ndarray, tris_xyz: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """
     This function intersect multiple rays with multiple triangles. https://github.com/johnnovak/raytriangle-test/blob/master/python/perftest.py 
  
     Parameters
     ----------
-    rays_xyz : ndarray
-        array of rays [ray_xyz1,ray_xyz2,...]. Each ray is defined with [[origin], [direction]].
+    rays_xyz : np.ndarray
+        array of rays [ray_xyz1,ray_xyz2,...]. Each ray is defined with [[origin], [direction]]. np.ndarray(shape(number of rays, 2, 3))
         
-    tris_xyz : ndarray
-        array of triangles [tri_xyz1, tri_xyz2, ...]. Each triangle is define with [[x1,y1,z1],[x2,y2,z2],[x3,y3,z3]].
+    tris_xyz : np.ndarray
+        array of triangles [tri_xyz1, tri_xyz2, ...]. Each triangle is define with [[x1,y1,z1],[x2,y2,z2],[x3,y3,z3]]. np.ndarray(shape(number of triangles, 3, 3))
 
     Returns
     -------
-    intersect_pts : ndarray
+    intersect_pts : np.ndarray
         points of intersection. If no intersection returns an empty array
         
-    magnitudes : ndarray
+    magnitudes : np.ndarray
         array of magnitude of the rays to the intersection points. If no intersection return an empty array
         
-    ray_index : ndarray
+    ray_index : np.ndarray
         indices of the rays. Corresponds to the intersect pts.
     
-    tris_index : ndarray
+    tris_index : np.ndarray
         indices of the intersected triangles. Corresponds to the intersect pts.
     """
     dets_threshold = 1e-06
@@ -1189,30 +1221,30 @@ def rays_xyz_tris_intersect(rays_xyz, tris_xyz):
     
     return res_pts, res_mag, res_ray_indx, res_tri_indx
 
-def rays_xyz_bboxes_intersect(rays_xyz, bbox_list):
+def rays_xyz_bboxes_intersect(rays_xyz: np.ndarray, bbox_list: list[utility.Bbox]) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """
     This function intersect multiple rays with multiple bboxes. based on this https://www.scratchapixel.com/lessons/3d-basic-rendering/minimal-ray-tracer-rendering-simple-shapes/ray-box-intersection and this https://github.com/stackgl/ray-aabb-intersection/blob/master/index.js 
     
     Parameters
     ----------
-    rays_xyz : ndarray
-        array of rays [ray_xyz1,ray_xyz2,...]. Each ray is defined with [[origin], [direction]].
+    rays_xyz : np.ndarray
+        array of rays [ray_xyz1,ray_xyz2,...]. Each ray is defined with [[origin], [direction]]. np.ndarray(shape(number of rays, 2, 3))
         
-    bbox_list : a list of bbox object
+    bbox_list : list[utility.Bbox]
         A list of bbox
 
     Returns
     -------
-    intersect_pts : ndarray
+    intersect_pts : np.ndarray
         points of intersection. If no intersection returns an empty array
         
-    magnitudes : ndarray
+    magnitudes : np.ndarray
         array of magnitude of the rays to the intersection points. If no intersection return an empty array
         
-    ray_index : ndarray
+    ray_index : np.ndarray
         indices of the rays. Corresponds to the intersect pts.
     
-    tris_index : ndarray
+    tris_index : np.ndarray
         indices of the intersected triangles. Corresponds to the intersect pts.
     """
     if type(rays_xyz) != np.ndarray:
@@ -1381,30 +1413,31 @@ def rays_xyz_bboxes_intersect(rays_xyz, bbox_list):
     
     return res_pts, res_mag, res_ray_indx, res_bbox_indx
 
-def rays_faces_intersection(ray_list, face_list):
+def rays_faces_intersection(ray_list: list[utility.Ray], 
+                            face_list: list[topobj.Face]) -> tuple[list[utility.Ray], list[utility.Ray], list[topobj.Face], list[topobj.Face]]:
     """
     This function intersect multiple rays with multiple faces
  
     Parameters
     ----------
-    ray_list : list of rays
+    ray_list : list[utility.Ray]
         array of ray objects
         
-    face_list : lsit of faces
+    face_list : list[topobj.Face]
         array of face objects
         
     Returns
     -------
-    hit_rays : array of rays
+    hit_rays : list[utility.Ray]
         rays that hit faces with new attributes documenting the faces and intersections. {'rays_faces_intersection': {'intersection':[], 'hit_face':[]}}
         
-    miss_rays : array of rays
+    miss_rays : list[utility.Ray]
         rays that did not hit any faces.
         
-    hit_face : array of faces
+    hit_face : list[topobj.Face]
         faces that are hit with new attributes documenting the intersection pt and the rays that hit it. {'rays_faces_intersection': {'intersection':[], 'ray':[]}}
         
-    miss_faces : array of faces
+    miss_faces : list[topobj.Face]
         faces that are not hit by any rays.
     """
     #extract the origin and dir of the rays 
@@ -1552,30 +1585,31 @@ def rays_faces_intersection(ray_list, face_list):
     else:
         return [], ray_list, [], face_list
 
-def rays_bboxes_intersect(ray_list, bbox_list):
+def rays_bboxes_intersect(ray_list: list[utility.Ray], 
+                          bbox_list: list[utility.Bbox]) -> tuple[list[utility.Ray], list[utility.Ray], list[utility.Bbox], list[utility.Bbox]]:
     """
     This function intersect multiple rays with multiple bboxes
  
     Parameters
     ----------
-    ray_list : list of rays
+    ray_list : list[utility.Ray]
         array of ray objects
         
-    bbox_list : a list of bbox object
+    bbox_list : list[utility.Bbox]
         A list of bbox
         
     Returns
     -------
-    hit_rays : array of rays
+    hit_rays : list[utility.Ray]
         rays that hit faces with new attributes documenting the faces and intersections. {'rays_bboxes_intersection': {'intersection':[], 'hit_bbox':[]}}
         
-    miss_rays : array of rays
+    miss_rays : list[utility.Ray]
         rays that did not hit .
         
-    hit_bboxes : array of dictionary
+    hit_bboxes : list[utility.Bbox]
         bboxes that are hit with new attributes documenting the intersection pt and the rays that hit it. {'rays_bboxes_intersection': {'intersection':[], 'ray':[]}}
         
-    miss_faces : array of bbox
+    miss_faces : list[utility.Bbox]
         bboxes that are not hit by any rays.
     """
     #extract the origin and dir of the rays
@@ -1691,13 +1725,13 @@ def rays_bboxes_intersect(ray_list, bbox_list):
     else:
         return [], ray_list, [], bbox_list
 
-def face_area(face):
+def face_area(face: topobj.Face) -> float:
     """
     Calculates the area of the face
  
     Parameters
     ----------    
-    face : the face object
+    face : topobj.Face
         the face object.
     
     Returns
@@ -1740,22 +1774,22 @@ def face_area(face):
     elif face.surface_type == geom.SrfType.BSPLINE:
         print('Area of face with Bspline surface not yet implemented, convert bspline to polygon surface')
 
-def linexyzs_from_t(ts, linexyzs):
+def linexyzs_from_t(ts: list[float], linexyzs: np.ndarray) -> np.ndarray:
     """
     get a pointxyz on a line with the parameter t. Based on this post https://mathworld.wolfram.com/Point-LineDistance3-Dimensional.html
     
     Parameters
     ----------
-    ts : array of float
+    ts : list[float]
         the t parameter, 0-1.
     
-    linexyzs : ndarray
-        array of lines [line1, line2, ...]. Each line is define as [[x1,y1,z1],[x2,y2,z2]].
+    linexyzs : np.ndarray
+        array of lines [line1, line2, ...]. Each line is define as [[x1,y1,z1],[x2,y2,z2]]. np.ndarray(shape(number of lines, 2, 3))
         
     Returns
     -------
-    xyzs : ndarray
-        array of the xyz points on the line with parameter t.
+    xyzs : np.ndarray
+        array of the xyz points on the line with parameter t. np.ndarray(shape(number of ts, 3))
     """
     if type(ts) != np.ndarray:
         ts = np.array(ts)
@@ -1784,19 +1818,19 @@ def linexyzs_from_t(ts, linexyzs):
     
     return xyzs_t
     
-def dist_pointxyzs2linexyzs(pointxyzs, linexyzs, int_pts = False):
+def dist_pointxyzs2linexyzs(pointxyzs: np.ndarray, linexyzs: np.ndarray, int_pts: bool = False):
     """
     Find the distance between the points and the lines. If negative is to the xxx if positive is to the yyy. Based on this post https://mathworld.wolfram.com/Point-LineDistance3-Dimensional.html
     
     Parameters
     ----------
     pointxyzs : ndarray
-        array of points [point1, point2, ...]. Each point is define as [x,y,z].
+        array of points [point1, point2, ...]. Each point is define as [x,y,z]. np.ndarray(shape(number of points, 3))
     
     linexyzs : ndarray
-        array of edges [edge1, edge2, ...]. Each edge is define as [[x1,y1,z1],[x2,y2,z2],[x3,y3,z3]].
+        array of edges [edge1, edge2, ...]. Each edge is define as [[x1,y1,z1],[x2,y2,z2],[x3,y3,z3]]. np.ndarray(shape(number of lines, 2, 3))
     
-    int_pts: bool
+    int_pts: bool, optional
         if true will return the closest point on the line to the point. default == False
         
     Returns
@@ -1835,19 +1869,19 @@ def dist_pointxyzs2linexyzs(pointxyzs, linexyzs, int_pts = False):
     else:
         return dists, int_xyzs
 
-def _extract_xyzs_from_lineedge(edge_list):
+def _extract_xyzs_from_lineedge(edge_list: list[topobj.Edge]) -> np.ndarray:
     """
     extract line xyzs from edges and throw an error if the curve is not a line. A line is a curve defined by only two points
     
     Parameters
     ----------
-    edge_list : ndarray
+    edge_list : list[topobj.Edge]
         array of edges [edge1, edge2, ...].
     
     Returns
     -------
-    xyzs : ndarray
-        array of all the points.
+    xyzs : np.ndarray
+        array of edges [edge1, edge2, ...]. Each edge is define as [[x1,y1,z1],[x2,y2,z2],[x3,y3,z3]]. np.ndarray(shape(number of lines, 2, 3))
     """
     linexyzs = []
     for e in edge_list:
@@ -1860,27 +1894,27 @@ def _extract_xyzs_from_lineedge(edge_list):
             
     return linexyzs
     
-def dist_vertex2line_edge(vertex_list, edge_list, int_pts = False):
+def dist_vertex2line_edge(vertex_list: list[topobj.Vertex], edge_list: list[topobj.Edge], int_pts: bool = False) -> np.ndarray:
     """
     Find the distance between the vertices to the edges. The edges cannot have curve that has more than 2 points. Only work with lines.
     
     Parameters
     ----------
-    vertex_list : list of vertex
+    vertex_list : list[topobj.Vertex]
         list of vertex.
     
-    edge_list : list of edges
+    edge_list : list[topobj.Edge]
         list of edges. The edges can only have line as geometry. That is polygon curve that is define by only two vertices.
     
-    int_pts: bool
+    int_pts: bool, optional
         if true will return the closest point on the line to the point. default == False
         
     Returns
     -------
-    distances : ndarray
+    distances : np.ndarray
         array of all the distances.
     
-    closest_verts : list of verts, optional
+    closest_verts : list[topobj.Vertex], optional
         the closest vertices on the line to the point.
     """
     pointxyzs = [v.point.xyz for v in vertex_list]
@@ -1896,22 +1930,22 @@ def dist_vertex2line_edge(vertex_list, edge_list, int_pts = False):
         vlist = create.vertex_list(int_pts)
         return dists, vlist
     
-def linexyzs_intersect(linexyzs1, linexyzs2):
+def linexyzs_intersect(linexyzs1: np.ndarray, linexyzs2: np.ndarray) -> np.ndarray:
     """
     Find the intersections between the lines.
     
     Parameters
     ----------
-    linexyzs1 : ndarray
-        array of lines [line1, line2, ...]. Each line is define as [[x1,y1,z1],[x2,y2,z2]].
-    
-    linexyzs2 : ndarray
-        array of lines [line1, line2, ...]. Each line is define as [[x1,y1,z1],[x2,y2,z2]].
+    linexyzs1 : np.ndarray
+        array of edges [edge1, edge2, ...]. Each edge is define as [[x1,y1,z1],[x2,y2,z2],[x3,y3,z3]]. np.ndarray(shape(number of lines, 2, 3))
+
+    linexyzs2 : np.ndarray
+        array of edges [edge1, edge2, ...]. Each edge is define as [[x1,y1,z1],[x2,y2,z2],[x3,y3,z3]]. np.ndarray(shape(number of lines, 2, 3))
         
     Returns
     -------
-    intersections : ndarray
-        array of all the intersection points.
+    intersections : np.ndarray
+        array of all the intersection points. np.ndarray(shape(number of intersection points, 3))
     """
     if type(linexyzs1) != np.ndarray:
         linexyzs1 = np.array(linexyzs1)
@@ -1965,21 +1999,21 @@ def linexyzs_intersect(linexyzs1, linexyzs2):
 
     return int_pts
 
-def lineedge_intersect(edge_list1, edge_list2):
+def lineedge_intersect(edge_list1: list[topobj.Edge], edge_list2: list[topobj.Edge]) -> list[topobj.Vertex]:
     """
     Find the intersections between the edge_list1 and edge_list2. The edges need to only have simple lines as curve geometry
     
     Parameters
     ----------
-    edge_list1 : ndarray
+    edge_list1 : list[topobj.Edge]
         array of edges [edge1, edge2, ...].
     
-    edge_list2 : ndarray
+    edge_list2 : list[topobj.Edge]
         array of edges [edge1, edge2, ...].
         
     Returns
     -------
-    intersections : ndarray
+    intersections : list[topobj.Vertex]
         array of all the intersection points.
     """
     linexyzs1 = _extract_xyzs_from_lineedge(edge_list1)
@@ -1989,24 +2023,24 @@ def lineedge_intersect(edge_list1, edge_list2):
     vlist = create.vertex_list(int_pts)
     return vlist
     
-def polyxyzs_intersections(clipping_polyxyzs, subject_polyxyzs, ref_vecs):
+def polyxyzs_intersections(clipping_polyxyzs: np.ndarray, subject_polyxyzs: np.ndarray, ref_vecs: np.ndarray) -> np.ndarray:
     """
-    Find the intersections between the clipping polys and the subject polys. The clipping polygons must be convex. Both the polygons cannot have holes.
+    NOT COMPLETE: Find the intersections between the clipping polys and the subject polys. The clipping polygons must be convex. Both the polygons cannot have holes.
     
     Parameters
     ----------
-    clipping_polys : ndarray
+    clipping_polys : np.ndarray
         array of polygons [clipping_poly1, clipping_poly2, ...]. Each clipping_poly is define as [[x1,y1,z1],[x2,y2,z2],[x3,y3,z3]].
     
-    subject_polys : ndarray
+    subject_polys : np.ndarray
         array of polygons [subject_poly1, subject_poly2, ...]. Each subject_poly is define as [[x1,y1,z1],[x2,y2,z2],[x3,y3,z3]].
     
-    ref_vecs : ndarray
+    ref_vecs : np.ndarray
         The reference vector must be perpendicular to the list of points. Array of vectors. A vec is a tuple that documents the xyz direction of a vector e.g. (x,y,z)
         
     Returns
     -------
-    intersections : ndarray
+    intersections : np.ndarray
         array of all the intersection points.
     """
     shape1 = np.shape(clipping_polyxyzs)

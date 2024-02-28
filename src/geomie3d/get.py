@@ -26,7 +26,7 @@ from . import modify
 from . import topobj
 from . import geom
 
-def topo_atts(topo: topobj.Topology):
+def topo_atts(topo: topobj.Topology) -> dict:
     """
     Return attributes from the topology.
  
@@ -37,30 +37,30 @@ def topo_atts(topo: topobj.Topology):
         
     Returns
     -------
-    attributes : dictionary
+    attributes : dict
         attributes of the topology.
     """
     att = topo.attributes
     return att
     
-def point_frm_vertex(vertex):
+def point_frm_vertex(vertex: topobj.Vertex) -> geom.Point:
     """
     Return point from vertex.
  
     Parameters
     ----------
-    vertex : topo object
+    vertex : topobj.Vertex
         the vertex object to explore.
         
     Returns
     -------
-    pt : point
+    pt : geom.Point
         point object.
     """
     
     return vertex.point
 
-def points_frm_wire(wire):
+def points_frm_wire(wire: topobj.Wire) -> list[geom.Point]:
     """
     Return points from wire.
  
@@ -71,7 +71,7 @@ def points_frm_wire(wire):
         
     Returns
     -------
-    pt_list : list of points
+    pt_list : list[geom.Point]
         A list of points.
     """
     edge_list = wire.edge_list
@@ -89,34 +89,34 @@ def points_frm_wire(wire):
     fused_pts = modify.fuse_points(point_list)
     return fused_pts
 
-def vertices_frm_edge(edge):
+def vertices_frm_edge(edge: topobj.Edge) -> list[topobj.Vertex]:
     """
     Return vertices from edge.
  
     Parameters
     ----------
-    edge : topo object
+    edge : topobj.Edge
         the edge object to explore.
         
     Returns
     -------
-    vertex_list : list of vertices
+    vertex_list : list[topobj.Vertex]
         A list of vertices.
     """
     return edge.vertex_list
 
-def vertices_frm_wire(wire):
+def vertices_frm_wire(wire: topobj.Wire) -> list[topobj.Vertex]:
     """
     Return vertices from wire.
  
     Parameters
     ----------
-    wire : topo object
+    wire : topobj.Wire
         the wire object to explore.
         
     Returns
     -------
-    vertex_list : list of vertices
+    vertex_list : list[topobj.Vertex]
         A list of vertices.
     """
     edge_list = wire.edge_list
@@ -127,34 +127,34 @@ def vertices_frm_wire(wire):
     fused_vertices = modify.fuse_vertices(vertex_list)
     return fused_vertices
 
-def face_normal(face):
+def face_normal(face: topobj.Face) -> np.ndarray:
     """
     Return normal from face.
  
     Parameters
     ----------
-    face : topo object
+    face : topobj.Face
         the face object to explore.
         
     Returns
     -------
-    normal : tuple
-        Tuple specifying normal.
+    normal : np.ndarray
+        np.ndarray(shape(3)) specifying normal.
     """
     return face.normal
 
-def vertices_frm_face(face):
+def vertices_frm_face(face: topobj.Face) -> list[topobj.Vertex]:
     """
     Return vertices from face.
  
     Parameters
     ----------
-    face : topo object
+    face : topobj.Face
         the face object to explore.
         
     Returns
     -------
-    vertex_list : list of vertices
+    vertex_list : list[topobj.Vertex]
         A list of vertices.
     """
     bdry_wire = face.bdry_wire
@@ -168,36 +168,36 @@ def vertices_frm_face(face):
     hole_verts = np.array(list(chain(*hole_verts_2dlist)))
     return np.append(vertex_list, hole_verts)
 
-def bdry_vertices_frm_face(face):
+def bdry_vertices_frm_face(face: topobj.Face) -> list[topobj.Vertex]:
     """
     Return boundary vertices from face.
  
     Parameters
     ----------
-    face : topo object
+    face : topobj.Face
         the face object to explore.
         
     Returns
     -------
-    vertex_list : list of vertices
+    vertex_list : list[topobj.Vertex]
         A list of vertices.
     """
     bdry_wire = face.bdry_wire
     vertex_list = vertices_frm_wire(bdry_wire)
     return vertex_list
 
-def hole_vertices_frm_face(face):
+def hole_vertices_frm_face(face: topobj.Face) -> list[list[topobj.Vertex]]:
     """
     Return boundary vertices from face.
  
     Parameters
     ----------
-    face : topo object
+    face : topobj.Face
         the face object to explore.
         
     Returns
     -------
-    vertex_2dlist : 2d list of vertices
+    vertex_2dlist : list[list[topobj.Vertex]]
         A 2d list of vertices.
     """
     hole_wires = face.hole_wire_list
@@ -206,18 +206,18 @@ def hole_vertices_frm_face(face):
     
     return hole_verts_2dlist
 
-def vertices_frm_shell(shell):
+def vertices_frm_shell(shell: topobj.Shell) -> list[topobj.Vertex]:
     """
     Return vertices from shell.
  
     Parameters
     ----------
-    shell : topo object
+    shell : topobj.Shell
         the shell object to explore.
         
     Returns
     -------
-    vertex_list : list of vertices
+    vertex_list : list[topobj.Vertex]
         A list of vertices.
     """
     face_list = shell.face_list
@@ -226,18 +226,18 @@ def vertices_frm_shell(shell):
     
     return np.array(vertex_list)
 
-def vertices_frm_solid(solid):
+def vertices_frm_solid(solid: topobj.Solid) -> list[topobj.Vertex]:
     """
     Return vertices from solid.
  
     Parameters
     ----------
-    solid : topo object
+    solid : topobj.Solid
         the solid object to explore.
         
     Returns
     -------
-    vertex_list : list of vertices
+    vertex_list : list[topobj.Vertex]
         A list of vertices.
     """
     shell = solid.shell
@@ -245,18 +245,18 @@ def vertices_frm_solid(solid):
     
     return vertex_list
 
-def vertices_frm_composite(composite):
+def vertices_frm_composite(composite: topobj.Composite) -> list[topobj.Vertex]:
     """
     Return vertices from composite.
  
     Parameters
     ----------
-    composite : topo object
+    composite : topobj.Composite
         the topo object to explore.
         
     Returns
     -------
-    vertex_list : list of vertices
+    vertex_list : list[topobj.Vertex]
         A list of vertices.
     """
     sorted_d = unpack_composite(composite)
@@ -298,34 +298,34 @@ def vertices_frm_composite(composite):
         
     return vertex_list
 
-def edges_frm_wire(wire):
+def edges_frm_wire(wire: topobj.Wire) -> list[topobj.Edge]:
     """
     Return edges from wire.
  
     Parameters
     ----------
-    wire : topo object
+    wire : topobj.Wire
         the wire object to explore.
         
     Returns
     -------
-    edge_list : list of edges
+    edge_list : list[topobj.Edge]
         A list of edges.
     """
     return wire.edge_list
 
-def edges_frm_face(face):
+def edges_frm_face(face: topobj.Face) -> list[topobj.Edge]:
     """
     Return edges from face.
  
     Parameters
     ----------
-    face : topo object
+    face : topobj.Face
         the face object to explore.
         
     Returns
     -------
-    edge_list : list of edges
+    edge_list : list[topobj.Edge]
         A list of edges.
     """
     bdry_wire = face.bdry_wire
@@ -337,18 +337,18 @@ def edges_frm_face(face):
     edge_list = np.append(bdry_edges, hole_edges)
     return edge_list
     
-def bdry_edges_frm_face(face):
+def bdry_edges_frm_face(face: topobj.Face) -> list[topobj.Edge]:
     """
     Return boundary edges from face.
  
     Parameters
     ----------
-    face : topo object
+    face : topobj.Face
         the face object to explore.
         
     Returns
     -------
-    edge_list : list of edges
+    edge_list : list[topobj.Edge]
         A list of edges.
     """
     bdry_wire = face.bdry_wire
@@ -356,36 +356,36 @@ def bdry_edges_frm_face(face):
     bdry_edges = edges_frm_wire(bdry_wire)
     return bdry_edges
 
-def hole_edges_frm_face(face):
+def hole_edges_frm_face(face: topobj.Face) -> list[topobj.Edge]:
     """
     Return hole edges from face.
  
     Parameters
     ----------
-    face : topo object
+    face : topobj.Face
         the face object to explore.
         
     Returns
     -------
-    edge_list : list of edges
+    edge_list : list[topobj.Edge]
         A list of edges.
     """
     hole_wire_list = face.hole_wire_list
     hole_edges_2dlist = np.array([edges_frm_wire(hw) for hw in hole_wire_list], dtype=object) 
     return hole_edges_2dlist
 
-def edges_frm_shell(shell):
+def edges_frm_shell(shell: topobj.Shell) -> list[topobj.Edge]:
     """
     Return edges from shell.
  
     Parameters
     ----------
-    shell : topo object
+    shell : topobj.Shell
         the shell object to explore.
         
     Returns
     -------
-    edge_list : list of edges
+    edge_list : list[topobj.Edge]
         A list of edges.
     """
     face_list = shell.face_list
@@ -393,18 +393,18 @@ def edges_frm_shell(shell):
     edge_list = list(chain(*edge_2dlist))
     return np.array(edge_list)
 
-def edges_frm_solid(solid):
+def edges_frm_solid(solid: topobj.Solid) -> list[topobj.Edge]:
     """
     Return edges from solid.
  
     Parameters
     ----------
-    solid : topo object
+    solid : topobj.Solid
         the solid object to explore.
         
     Returns
     -------
-    edge_list : list of edges
+    edge_list : list[topobj.Edge]
         A list of edges.
     """
     shell = solid.shell
@@ -458,71 +458,71 @@ def edges_frm_composite(composite: topobj.Composite) -> list[topobj.Edge]:
         
     return edge_list
 
-def wires_frm_face(face):
+def wires_frm_face(face: topobj.Face) -> list[topobj.Wire]:
     """
     Return wires from face.
  
     Parameters
     ----------
-    face : topo object
+    face : topobj.Face
         the topo object to explore.
         
     Returns
     -------
-    wire_list : list of wires
+    wire_list : list[topobj.Wire]
         A list of wires.
     """
     bdry_wire = np.array([face.bdry_wire], dtype=object)
     hole_wire_list = face.hole_wire_list
     return np.append(bdry_wire, hole_wire_list)
 
-def bdry_wires_frm_face(face):
+def bdry_wires_frm_face(face: topobj.Face) -> topobj.Wire:
     """
     Return boundary wires from face.
  
     Parameters
     ----------
-    face : topo object
+    face : topobj.Face
         the topo object to explore.
         
     Returns
     -------
-    wire : wire
+    wire : topobj.Wire
         A wire.
     """
     bdry_wire = np.array([face.bdry_wire], dtype=object)
 
     return bdry_wire
 
-def hole_wires_frm_face(face):
+def hole_wires_frm_face(face: topobj.Face) -> list[topobj.Wire]:
     """
     Return hole wires from face.
  
     Parameters
     ----------
-    face : topo object
+    face : topobj.Face
         the topo object to explore.
         
     Returns
     -------
-    wire_list : a list of wires
+    wire_list : list[topobj.Wire]
         A list of hole wires.
     """
     hole_wire_list = face.hole_wire_list
     return hole_wire_list
 
-def wires_frm_shell(shell):
+def wires_frm_shell(shell: topobj.Shell) -> list[topobj.Wire]:
     """
     Return wires from shell.
  
     Parameters
     ----------
-    shell : topo object
+    shell : topobj.Shell
         the topo object to explore.
         
     Returns
     -------
-    wire_list : list of wires
+    wire_list : list[topobj.Wire]
         A list of wires.
     """
     face_list = shell.face_list
@@ -530,18 +530,18 @@ def wires_frm_shell(shell):
     wire_list = list(chain(*wire_2dlist))
     return np.array(wire_list)
     
-def wires_frm_solid(solid):
+def wires_frm_solid(solid: topobj.Solid) -> list[topobj.Wire]:
     """
     Return wires from solid.
  
     Parameters
     ----------
-    solid : topo object
+    solid : topobj.Solid
         the topo object to explore.
         
     Returns
     -------
-    wire_list : list of wires
+    wire_list : list[topobj.Wire]
         A list of wires.
     """
     shell = solid.shell
@@ -549,18 +549,18 @@ def wires_frm_solid(solid):
     
     return wire_list
     
-def wires_frm_composite(composite):
+def wires_frm_composite(composite: topobj.Composite) -> list[topobj.Wire]:
     """
     Return wires from composite.
  
     Parameters
     ----------
-    composite : topo object
+    composite : topobj.Composite
         the topo object to explore.
         
     Returns
     -------
-    wire_list : list of wires
+    wire_list : list[topobj.Wire]
         A list of wires.
     """
     
@@ -591,51 +591,51 @@ def wires_frm_composite(composite):
         
     return wire_list
 
-def faces_frm_shell(shell):
+def faces_frm_shell(shell: topobj.Shell) -> list[topobj.Face]:
     """
     Return faces from shell.
  
     Parameters
     ----------
-    shell : topo object
+    shell : topobj.Shell
         the topo object to explore.
         
     Returns
     -------
-    face_list : list of faces
+    face_list : list[topobj.Face]
         A list of faces.
     """
     return shell.face_list
 
-def faces_frm_solid(solid):
+def faces_frm_solid(solid: topobj.Solid) -> list[topobj.Face]:
     """
     Return faces from solid.
  
     Parameters
     ----------
-    solid : topo object
+    solid : topobj.Solid
         the topo object to explore.
         
     Returns
     -------
-    face_list : list of faces
+    face_list : list[topobj.Face]
         A list of faces.
     """
     shell = solid.shell
     return shell.face_list
 
-def faces_frm_composite(composite):
+def faces_frm_composite(composite: topobj.Composite) -> list[topobj.Face]:
     """
     Return faces from composite.
  
     Parameters
     ----------
-    composite : topo object
+    composite : topobj.Composite
         the topo object to explore.
         
     Returns
     -------
-    face_list : list of faces
+    face_list : list[topobj.Face]
         A list of faces.
     """
     sorted_d = unpack_composite(composite)
@@ -659,34 +659,34 @@ def faces_frm_composite(composite):
         
     return face_list
 
-def shell_frm_solid(solid):
+def shell_frm_solid(solid: topobj.Solid) -> topobj.Shell:
     """
     Return shell from solid.
  
     Parameters
     ----------
-    solid : topo object
+    solid : topobj.Solid
         the topo object to explore.
         
     Returns
     -------
-    shel; : shell object
+    shel; : topobj.Shell
         A shell object.
     """
     return solid.shell
 
-def shells_frm_composite(composite):
+def shells_frm_composite(composite: topobj.Composite) -> list[topobj.Shell]:
     """
     Return shells from composite.
  
     Parameters
     ----------
-    composite : topo object
+    composite : topobj.Composite
         the topo object to explore.
         
     Returns
     -------
-    shell_list : list of shells
+    shell_list : list[topobj.Shell]
         A list of shells.
     """
     sorted_d = unpack_composite(composite)
@@ -704,18 +704,18 @@ def shells_frm_composite(composite):
         
     return shell_list
 
-def solids_frm_composite(composite):
+def solids_frm_composite(composite: topobj.Composite) -> list[topobj.Solid]:
     """
     Return shells from composite.
  
     Parameters
     ----------
-    composite : topo object
+    composite : topobj.Composite
         the topo object to explore.
         
     Returns
     -------
-    solid_list : list of solids
+    solid_list : list[topobj.Solid]
         A list of solids.
     """
     sorted_d = unpack_composite(composite)
@@ -727,18 +727,18 @@ def solids_frm_composite(composite):
                     
     return solid_list
     
-def unpack_composite(composite):
+def unpack_composite(composite: topobj.Composite) -> dict:
     """
     Return a dictionary sorted into 'vertex', 'edge', 'face', 'shell', 'solid' keywords.
  
     Parameters
     ----------
-    composite : topo object
+    composite : topobj.Composite
         the topo object to explore.
         
     Returns
     -------
-    sorted_dictionary : dictionary
+    sorted_dictionary : dict
         A dictionary of sorted topology.
     """
     
@@ -766,21 +766,21 @@ def unpack_composite(composite):
     
     return sorted_d
 
-def topo_explorer(topo2explore, topo2find):
+def topo_explorer(topo2explore: topobj.Topology, topo2find: topobj.TopoType) -> list[topobj.Topology]:
     """
     Explore a topology and return the topology of interest if exist.
  
     Parameters
     ----------
-    topo2explore : topo object
+    topo2explore : topobj.Topology
         the topo object to explore.
         
-    topo2find : TopoType Object
+    topo2find : topobj.TopoType
         The topology object to find in the topo2xplore.
  
     Returns
     -------
-    topo_list : list of topo
+    topo_list : list[topobj.Topology]
         A list of topo found, return empty list if nothing is found.
     """
     found_topos = np.array([])
