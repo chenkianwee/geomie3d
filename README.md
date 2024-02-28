@@ -1,5 +1,5 @@
 # geomie3d
-- documentation can be found at chenkianwee.github.io/geomie3d
+- documentation can be found at https://chenkianwee.github.io/geomie3d
 
 ## dependencies
 - numpy
