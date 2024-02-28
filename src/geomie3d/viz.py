@@ -451,7 +451,7 @@ def viz_falsecolour(topo_list, results, false_min_max_val = None, other_topo_dli
     win.view3d.addItem(gl.GLAxisItem())
     cmp = create.composite(topo_list)
     bbox = calculate.bbox_frm_topo(cmp)
-    midpt = calculate.bbox_centre(bbox)
+    midpt = calculate.bboxes_centre([bbox])[0]
     win.view3d.opts['center'] = QtGui.QVector3D(midpt[0], midpt[1], midpt[2])
     
     lwr_left = [bbox.minx, bbox.miny, bbox.minz]
@@ -676,7 +676,7 @@ def viz_st(topo_2dlist, results2d, topo_datetime_ls, xvalues2d, yvalues2d, colou
             if zoom_extent == True:
                 cmp = create.composite(topo_list)
                 bbox = calculate.bbox_frm_topo(cmp)
-                midpt = calculate.bbox_centre(bbox)
+                midpt = calculate.bboxes_centre([bbox])[0]
                 self.view3d.opts['center'] = QtGui.QVector3D(midpt[0], midpt[1], midpt[2])
                 
                 lwr_left = [bbox.minx, bbox.miny, bbox.minz]
@@ -999,7 +999,7 @@ def viz_animate_falsecolour(topo_2dlist, results2d, topo_datetime_ls, false_min_
             if zoom_extent == True:
                 cmp = create.composite(topo_list)
                 bbox = calculate.bbox_frm_topo(cmp)
-                midpt = calculate.bbox_centre(bbox)
+                midpt = calculate.bboxes_centre([bbox])[0]
                 self.view3d.opts['center'] = QtGui.QVector3D(midpt[0], midpt[1], midpt[2])
                 
                 
@@ -1117,7 +1117,7 @@ def viz_animate(topo_2ddlist: list[list[dict]], topo_datetime_ls: list[datetime.
             bbox_list = _convert_topo_dictionary_list4viz(topo_dlist, self.view3d, gl_option = self.gl_option)
             if zoom_extent == True:
                 overall_bbox = calculate.bbox_frm_bboxes(bbox_list)
-                midpt = calculate.bbox_centre(overall_bbox)
+                midpt = calculate.bboxes_centre([overall_bbox])[0]
                 self.view3d.opts['center'] = QtGui.QVector3D(midpt[0], midpt[1], midpt[2])
                 
                 lwr_left = [overall_bbox.minx, overall_bbox.miny, overall_bbox.minz]
@@ -1537,7 +1537,7 @@ def _convert_topo_dictionary_list4viz(topo_dictionary_list, view3d, gl_option='o
             att = topo.attributes
             if att2viz in att.keys():
                 bbox = calculate.bbox_frm_topo(topo)
-                pos = calculate.bbox_centre(bbox)
+                pos = calculate.bboxes_centre([bbox])[0]
                 txt = gl.GLTextItem(pos=pos, text=str(att[att2viz]))
                 txts.append(txt)
                 

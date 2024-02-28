@@ -23,117 +23,104 @@ from . import calculate
 import numpy as np 
 
 class Point(object):
-    """
-    A point geometry
-    
-    Parameters
-    ----------
-    xyz : tuple
-        The xyz coordinates
-    
-    Attributes
-    ----------    
-    xyz : 1D ndarry
-        1D array specifying the xyz coordinates
+    def __init__(self, xyz: np.ndarray):
+        """
+        A point geometry
         
-    """
-    def __init__(self, xyz):
-        """Initialises the class"""
+        Parameters
+        ----------
+        xyz : tuple
+            The xyz coordinates
+        """
         if type(xyz) != np.ndarray:
             xyz = np.array(xyz)
-        self.xyz = xyz
+
+        self.xyz: np.ndarray = xyz
+        """array specifying the xyz coordinates"""
         
 class CurveType(Enum):
-    
+    """
+    There are two types of curve types
+    """
     POLYLINE = 0
+    """POLYLINE = 0"""
     BSPLINE = 1
-    
+    """BSPLINE = 1"""
+
 class PolylineCurve(object):
-    """
-    A curve geometry
-    
-    Parameters
-    ----------
-    point_list : List of Point Geometry
-        List of Point Geometry
+    def __init__(self, point_list: list[Point]):
+        """
+        A curve geometry
         
-    Attributes
-    ----------    
-    point_list : List of Point Geometry
-        List of Point Geometry
-    
-    """
-    def __init__(self, point_list):
-        """Initialises the class"""
+        Parameters
+        ----------
+        point_list :list[Point]
+            list[Point]
+        """
         if type(point_list) != np.ndarray:
             point_list = np.array(point_list)
-        self.curve_type = CurveType.POLYLINE
-        self.point_list = point_list
+
+        self.curve_type: CurveType = CurveType.POLYLINE
+        """Curve type POLYLINE"""
+        self.point_list: list[Point] = point_list
+        """list[Point]"""
         
 class Surface(object):
-    """
-    base class of all surface geometry
-    
-    Parameters
-    ----------
-    point_list : List of Point Geometry
-        List of Point Geometry
-    
-    Attributes
-    ----------    
-    point_list : List of Point Geometry
-        List of Point Geometry
-        
-    """
     def __init__(self):
-        """Initialises the class"""
-        self.normal = None
+        """
+        base class of all surface geometry
+        """
+        self.normal: np.ndarray = None
+        """normal of the surface"""
 
 
 class SrfType(Enum):
-    
+    """
+    There are two types of surfaces
+    """
     POLYGON = 0
+    """POLYGON = 0"""
     BSPLINE = 1
-
+    """BPSLINE = 1"""
 
 class PolygonSurface(Surface):
-    """
-    A polygon surface geometry
-    
-    Parameters
-    ----------
-    point_list : List of Point Geometry
-        List of Point Geometry defining the boundary of the polygon
+    def __init__(self, point_list: list[Point], hole_point_2dlist: list[list[Point]] = []):
+        """
+        A polygon surface geometry
         
-    hole_point_2dlist : 2D list of Point Geometry, optional
-        2d list of Point Geometry defining the holes of the polygon
-    
-    Attributes
-    ----------    
-    point_list : List of Point Geometry
-        List of Point Geometry defining the boundary of the polygon
-        
-    hole_point_2dlist : 2D list of Point Geometry
-        2d list of Point Geometry defining the holes of the polygon
-        
-    """
-    def __init__(self, point_list, hole_point_2dlist = []):
-        """Initialises the class"""
+        Parameters
+        ----------
+        point_list : list[Point]
+            List of Point Geometry defining the boundary of the polygon
+            
+        hole_point_2dlist : list[list[Point]], optional
+            2d list of Point Geometry defining the holes of the polygon
+
+        """
         super(PolygonSurface, self).__init__()
         if type(point_list) != np.ndarray:
             point_list = np.array(point_list)
-            
-        self.surface_type = SrfType.POLYGON
-        self.hole_point_2dlist = None
+        
+        self.point_list: list[Point] = point_list
+        """List of Point Geometry defining the boundary of the polygon"""
+
+        self.surface_type: SrfType = SrfType.POLYGON
+        """Surface type POLYGON"""
+
+        self.hole_point_2dlist: list[list[Point]] = None
+        """2d list of Point Geometry defining the holes of the polygon"""
+
         if len(hole_point_2dlist) !=0:
             if type(hole_point_2dlist) != np.ndarray:
                 hole_point_2dlist = np.array(hole_point_2dlist)
             self.hole_point_2dlist = hole_point_2dlist
         
-        self.point_list = point_list
         self.calc_normal()
     
     def calc_normal(self):
+        """
+        calculates the normal of the surface
+        """
         point_list = self.point_list
         #calculate the normal of the surface
         xyz_list = [point.xyz for point in point_list]
@@ -143,7 +130,18 @@ class PolygonSurface(Surface):
         normal = calculate.normalise_vectors(normal)
         self.normal = normal
     
-    def update(self, point_list,  hole_point_2dlist = []):
+    def update(self, point_list: list[Point],  hole_point_2dlist: list[list[Point]] = []):
+        """
+        updates the boundary and holes of the surface
+        
+        Parameters
+        ----------
+        point_list : list[Point]
+            List of Point Geometry defining the boundary of the polygon
+            
+        hole_point_2dlist : list[list[Point]], optional
+            2d list of Point Geometry defining the holes of the polygon
+        """
         self.point_list = point_list
         self.hole_point_2dlist = None
         if len(hole_point_2dlist) !=0:

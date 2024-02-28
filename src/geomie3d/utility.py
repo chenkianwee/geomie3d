@@ -32,33 +32,20 @@ from . import create
 from . import topobj
 
 class CoordinateSystem(object):
-    """
-    A coordinate system object
-    
-    Parameters
-    ----------
-    origin : tuple
-        The xyz defining the origin.
-        
-    x_dir : tuple
-        The xyz of a vector defining the x-axis
-        
-    y_dir : tuple
-        The xyz of a vector defining the y-axis  
-    
-    Attributes
-    ----------    
-    origin : tuple
-        The xyz defining the origin.
-        
-    x_dir : tuple
-        The xyz of a vector defining the x-axis.
-        
-    y_dir : tuple
-        The xyz of a vector defining the y-axis.
-    """
     def __init__(self, origin, x_dir, y_dir):
-        """Initialises the class"""
+        """A coordinate system object
+    
+        Parameters
+        ----------
+        origin : tuple
+            The xyz defining the origin.
+            
+        x_dir : tuple
+            The xyz of a vector defining the x-axis
+            
+        y_dir : tuple
+            The xyz of a vector defining the y-axis
+        """
         if type(origin) != np.ndarray:
             origin = np.array(origin)
         if type(x_dir) != np.ndarray:
@@ -66,44 +53,41 @@ class CoordinateSystem(object):
         if type(y_dir) != np.ndarray:
             y_dir = np.array(y_dir)
             
-        self.origin = origin
-        self.x_dir = x_dir
-        self.y_dir = y_dir
+        self.origin: np.ndarray = origin
+        """The xyz defining the origin"""
+        self.x_dir: np.ndarray = x_dir
+        """The xyz of a vector defining the x-axis"""
+        self.y_dir: np.ndarray = y_dir
+        """The xyz of a vector defining the y-axis"""
 
 class Ray(object):
-    """
-    A ray object
-    
-    Parameters
-    ----------
-    origin : tuple
-        The xyz defining the origin.
-        
-    dirx : tuple
-        The direction of the ray
-    
-    attributes : dictionary, optional
-        dictionary of the attributes.
-        
-    Attributes
-    ----------    
-    origin : tuple
-        The xyz defining the origin.
-        
-    dirx : tuple
-        The direction of the ray
-        
-    """
     def __init__(self, origin, dirx, attributes = {}):
-        """Initialises the class"""
+        """
+        A ray object
+        
+        Parameters
+        ----------
+        origin : tuple
+            The xyz defining the origin.
+            
+        dirx : tuple
+            The direction of the ray
+        
+        attributes : dictionary, optional
+            dictionary of the attributes.
+
+        """
         if type(origin) != np.ndarray:
             origin = np.array(origin)
         if type(dirx) != np.ndarray:
             dirx = np.array(dirx)
             
-        self.origin = origin
-        self.dirx = dirx
-        self.attributes = attributes
+        self.origin: np.ndarray = origin
+        """The xyz defining the origin"""
+        self.dirx: np.ndarray = dirx
+        """The direction of the ray"""
+        self.attributes: dict = attributes
+        """dictionary of the attributes"""
     
     def overwrite_attributes(self, new_attributes):
         """
@@ -131,57 +115,37 @@ class Ray(object):
         self.attributes = update_att 
 
 class Bbox(object):
-    """
-    A bounding box object
-    
-    Parameters
-    ----------
-    bbox_arr : tuple
-        Array specifying [minx, miny, minz, maxx, maxy, maxz].
-        
-    attributes : dictionary, optional
-        dictionary of the attributes.
-        
-    Attributes
-    ----------    
-    bbox_arr : np.ndarray
-        Array of [minx, miny, minz, maxx, maxy, maxz].
-        
-    minx : float
-        The min x.
-    
-    miny : float
-        The min y.
-        
-    minz : float
-        The min z.
-        
-    maxx : float
-        The max x.
-        
-    maxy : float
-        The max y.
-        
-    maxz : float
-        The max z.
-        
-    attributes : dictionary
-        dictionary of the attributes
-        
-    """
     def __init__(self, bbox_arr, attributes = {}):
-        """Initialises the class"""
+        """
+        A bounding box object
+        
+        Parameters
+        ----------
+        bbox_arr : tuple
+            Array specifying [minx, miny, minz, maxx, maxy, maxz].
+            
+        attributes : dictionary, optional
+            dictionary of the attributes.
+        """
         if type(bbox_arr) != np.ndarray:
             bbox_arr = np.array(bbox_arr)
         
-        self.bbox_arr = bbox_arr
-        self.minx = bbox_arr[0]
-        self.miny = bbox_arr[1]
-        self.minz = bbox_arr[2]
-        self.maxx = bbox_arr[3]
-        self.maxy = bbox_arr[4]
-        self.maxz = bbox_arr[5]
-        self.attributes = attributes
+        self.bbox_arr: np.ndarray = bbox_arr
+        """Array of [minx, miny, minz, maxx, maxy, maxz]"""
+        self.minx: float = bbox_arr[0]
+        """The min x"""
+        self.miny: float = bbox_arr[1]
+        """The min y"""
+        self.minz: float = bbox_arr[2]
+        """The min z"""
+        self.maxx: float = bbox_arr[3]
+        """The max x"""
+        self.maxy: float = bbox_arr[4]
+        """The max y"""
+        self.maxz: float = bbox_arr[5]
+        """The max z"""
+        self.attributes: dict = attributes
+        """dictionary of the attributes"""
     
     def overwrite_attributes(self, new_attributes):
         """

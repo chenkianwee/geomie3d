@@ -22,60 +22,62 @@ from enum import Enum
 from . import geom
 from . import get
 from . import create
-from .geomdl import construct, operations
+from .geomdl import construct, operations, BSpline
 import numpy as np
 
 class TopoType(Enum):
-    
+    """
+    There are 7 types of topology
+    """
     VERTEX = 0
+    """VERTEX = 0"""
     EDGE = 1
+    """EDGE = 1"""
     WIRE = 2
+    """WIRE = 2"""
     FACE = 3
+    """FACE = 3"""
     SHELL = 4
+    """SHELL = 4"""
     SOLID = 5
+    """SOLID = 5"""
     COMPOSITE = 6
+    """COMPOSITE = 6"""
 
 class Topology(object):
-    """
-    base class of all topology
-    
-    Parameters
-    ----------
-    attributes : dictionary, optional
-        The dictionary of attributes appended to the object.
+    def __init__(self, attributes: dict = {}):
+        """
+        base class of all topology
         
-    Attributes
-    ----------    
-    attributes : dictionary
-        The dictionary of attributes appended to the object.
+        Parameters
+        ----------
+        attributes : dict, optional
+            The dictionary of attributes appended to the object.
+            
+        """
+        self.attributes: dict = attributes
+        """The dictionary of attributes appended to the object."""
+        self.is_topo: bool = True
+        """an attribute to identify the object as a topology object"""
     
-    is_topo : bool
-        an attribute to identify the object as a topology object.
-        
-    """
-    def __init__(self, attributes = {}):
-        """Initialises the class"""
-        self.attributes = attributes
-        self.is_topo = True
-    
-    def overwrite_attributes(self, new_attributes):
+    def overwrite_attributes(self, new_attributes: dict):
         """
         This function overwrites the attribute dictionary with the new dictionary.
      
         Parameters
         ----------
-        new_attributes : dictionary
+        new_attributes : dict
             The dictionary of attributes appended to the object.
         """
         self.attributes = new_attributes
         
-    def update_attributes(self, new_attributes):
+    def update_attributes(self, new_attributes: dict):
         """
         This function overwrites the attribute dictionary with the new dictionary.
      
         Parameters
         ----------
-        new_attributes : dictionary
+        new_attributes : dict
             The dictionary of attributes appended to the object.
         """
         old_att = self.attributes
@@ -84,30 +86,25 @@ class Topology(object):
         self.attributes = update_att
 
 class Vertex(Topology):
-    """
-    A vertex object
-    
-    Parameters
-    ----------
-    point : Point Object
-        The Point Geometry
+    def __init__(self, point: geom.Point, attributes: dict = {}):
+        """
+        A vertex object
         
-    attributes : dictionary, optional
-        The dictionary of attributes appended to the object.
-    
-    Attributes
-    ----------    
-    point : Point Object
-        The Point Object.
-        
-    attributes : dictionary
-        The dictionary of attributes appended to the object.
-    """
-    def __init__(self, point, attributes = {}):
-        """Initialises the class"""
+        Parameters
+        ----------
+        point : geom.Point
+            The Point Geometry
+            
+        attributes : dict, optional
+            The dictionary of attributes appended to the object.
+
+        """
         super(Vertex, self).__init__(attributes = attributes)
-        self.topo_type = TopoType.VERTEX
-        self.point = point
+        self.topo_type: TopoType = TopoType.VERTEX
+        """TopoType.VERTEX"""
+
+        self.point: geom.Point = point
+        """The Point Object"""
     
     def to_dict(self):
         """
@@ -117,51 +114,38 @@ class Vertex(Topology):
         return topod
         
 class Edge(Topology):
-    """
-    An edge object
-    
-    Parameters
-    ----------
-    attributes : dictionary, optional
-        The dictionary of attributes appended to the object.
-    
-    Attributes
-    ----------
-    curve_type : interger
-        0 = polyline
+    def __init__(self, attributes:dict = {}):
+        """
+        An edge object
         
-    curve : Curve Object
-        The curve Geometry
+        Parameters
+        ----------
+        attributes : dict, optional
+            The dictionary of attributes appended to the object.
         
-    vertex_list : list of vertex Object
-        The vertices that defines the curve in the edge.
-    
-    start_vertex : vertex object
-        The starting vertex.
-    
-    end_vertex : vertex object
-        The end vertex.
-        
-    attributes : dictionary
-        The dictionary of attributes appended to the object.
-    """
-    def __init__(self, attributes = {}):
-        """Initialises the class"""
+        """
         super(Edge, self).__init__(attributes = attributes)
-        self.topo_type = TopoType.EDGE
-        self.curve_type = None
+
+        self.topo_type: TopoType = TopoType.EDGE
+        """TopoType.EDGE"""
+        self.curve_type: geom.CurveType = None
+        """CurveType can be either 0 = POLYLINE or 1 = BSPLINE"""
         self.curve = None
-        self.vertex_list = None
-        self.start_vertex = None
-        self.end_vertex = None
+        """The curve Geometry can be either geom.PolylineCurve or BSPLINE CURVE from nurbs python"""
+        self.vertex_list: list[Vertex] = None
+        """The vertices that defines the curve in the edge"""
+        self.start_vertex: Vertex = None
+        """The starting vertex"""
+        self.end_vertex: Vertex = None
+        """The end vertex"""
         
-    def add_polyline_curve(self, vertex_list):
+    def add_polyline_curve(self, vertex_list: list[Vertex]):
         """
         This function creates a polyline edge topology.
      
         Parameters
         ----------
-        vertex_list : list of vertex Object
+        vertex_list : list[Vertex]
             The vertices that defines the polyline in the edge.
         """        
         self.curve_type = geom.CurveType.POLYLINE
@@ -172,13 +156,13 @@ class Edge(Topology):
         curve = geom.PolylineCurve(point_list)
         self.curve = curve
     
-    def add_bspline_curve(self, bspline_crv):
+    def add_bspline_curve(self, bspline_crv: BSpline.Curve):
         """
         This function creates a bspline edge topology.
      
         Parameters
         ----------
-        bspline_crv : geomdl.BSPLINE crv
+        bspline_crv : BSpline.Curve
             The bspline curve from NURBS-python.
         """
         self.curve_type = geom.CurveType.BSPLINE
@@ -207,32 +191,27 @@ class Edge(Topology):
         return topod
         
 class Wire(Topology):
-    """
-    A wire object
-    
-    Parameters
-    ----------
-    edge_list : List of Edge Objects
-        List of Edge Topology
-    
-    attributes : dictionary, optional
-        The dictionary of attributes appended to the object.
-    
-    Attributes
-    ----------    
-    edge_list : List of Edge Objects
-        List of Edge Topology
+    def __init__(self, edge_list: list[Edge], attributes: dict = {}):
+        """
+        A wire object
         
-    attributes : dictionary
-        The dictionary of attributes appended to the object.
-    """
-    def __init__(self, edge_list, attributes = {}):
-        """Initialises the class"""
+        Parameters
+        ----------
+        edge_list : list[Edge]
+            List of Edge Topology
+        
+        attributes : dict, optional
+            The dictionary of attributes appended to the object.
+        
+        """
         super(Wire, self).__init__(attributes = attributes)
         if type(edge_list) != np.ndarray:
             edge_list = np.array(edge_list)
-        self.topo_type = TopoType.WIRE
-        self.edge_list = edge_list
+
+        self.topo_type: TopoType = TopoType.WIRE
+        """TopoType.WIRE"""
+        self.edge_list: list[Edge] = edge_list
+        """List of Edge Topology"""
     
     def to_dict(self):
         """
@@ -242,54 +221,39 @@ class Wire(Topology):
         return topod
         
 class Face(Topology):
-    """
-    A face object
-    
-    Parameters
-    ----------
-    surface : Surface Object
-        The Surface Geometry
+    def __init__(self, attributes:dict = {}):
+        """
+        A face object
         
-    attributes : dictionary, optional
-        The dictionary of attributes appended to the object.
-    
-    Attributes
-    ----------
-    surface_type : interger
-        0 = polygon
-        
-    surface : Surface Object
-        The Surface Geometry
-        
-    bdry_wire : Wire Object
-        The wire object that defines the outer boundary of the face.
-    
-    hole_wire_list : list of wire Object
-        The list of wire objects that define the holes in the face.
-    
-    attributes : dictionary
-        The dictionary of attributes appended to the object.
-    """
-    def __init__(self, attributes = {}):
-        """Initialises the class"""
+        Parameters
+        ----------
+        attributes : dict, optional
+            The dictionary of attributes appended to the object.
+        """
         super(Face, self).__init__(attributes = attributes)
-        self.topo_type = TopoType.FACE
-        self.surface_type = None
+        self.topo_type: TopoType = TopoType.FACE
+        """TopoType.FACE"""
+        self.surface_type: geom.SrfType = None
+        """geom.SrfType"""
         self.surface = None
-        self.bdry_wire = None
-        self.hole_wire_list = None
-        self.normal = None
-        
-    def add_polygon_surface(self, bdry_wire, hole_wire_list = []):
+        """The Surface Geometry"""
+        self.bdry_wire: Wire = None
+        """The wire object that defines the outer boundary of the face"""
+        self.hole_wire_list: list[Wire] = None
+        """The list of wire objects that define the holes in the face"""
+        self.normal: np.ndarray = None
+        """the normal of the face"""
+
+    def add_polygon_surface(self, bdry_wire: Wire, hole_wire_list: list[Wire] = []):
         """
         This function adds a polygon to the face object.
      
         Parameters
         ----------
-        bdry_wire : Wire Object
+        bdry_wire : Wire
         The wire object that defines the outer boundary of the face.
     
-        hole_wire_list : list of wire Object, optional
+        hole_wire_list : list[Wire], optional
             The list of wire objects that define the holes in the face.
      
         """
@@ -324,13 +288,13 @@ class Face(Topology):
         srf.update(pt_list,  hole_point_2dlist = hole_point_2dlist)
         self.normal = srf.normal
         
-    def add_bspline_surface(self, bspline_srf):
+    def add_bspline_surface(self, bspline_srf: BSpline.Surface):
         """
         This function adds a polygon to the face object.
      
         Parameters
         ----------
-        bspline_srf : geomdl.BSPLINE srf
+        bspline_srf : BSpline.Surface
             The wire object that defines the outer boundary of the face.
     
         """
@@ -386,31 +350,28 @@ class Face(Topology):
         return topod
     
 class Shell(Topology):
-    """
-    A shell object
-    
-    Parameters
-    ----------
-    face_list : List of Face Objects
-        List of Face Topology
-    
-    Attributes
-    ----------    
-    face_list : List of Face Objects
-        List of Face Topology
+    def __init__(self, face_list: list[Face], attributes: dict = {}):
+        """
+        A shell object
         
-    attributes : dictionary
-        The dictionary of attributes appended to the object.
-    """
-    def __init__(self, face_list, attributes = {}):
-        """Initialises the class"""
+        Parameters
+        ----------
+        face_list : list[Face]
+            List of Face Topology
+        
+        attributes: dict, optional
+            dictionary of attributes
+        """
         super(Shell, self).__init__(attributes = attributes)
         if type(face_list) != np.ndarray:
             face_list = np.array(face_list)
             
-        self.topo_type = TopoType.SHELL
-        self.face_list = face_list
-        self.attributes = attributes
+        self.topo_type: TopoType = TopoType.SHELL
+        """TopoType.SHELL"""
+        self.face_list: list[Face] = face_list
+        """List of connected faces"""
+        self.attributes: dict = attributes
+        """he dictionary of attributes appended to the object"""
     
     def to_dict(self):
         """
@@ -420,28 +381,23 @@ class Shell(Topology):
         return topod
 
 class Solid(Topology):
-    """
-    A solid object
-    
-    Parameters
-    ----------
-    shell : Shell Object
-        Shell Topology
-    
-    Attributes
-    ----------    
-    shell : Shell Object
-        Shell Topology
+    def __init__(self, shell: Shell, attributes: dict = {}):
+        """
+        A solid object
         
-    attributes : dictionary
-        The dictionary of attributes appended to the object.
-    """
-    def __init__(self, shell, attributes = {}):
-        """Initialises the class"""
+        Parameters
+        ----------
+        shell : Shell Object
+            the shell defining the solid
+
+        """
         super(Solid, self).__init__(attributes = attributes)
-        self.topo_type = TopoType.SOLID
-        self.shell = shell
-        self.attributes = attributes
+        self.topo_type: TopoType = TopoType.SOLID
+        """TopoType.SOLID"""
+        self.shell: Shell = shell
+        """the shell defining the solid"""
+        self.attributes: dict = attributes
+        """The dictionary of attributes appended to the object"""
     
     def to_dict(self):
         """
@@ -451,37 +407,39 @@ class Solid(Topology):
         return topod
 
 class Composite(Topology):
-    """
-    A composite object
-    
-    Parameters
-    ----------
-    topology_list : List of Topology
-        List of Topology
-    
-    Attributes
-    ----------    
-    topology_list : List of Topology
-        List of Topology
+    def __init__(self, topology_list: list[Topology], attributes = {}):
+        """
+        A composite object
         
-    attributes : dictionary
-        The dictionary of attributes appended to the object.
-    """
-    def __init__(self, topology_list, attributes = {}):
-        """Initialises the class"""
+        Parameters
+        ----------
+        topology_list : list[Topology]
+            List of Topology
+        
+        """
         super(Composite, self).__init__(attributes = attributes)
         if type(topology_list) != np.ndarray:
             topology_list = np.array(topology_list, dtype=object)
-        self.topo_type = TopoType.COMPOSITE
-        self.topology_list = topology_list
-        self.vertex_list = None
-        self.edge_list = None
-        self.wire_list = None
-        self.face_list = None
-        self.shell_list = None
-        self.solid_list = None
-        self.composite_list = None
-        self.composite_list2 = None
+        self.topo_type: TopoType = TopoType.COMPOSITE
+        """TopoType.COMPOSITE"""
+        self.topology_list: list[Topology] = topology_list
+        """List of Topology"""
+        self.vertex_list: list[Vertex] = None
+        """list of vertices"""
+        self.edge_list: list[Edge] = None
+        """list of edges"""
+        self.wire_list: list[Wire] = None
+        """list of wires"""
+        self.face_list: list[Face] = None
+        """list of faces"""
+        self.shell_list: list[Shell] = None
+        """list of shells"""
+        self.solid_list: list[Solid] = None
+        """list of solids"""
+        self.composite_list: list[Composite] = None
+        """list of composites"""
+        self.composite_list2: list[Composite] = None
+        """list of composites"""
         
     def sorted2dict(self):
         self.vertex_list = []
