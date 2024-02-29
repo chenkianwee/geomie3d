@@ -45,6 +45,8 @@ if sys.platform == 'linux' or sys.platform == 'linux2':
     # os.environ['QT_QPA_PLATFORM'] = 'wayland-egl'
     os.environ['PYOPENGL_PLATFORM'] = 'egl'
 
+QtCore.QCoreApplication.setAttribute(QtCore.Qt.ApplicationAttribute.AA_ShareOpenGLContexts)
+
 class BaseAnimate(QtWidgets.QWidget):
     def __init__(self, topo_unixtime: list[float], gl_option: str):
         """
@@ -1261,7 +1263,7 @@ class GraphView(QtWidgets.QWidget):
         for scatter in scatterplot_ls:
             self.p1.addItem(scatter)
 
-def viz(topo_dictionary_list: list[dict], gl_option: str = 'opaque', test: bool = False):
+def viz(topo_dictionary_list: list[dict], gl_option: str = 'opaque'):
     """
     This function visualises the topologies.
  
@@ -1277,17 +1279,14 @@ def viz(topo_dictionary_list: list[dict], gl_option: str = 'opaque', test: bool 
         - attribute: name of the attribute to viz
     gl_option : str, optional
         str describing the gl option for the 3d view, default is 'opqaue', can be 'opaque', 'additive', 'translucent' 
-    """     
-    #-----------------------------------------------------------------------------------------------------
-    QtCore.QCoreApplication.setAttribute(QtCore.Qt.ApplicationAttribute.AA_ShareOpenGLContexts)
+    """
     pg.mkQApp()
     win = VizTopo(topo_dictionary_list, gl_option)
     win.setWindowTitle("Viz")
     win.show()
     win.resize(1100,700)
-    if test == False:
-        if (sys.flags.interactive != 1) or not hasattr(QtCore, 'PYQT_VERSION'):
-            pg.exec()
+    if (sys.flags.interactive != 1) or not hasattr(QtCore, 'PYQT_VERSION'):
+        pg.exec()
         
 def viz_falsecolour(topo_list: list[topobj.Topology], results: list[float], false_min_max_val: list[float] = None, other_topo_dlist: list[dict] = [], 
                     gl_option: str = 'opaque'):
@@ -1317,8 +1316,6 @@ def viz_falsecolour(topo_list: list[topobj.Topology], results: list[float], fals
     gl_option : str, optional
         str describing the gl option for the 3d view, default is 'opqaue', can be 'opaque', 'additive', 'translucent' 
     """
-    QtCore.QCoreApplication.setAttribute(QtCore.Qt.ApplicationAttribute.AA_ShareOpenGLContexts)
-    
     pg.mkQApp()
     win = FalsecolourView()
     win.setWindowTitle("FalseColourView")
@@ -1451,8 +1448,7 @@ def viz_st(topo_2dlist: list[list[topobj.Topology]], results2d: list[list[float]
         
     gl_option : str, optional
         str describing the gl option for the 3d view, default is 'opqaue', can be 'opaque', 'additive', 'translucent' 
-    """
-    QtCore.QCoreApplication.setAttribute(QtCore.Qt.ApplicationAttribute.AA_ShareOpenGLContexts)
+    """    
     #convert the datetimes to unix timestamp
     unix43d = []
     for dt in topo_datetime_ls:
@@ -1545,9 +1541,7 @@ def viz_animate(topo_2ddlist: list[list[dict]], topo_datetime_ls: list[datetime.
     
     gl_option : str, optional
         str describing the gl option for the 3d view, default is 'opqaue', can be 'opaque', 'additive', 'translucent' 
-    """
-    QtCore.QCoreApplication.setAttribute(QtCore.Qt.ApplicationAttribute.AA_ShareOpenGLContexts)
-    
+    """    
     #convert the datetimes to unix timestamp
     unix43d = []
     for dt in topo_datetime_ls:
