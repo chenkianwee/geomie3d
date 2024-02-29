@@ -35,4 +35,4 @@ def test_viz_topo():
     face = geomie3d.create.polygon_face_frm_wires(bdry_wire, [hole_wire], attributes = f_att)
 
     viz_dict = {"topo_list":[face], "colour": [0,1,0,1], "attributes": []}
-    geomie3d.viz.viz([viz_dict], gl_option='opaque')
+    geomie3d.viz.viz([viz_dict], gl_option='opaque', test=True)
