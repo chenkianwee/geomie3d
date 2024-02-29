@@ -1261,7 +1261,7 @@ class GraphView(QtWidgets.QWidget):
         for scatter in scatterplot_ls:
             self.p1.addItem(scatter)
 
-def viz(topo_dictionary_list: list[dict], gl_option: str = 'opaque'):
+def viz(topo_dictionary_list: list[dict], gl_option: str = 'opaque', test: bool = False):
     """
     This function visualises the topologies.
  
@@ -1285,8 +1285,9 @@ def viz(topo_dictionary_list: list[dict], gl_option: str = 'opaque'):
     win.setWindowTitle("Viz")
     win.show()
     win.resize(1100,700)
-    if (sys.flags.interactive != 1) or not hasattr(QtCore, 'PYQT_VERSION'):
-        pg.exec()
+    if test == False:
+        if (sys.flags.interactive != 1) or not hasattr(QtCore, 'PYQT_VERSION'):
+            pg.exec()
         
 def viz_falsecolour(topo_list: list[topobj.Topology], results: list[float], false_min_max_val: list[float] = None, other_topo_dlist: list[dict] = [], 
                     gl_option: str = 'opaque'):

@@ -1,6 +1,4 @@
 import geomie3d
-import pyqtgraph as pg
-from pyqtgraph.Qt import QtCore
 
 def test_viz_topo():
     #defining the boundary wire
@@ -37,6 +35,4 @@ def test_viz_topo():
     face = geomie3d.create.polygon_face_frm_wires(bdry_wire, [hole_wire], attributes = f_att)
 
     viz_dict = {"topo_list":[face], "colour": [0,1,0,1], "attributes": []}
-    QtCore.QCoreApplication.setAttribute(QtCore.Qt.ApplicationAttribute.AA_ShareOpenGLContexts)
-    pg.mkQApp()
-    geomie3d.viz.VizTopo([viz_dict], gl_option='opaque')
+    geomie3d.viz.viz([viz_dict], gl_option='opaque', test=True)
