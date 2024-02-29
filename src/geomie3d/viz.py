@@ -754,7 +754,6 @@ class StView(BaseAnimate):
             _convert_topo_dictionary_list4viz(other_topo_dlist, self.view3d, gl_option = self.gl_option)
         
         self.view3d.addItem(legendbar)
-        # date_str = datetime.datetime.utcfromtimestamp(current_unix_time).strftime('%Y-%m-%dT%H:%M:%S')
         date_str = datetime.datetime.fromtimestamp(current_unix_time).strftime('%Y-%m-%dT%H:%M:%S')
         self.params.param('Parm3d').param('Current Date').setValue(date_str)
         
@@ -1084,7 +1083,6 @@ class AFalsecolour(BaseAnimate):
             _convert_topo_dictionary_list4viz(other_topo_dlist, self.view3d, gl_option = self.gl_option)
             
         self.view3d.addItem(legendbar)
-        # date_str = datetime.datetime.utcfromtimestamp(current_unix_time).strftime('%Y-%m-%dT%H:%M:%S')
         date_str = datetime.datetime.fromtimestamp(current_unix_time).strftime('%Y-%m-%dT%H:%M:%S')
         
         self.params.param('Parm3d').param('Current Date').setValue(date_str)
@@ -1195,7 +1193,6 @@ class AnimateTopo(BaseAnimate):
             dist = calculate.dist_btw_xyzs(lwr_left, upr_right)
             self.view3d.opts['distance'] = dist*1.5
         
-        # date_str = datetime.datetime.utcfromtimestamp(current_unix_time).strftime('%Y-%m-%dT%H:%M:%S')
         date_str = datetime.datetime.fromtimestamp(current_unix_time).strftime('%Y-%m-%dT%H:%M:%S')
         
         self.params.param('Parm3d').param('Current Date').setValue(date_str)
