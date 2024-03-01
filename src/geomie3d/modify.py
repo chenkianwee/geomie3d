@@ -427,7 +427,7 @@ def rotate_topo(topo: topobj.Topology, axis: list[float], rotation: float, ref_x
     if ref_xyz is None:
         #find the midpt of the topo and use that as the ref xyz
         bbox = calculate.bbox_frm_topo(topo)
-        ref_xyz = calculate.bbox_centre(bbox)
+        ref_xyz = calculate.bboxes_centre([bbox])[0]
     #move the topo to origin for the rotation
     tx = 0 - ref_xyz[0]
     ty = 0 - ref_xyz[1]
