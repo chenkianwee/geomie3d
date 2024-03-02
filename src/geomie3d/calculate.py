@@ -2194,7 +2194,7 @@ def find_faces_outline(face_list: list[topobj.Face]) -> tuple[list[topobj.Edge],
     non_dup_edges, dup_edges = find_non_dup_lineedges(edge_ls)
     return non_dup_edges, dup_edges
 
-def find_non_dup_lineedges(edge_list: list[topobj.Edge]) -> list[topobj.Edge]:
+def find_non_dup_lineedges(edge_list: list[topobj.Edge]) -> tuple[list[topobj.Edge], list[list[topobj.Edge]]]:
     """
     Find edges that are not duplicated.
     
@@ -2208,8 +2208,8 @@ def find_non_dup_lineedges(edge_list: list[topobj.Edge]) -> list[topobj.Edge]:
     non_dup_edges : list[topobj.Edge]
         list of non duplicated edges
     
-    dup_edges : list[topobj.Edge]
-        list[Shape(Any, Any)] of duplicated edges
+    dup_edges : list[list[topobj.Edge]]
+        list[shape(number of duplicates, Any)] of duplicated edges
     """
     edge_vert_list = [get.vertices_frm_edge(e) for e in edge_list]
     edge_xyz_ls = []
