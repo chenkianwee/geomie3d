@@ -321,7 +321,7 @@ def edges2lines(edge_list: list[topobj.Edge]) -> np.ndarray:
     Returns
     -------
     vertices : np.ndarray
-        np.ndarray(shape(Npoints,3)) vertices of the linea
+        np.ndarray(shape(number of edges, number of points in an edge, 3)) vertices of the line
     """
     all_xyzs = []
     
@@ -376,7 +376,7 @@ def move_topo(topo: topobj.Topology, target_xyz: list[float], ref_xyz: list[floa
     if ref_xyz is None:
         #find the midpt of the topo and use that as the ref xyz
         bbox = calculate.bbox_frm_topo(topo)
-        ref_xyz = calculate.bbox_centre(bbox)
+        ref_xyz = calculate.bboxes_centre([bbox])[0]
     tx = target_xyz[0] - ref_xyz[0]
     ty = target_xyz[1] - ref_xyz[1]
     tz = target_xyz[2] - ref_xyz[2]

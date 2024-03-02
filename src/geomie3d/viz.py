@@ -1503,7 +1503,6 @@ def viz_animate_falsecolour(topo_2dlist: list[list[topobj.Topology]], results2d:
     """
     
     #--------------------------------------------------------------------------------------------
-    QtCore.QCoreApplication.setAttribute(QtCore.Qt.ApplicationAttribute.AA_ShareOpenGLContexts)
     #convert the datetimes to unix timestamp
     unix43d = []
     for dt in topo_datetime_ls:
@@ -1547,7 +1546,7 @@ def viz_animate(topo_2ddlist: list[list[dict]], topo_datetime_ls: list[datetime.
         unix43d.append(unix_time)
     
     pg.mkQApp()
-    win = AnimateTopo(topo_2ddlist, unix43d, gl_option)
+    win = AnimateTopo(topo_2ddlist, unix43d, gl_option=gl_option)
     
     win.setWindowTitle("AnimateTopo")
     win.show()
@@ -1741,7 +1740,7 @@ def viz_vx_dict(vx_dict: dict, colour: str, wireframe: bool = True, gl_option: s
     vox_dim = vx_dict['voxel_dim']
     voxs = vx_dict['voxels']
     viz_ls = []
-    for cnt,key in enumerate(voxs.keys()):
+    for key in voxs.keys():
         vx = voxs[key]
         midpt = vx['midpt']
         box = create.box(vox_dim[0], vox_dim[1], vox_dim[2], centre_pt=midpt)
@@ -1835,7 +1834,7 @@ def _make_line(xyzs: np.ndarray, line_colour: list[float] = [0,0,0,1], width: fl
     line : gl.GLLinePlotItem
         line for visualisation.
     """
-    line = gl.GLLinePlotItem(pos=xyzs, color= line_colour, width=width, antialias=antialias, mode = mode)
+    line = gl.GLLinePlotItem(pos = xyzs, color = line_colour, width = width, antialias = antialias, mode = mode)
     return line
 
 def _make_points(xyzs: np.ndarray, point_colours: np.ndarray, sizes: float, pxMode: bool = True) -> gl.GLScatterPlotItem:
@@ -1946,7 +1945,6 @@ def _convert_topo_dictionary_list4viz(topo_dictionary_list, view3d, gl_option='o
         pt_size = [10]
         if 'point_size' in d.keys():
             pt_size = [d['point_size']]
-            
             
         px_mode = True
         if 'px_mode' in d.keys():
@@ -2110,7 +2108,7 @@ def _convert_topo_dictionary_list4viz(topo_dictionary_list, view3d, gl_option='o
             else:
                 line_ls = np.append(line_ls, line_vertices, axis=0)                
             
-            line_rgbs = np.repeat(rgb, len(all_edges)*2, axis=0)
+            line_rgbs = np.repeat(rgb, len(line_ls), axis=0)
             if line_rgb_ls is None:
                 line_rgb_ls = line_rgbs
             else:
@@ -2122,8 +2120,6 @@ def _convert_topo_dictionary_list4viz(topo_dictionary_list, view3d, gl_option='o
         bbox = calculate.bbox_frm_topo(cmp)
         bbox_list.append(bbox)
     
-    
-        
     #---------------------------------------------------------------------------------------------------
     # process the meshes
     if mesh_v_ls is not None:
