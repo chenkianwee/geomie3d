@@ -19,7 +19,7 @@
 #
 # ==================================================================================================
 import copy
-
+from itertools import chain
 import numpy as np
 
 from . import get
@@ -29,7 +29,6 @@ from . import calculate
 from . import geom
 from . import topobj
 from . import utility
-
 
 def fuse_vertices(vertex_list: list[topobj.Vertex], decimals: int = 6) -> list[topobj.Vertex]:
     """
@@ -257,11 +256,9 @@ def faces2mesh(face_list: list[topobj.Face]) -> dict:
     for f in face_list:
         srf_type = f.surface_type
         if srf_type == geom.SrfType.POLYGON or srf_type == geom.SrfType.BSPLINE:
-            # vs = get.vertices_frm_face(f)
-            # xyzs = [v.point.xyz for v in vs]
-            # print(xyzs)
+            vs = get.vertices_frm_face(f)
+            xyzs = [v.point.xyz for v in vs]
             xyzs_indxs = triangulate_face(f, indices = True)
-            # print(xyzs_indxs)
             if len(all_xyzs) == 0:
                 all_xyzs = xyzs_indxs[0]
             else:
@@ -361,7 +358,6 @@ def move_topo(topo: topobj.Topology, target_xyz: list[float], ref_xyz: list[floa
     #TODO: implement for bspline geometries
     topotype = topo.topo_type
     if topotype == topobj.TopoType.EDGE:
-        print('I am in bspline edge')
         if topo.curve_type == geom.CurveType.BSPLINE:
             print('not yet implemented for bspline curve')
             return None
@@ -546,7 +542,7 @@ def xyzs2voxs(xyzs: np.ndarray, xdim: float, ydim: float, zdim: float) -> dict:
     Parameters
     ----------
     xyzs : np.ndarray
-        array defining the point.
+        array defining the points.
     
     xdim : float
         x dimension of a voxel
@@ -594,5 +590,138 @@ def xyzs2voxs(xyzs: np.ndarray, xdim: float, ydim: float, zdim: float) -> dict:
     vox_props['voxels'] = voxs
     return vox_props
 
-def trsf_cs(cs1: utility.CoordinateSystem, cs2: utility.CoordinateSystem, topo: topobj.Topology) -> topobj.Topology:
-    pass
+def hmgnz_xyz2dlist(xyz_2dlist: list[list[list[float]]]) -> np.ndarray:
+    """
+    Turn a inhomogeneous 2d list of xyzs into a homogenous array for numpy.
+ 
+    Parameters
+    ----------    
+    xyz_2dlist : list[list[list[float]]]
+        list[shape(number of sets of points, number of points, 3)].
+ 
+    Returns
+    -------
+    hmgnz_xyzs : np.ndarray
+        np.ndarray[shape(number of sets of points, number of points(maximum set),3)], homogenized array of xyzs
+    """
+    nsets = len(xyz_2dlist)
+    each_set_cnt = []
+    for setx in xyz_2dlist:
+        each_set_cnt.append(len(setx))
+
+    each_set_cnt = np.array(each_set_cnt)
+    uniq = np.unique(each_set_cnt)
+    if len(uniq) == 1:
+        return np.array(xyz_2dlist)
+    else:
+        mx_cnt = max(each_set_cnt)
+        # find the indices of the space to insert empty arrays
+        idx_ls = []
+        diff_ttl = 0 
+        pt_cnt = 0
+        for npts in each_set_cnt:
+            diff = mx_cnt - npts
+            if diff != 0:
+                idx = npts - 1 + pt_cnt + 1
+                idxs = [idx]
+                idxs = np.repeat(idxs, diff, axis=0)
+                idx_ls.extend(idxs)
+            diff_ttl += diff
+            pt_cnt += npts
+        # generate empty arrs to fill in the empty slots
+        ins_xyzs = np.empty((diff_ttl, 3))
+        ins_xyzs.fill(np.nan)
+
+        flat = np.array(list(chain.from_iterable(xyz_2dlist)), dtype=float)
+        hmgnz_xyzs = np.insert(flat, idx_ls, ins_xyzs, axis=0)
+        hmgnz_xyzs = np.reshape(hmgnz_xyzs, (nsets, mx_cnt, 3))
+        return hmgnz_xyzs
+
+def trsf_topo_based_on_cs(topo: topobj.Topology, orig_cs: utility.CoordinateSystem, dest_cs: utility.CoordinateSystem) -> topobj.Topology:
+    """
+    transfer the topo from orig_cs to dest_cs.
+ 
+    Parameters
+    ----------
+    topo : topobj.Topology
+        the topos object to transfer.
+
+    orig_cs : utility.CoordinateSystem
+        the original coordinate system.
+    
+    dest_cs: utility.CoordinateSystem
+        the destination coordinate system.
+
+    trsf_mat: np.ndarray
+        np.ndarray[shape(number of matrices, 4, 4)], 4x4 matrices to transform the corresponding xyzs.
+     
+    Returns
+    -------
+    trsf_topo : topobj.Topology
+        trsf_topo
+    """
+    trsf_mat  = calculate.cs2cs_matrice(orig_cs, dest_cs)
+    trsf_topo = copy.deepcopy(topo)
+    vs = get.topo_explorer(trsf_topo, topobj.TopoType.VERTEX)
+    xyzs = np.array([v.point.xyz for v in vs])
+    trsf_xyzs = calculate.trsf_xyzs(xyzs, trsf_mat)
+    # assigned to transfered xyz back to the topo
+    for cnt,v in enumerate(vs): v.point.xyz = trsf_xyzs[cnt]
+    faces = get.topo_explorer(trsf_topo, topobj.TopoType.FACE)
+    if len(faces) != 0:
+        for f in faces:
+            f.update_polygon_surface()
+    return trsf_topo
+
+def trsf_topos(topos: list[topobj.Topology], trsf_mat: np.ndarray) -> list[topobj.Topology]:
+    """
+    apply 4x4 matrices to the list of topologies
+ 
+    Parameters
+    ----------
+    topos : list[topobj.Topology]
+        the topos object to move.
+        
+    trsf_mat: np.ndarray
+        np.ndarray[shape(number of matrices, 4, 4)], 4x4 matrices to transform the corresponding xyzs.
+     
+    Returns
+    -------
+    trsf_topos : list[topobj.Topology]
+        trsf_topo
+    """
+    #TODO: implement for bspline geometries
+    trsf_topos = []
+    xyzs_2d = []
+    vs_ls = []
+    for topo in topos:
+        topotype = topo.topo_type
+        if topotype == topobj.TopoType.EDGE:
+            if topo.curve_type == geom.CurveType.BSPLINE:
+                print('not yet implemented for bspline curve')
+                return None
+        
+        if topotype == topobj.TopoType.FACE:
+            if topo.surface_type == geom.SrfType.BSPLINE:
+                print('not yet implemented for bspline surface')
+                return None
+        
+        trsf_topo = copy.deepcopy(topo)
+        vs = get.topo_explorer(trsf_topo, topobj.TopoType.VERTEX)
+        xyzs = np.array([v.point.xyz for v in vs])
+        trsf_topos.append(trsf_topo)
+        xyzs_2d.append(xyzs)
+        vs_ls.append(vs)
+
+    xyzs_2d = np.array(xyzs_2d)
+    trsf_xyz_ls = calculate.trsf_xyzs(xyzs_2d, trsf_mat)
+    for tcnt, trsf_xyzs in enumerate(trsf_xyz_ls):
+        # assigned to moved xyz back to the topo
+        vs = vs_ls[tcnt]
+        for cnt,v in enumerate(vs): v.point.xyz = np.array(trsf_xyzs[cnt])
+        trsf_topo = trsf_topos[tcnt]
+        topo_faces = get.topo_explorer(trsf_topo, topobj.TopoType.FACE)
+        if len(topo_faces) != 0:
+            for tf in topo_faces:
+                tf.update_polygon_surface()
+    return trsf_topos

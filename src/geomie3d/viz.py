@@ -1872,7 +1872,7 @@ def _convert_topo_dictionary_list4viz(topo_dictionary_list, view3d, gl_option='o
     topo_dictionary_list : a list of dictionary
         A list of dictionary specifying the visualisation parameters.
         topo_list: the topos to visualise
-        colour:  keywords (RED,ORANGE,YELLOW,GREEN,BLUE,BLACK,WHITE) or rgb tuple to specify the colours
+        colour:  keywords (red,orange,yellow,green,blue,black,white) or rgb tuple to specify the colours
         draw_edges: bool whether to draw the edges of mesh, default is True
         point_size: size of the point
         px_mode: True or False, if true the size of the point is in pixel if not its in meters
@@ -2108,7 +2108,7 @@ def _convert_topo_dictionary_list4viz(topo_dictionary_list, view3d, gl_option='o
             else:
                 line_ls = np.append(line_ls, line_vertices, axis=0)                
             
-            line_rgbs = np.repeat(rgb, len(line_ls), axis=0)
+            line_rgbs = np.repeat(rgb, len(line_vertices), axis=0)
             if line_rgb_ls is None:
                 line_rgb_ls = line_rgbs
             else:

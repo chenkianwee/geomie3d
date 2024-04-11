@@ -145,6 +145,7 @@ def boxes_frm_bboxes(bbox_ls: list[utility.Bbox]) -> list[topobj.Topology]:
         dimx = bbox.maxx - bbox.minx
         dimy = bbox.maxy - bbox.miny
         dimz = bbox.maxz - bbox.minz
+        #TODO THIS IS NOT RIGHT YOU CAN HAVE DIMX, DIMY OR DIMZ = 0
         if dimz != 0:
             topo = box(dimx, dimy, dimz, centre_pt = midxyz)
         else:
@@ -226,7 +227,7 @@ def xyzs_frm_bboxes(bbox_ls: list[utility.Bbox]) -> np.ndarray:
     Returns
     -------
     xyzs : np.ndarray
-        np.ndarray(shape(4, 3)). Bounding box is defined by 4 points.
+        np.ndarray(shape(8, 3)). Bounding box is defined by 8 points.
     """
     bbox_arr_ls = np.array([bbox.bbox_arr for bbox in bbox_ls])
     
@@ -605,7 +606,6 @@ def vertex_list(xyz_list: np.ndarray, attributes_list: list[dict] = []) -> list[
     """
     nxyz = len(xyz_list)
     natts = len(attributes_list)
-    
     #check if the list match
     is_atts = False
     if natts != 0:

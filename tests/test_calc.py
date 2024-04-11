@@ -412,41 +412,31 @@ def test_calc_rays_faces_intersect():
             miss_vlist.append(edge)
 
 def test_calc_trsf():
-    #add an extra column to the points
-    xyzs = np.array([[0,0,0], [0,0,1]])
-    nxyz = len(xyzs)
-    xyzw = np.ones((nxyz,4))
-    xyzw[:,:-1] = xyzs
-
-    trst_mat = geomie3d.calculate.translate_matrice(0, 0, 0)
-    rot_mat = geomie3d.calculate.rotate_matrice((1,0,0), -90)
-
-    xyz3 = np.dot(xyzw, rot_mat.T)
-
-    #compose matrix
-    compose = trst_mat@rot_mat
-    xyz4 = np.dot(xyzw, compose.T)
-
-    #inverse the matrix to return the point to normal
-    rot_mat_inv = np.linalg.inv(rot_mat)
-    xyz4 = np.dot(xyz3, rot_mat_inv.T)
-
-    #remove the last column of the points
-    trsf_xyzs = xyz4[:,:-1]
-
     box = geomie3d.create.box(1, 1, 1)
     trsl_mat = geomie3d.calculate.translate_matrice(1, 1, 0)
-    rot_mat = geomie3d.calculate.rotate_matrice((0,0,1), -60)
-    trsl_mat2 = geomie3d.calculate.inverse_matrice(trsl_mat)
+    rot_mat = geomie3d.calculate.rotate_matrice((0,0,1), 60.0)
 
     verts = geomie3d.get.vertices_frm_solid(box)
     xyzs = [v.point.xyz for v in verts]
-    # trsf_xyzs = geomie3d.calculate.trsf_xyzs(xyzs, rot_mat@trsl_mat)
-    trsf_xyzs = geomie3d.calculate.trsf_xyzs(xyzs, rot_mat)
+    trsf_xyzs = geomie3d.calculate.trsf_xyzs(xyzs, rot_mat@trsl_mat)
     cnt = 0
     for v in verts: 
         v.point.xyz = trsf_xyzs[cnt] 
         cnt+=1
+
+    bx_face = geomie3d.get.faces_frm_solid(box)
+    for bf in bx_face:
+        bf.update_polygon_surface()
+
+def test_calc_trsf2():
+    xyz_2dlist = [[[0,0,0], [0,0,1], [1,0,1]],
+              [[0,0,0], [0,0,1]],
+              [[0,0,0], [0,0,1]]]
+
+    trst_mat = geomie3d.calculate.translate_matrice(10, 0, 0)
+    trst_mat2 = geomie3d.calculate.translate_matrice(0, 10, 0)
+    rot_mat = geomie3d.calculate.rotate_matrice((1,0,0), -90)
+    trsf_xyzs = geomie3d.calculate.trsf_xyzs(xyz_2dlist, [trst_mat, trst_mat2, rot_mat])
 
 def test_calculate_angle_btw_2vectors():
     v1 = [1,0,0]
@@ -459,5 +449,80 @@ def test_calculate_angle_btw_2vectors():
     v3 = e-s
     v3 = geomie3d.calculate.normalise_vectors([v3])[0]
     v3 = np.round(v3, decimals=4)
-
     angle1 = geomie3d.calculate.angle_btw_2vectors(v1, v3)
+
+def test_calc_are_bbox1_related_bbox2():
+    bbox1 = geomie3d.utility.Bbox([1,1,0,10,10,5])
+    bbox2 = geomie3d.utility.Bbox([1,1,0,10,10,5])
+
+    bbox3 = geomie3d.utility.Bbox([2,2,1,8,8,4])
+    bbox4 = geomie3d.utility.Bbox([2,2,1,8,8,4])
+
+    bbox5 = geomie3d.utility.Bbox([12,12,11,18,18,14])
+    bbox6 = geomie3d.utility.Bbox([15,19,11,21,23,14])
+
+    are_related = geomie3d.calculate.are_bboxes1_related2_bboxes2([bbox1, bbox2, bbox5], [bbox3, bbox4, bbox6])
+
+def test_calc_are_bboxes1_in_bboxes2():
+    bbox1 = geomie3d.utility.Bbox([1,1,0,10,10,5])
+    bbox2 = geomie3d.utility.Bbox([1,1,0,10,10,5])
+
+    bbox3 = geomie3d.utility.Bbox([0,2,1,8,8,4])
+    bbox4 = geomie3d.utility.Bbox([2,2,1,8,8,4])
+
+    bbox5 = geomie3d.utility.Bbox([12,12,11,18,18,14])
+    bbox6 = geomie3d.utility.Bbox([15,19,11,21,23,14])
+
+    are_contained = geomie3d.calculate.are_bboxes1_in_bboxes2([bbox3, bbox4, bbox5], [bbox1, bbox2, bbox6])
+
+def test_calc_cs2cs_mat():
+    def get_cs_frm_face(face):
+        o = geomie3d.calculate.face_midxyz(face)
+        face_verts = geomie3d.get.vertices_frm_face(face)
+        xyzs = [fv.point.xyz for fv in face_verts]
+        xd = xyzs[3] - o
+        xd = geomie3d.calculate.normalise_vectors(xd)
+        yd = xyzs[5] - o
+        yd = geomie3d.calculate.normalise_vectors(yd)
+        cs = geomie3d.create.coordinate_system_frm_arrs(o, xd, yd)
+        return cs
+
+    # create orig cs
+    face_xyzs = [[1, 1, 0],
+                [3.5, 1, 0],
+                [6, 1, 0],
+                [6, 3.5, 0],
+                [6, 6, 0],
+                [3.5, 6, 0],
+                [1, 6, 0],
+                [1, 3.5, 0]]
+
+    face_verts = geomie3d.create.vertex_list(face_xyzs)
+    face = geomie3d.create.polygon_face_frm_verts(face_verts)
+    rot_matx = geomie3d.calculate.rotate_matrice([1, 0, 0], 45)
+    rot_maty = geomie3d.calculate.rotate_matrice([0, 1, 0], 45)
+    face = geomie3d.modify.trsf_topos([face], [rot_matx@rot_maty])[0]
+    cs1 = get_cs_frm_face(face)
+    # create dest cs
+    rot_matx = geomie3d.calculate.rotate_matrice([1, 0, 0], 45)
+    rot_maty = geomie3d.calculate.rotate_matrice([0, 1, 0], 10)
+    trsl_mat = geomie3d.calculate.translate_matrice(3, 4, 5)
+    trsf_mat = trsl_mat@rot_maty@rot_matx
+    trsf_face = geomie3d.modify.trsf_topos([face], [trsf_mat])[0]
+    cs2 = get_cs_frm_face(trsf_face)
+    trsf_mat  = geomie3d.calculate.cs2cs_matrice(cs1, cs2)
+    trsf_mat_inv = geomie3d.calculate.inverse_matrice(trsf_mat)
+    trsf_topo = geomie3d.modify.trsf_topo_based_on_cs(face, cs1, cs2)
+    trsf_topo_inv = geomie3d.modify.trsf_topos([trsf_topo], [trsf_mat_inv])[0]
+
+def test_calc_are_polys_convex():
+    polys = [[[1,1,0], [5,1,0], [5,5,0], [1,5,0]], 
+             [[5,5,0], [7,6,0], [8,5,0], [8,8,0], [5,8,0]],
+             [[20,0,0], [20,5,0], [10,5,0], [10,10,0], [0,10,0], [0,0,0]]]
+
+    faces = []
+    for poly in polys:
+        vlist = geomie3d.create.vertex_list(poly)
+        f = geomie3d.create.polygon_face_frm_verts(vlist)
+        faces.append(f)
+    are_convex = geomie3d.calculate.are_polygon_faces_convex(faces)

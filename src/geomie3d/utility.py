@@ -224,11 +224,39 @@ def find_xs_not_in_ys(xlst: list, ylst: list) -> np.ndarray:
     if type(ylst) != np.ndarray:    
         ylst = np.array(ylst)
     
-    not_in_true = np.in1d(xlst, ylst)
+    not_in_true = np.isin(xlst, ylst)
     not_in_true = np.logical_not(not_in_true)
     not_in_indx = np.where(not_in_true)[0]
     not_in = np.take(xlst, not_in_indx, axis=0)
     return not_in
+
+def find_xs_in_ys(xlst: list, ylst: list) -> np.ndarray:
+    """
+    This function compare the 2 list and find the elements in xlst that is in ylst.
+ 
+    Parameters
+    ----------
+    xlst : list
+        The lst to check if the elements exist in the ylst.
+    
+    ylstt : list
+        The reference lst to compare xlst.
+        
+    Returns
+    -------
+    in : np.ndarray
+        the elements in xlst that is in ylst.
+    """
+    if type(xlst) != np.ndarray:    
+        xlst = np.array(xlst)
+    
+    if type(ylst) != np.ndarray:    
+        ylst = np.array(ylst)
+    
+    in_true = np.isin(xlst, ylst)
+    in_indx = np.where(in_true)[0]
+    inx = np.take(xlst, in_indx, axis=0)
+    return inx
 
 def separate_dup_non_dup(lst: list) -> np.ndarray:
     """
