@@ -2198,9 +2198,8 @@ def lineedge_intersect(edge_list1: list[topobj.Edge], edge_list2: list[topobj.Ed
 def polyxyzs_clipping(clipping_polyxyzs: list[list[float]], subject_polyxyzs: list[list[float]], ref_vec: list[float] | np.ndarray, 
                       boolean_op: str) -> np.ndarray:
     """
-    - NOT COMPLETE: Perform Greiner-Hormann polygon clipping. Both the polygons cannot have holes.
-    - https://en.wikipedia.org/wiki/Greiner%E2%80%93Hormann_clipping_algorithm
-    - https://davis.wpi.edu/~matt/courses/clipping/ 
+    - Perform Greiner-Hormann polygon clipping. Both the polygons cannot have holes. The result of the operation cannot have holes.
+    - (https://en.wikipedia.org/wiki/Greiner%E2%80%93Hormann_clipping_algorithm) (https://davis.wpi.edu/~matt/courses/clipping/)
     
     Parameters
     ----------
@@ -2214,7 +2213,7 @@ def polyxyzs_clipping(clipping_polyxyzs: list[list[float]], subject_polyxyzs: li
         list(shape(3)). The normal of the clipping polygon.
     
     boolean_op : str
-        can be either 'union', 'difference' and 'intersection'.    
+        can be either 'union', 'intersection', 'clip_not_subject', 'subject_not_clip'.    
     
     Returns
     -------
@@ -2266,28 +2265,46 @@ def polyxyzs_clipping(clipping_polyxyzs: list[list[float]], subject_polyxyzs: li
         else:
             return intxs, edge_idxs
     
-    def gen_clip(subj_intxs, subj_intxs_idxs, clip_intxs, clip_intxs_idxs, n_intxs, entry_exit, entry_exit_idxs, map_clip2subj_idxs_entry_exit):
+    def gen_clip(subj_intxs, subj_intxs_idxs, clip_intxs, clip_intxs_idxs, n_intxs, entry_exit, entry_exit_idxs, 
+                 map_clip2subj_idxs_entry_exit, boolean_op):
         clip_polys = []
         not_complete = True
         curr_ls = None
-        visited = 0
         mv_dir = None
-        
+        nclip_pts = len(clip_intxs)
+        nsubj_pts = len(subj_intxs)
+        ttl_pts = (nclip_pts + nsubj_pts) * 2
+        # True = Exit, False = Entry
         if entry_exit[0]:
             curr_id = subj_intxs_idxs[0]
             xyz = subj_intxs[curr_id]
-            mv_dir = 'backward'
+            if boolean_op == 'intersection':
+                mv_dir = 'backward'
+            elif boolean_op == 'union':
+                mv_dir = 'forward'
+            elif boolean_op == 'clip_not_subject':
+                mv_dir = 'backward'
+            elif boolean_op == 'subject_not_clip':
+                mv_dir = 'forward'
             curr_ls = 'subj'
         else:
             curr_id = clip_intxs_idxs[0]
             xyz = clip_intxs[curr_id]
-            mv_dir = 'forward'
+            if boolean_op == 'intersection':
+                mv_dir = 'forward'
+            elif boolean_op == 'union':
+                mv_dir = 'backward'
+            elif boolean_op == 'clip_not_subject':
+                mv_dir = 'backward'
+            elif boolean_op == 'subject_not_clip':
+                mv_dir = 'forward'
             curr_ls = 'clip'
-        visited += 1
+
         visited_nodes = [0]
 
         clip_polys.append([])
         clip_polys[-1].append(xyz.tolist())
+        cnt = 0
         while not_complete:
             if mv_dir == 'backward':
                 nxt_id = curr_id - 1
@@ -2316,14 +2333,25 @@ def polyxyzs_clipping(clipping_polyxyzs: list[list[float]], subject_polyxyzs: li
                             subj_idx = unvisited_nodes[0]
 
                     if entry_exit[subj_idx]:
-                        mv_dir = 'backward'
+                        if boolean_op == 'intersection':
+                            mv_dir = 'backward'
+                        elif boolean_op == 'union':
+                                mv_dir = 'forward'
+                        elif boolean_op == 'clip_not_subject':
+                            mv_dir = 'backward'
+                        elif boolean_op == 'subject_not_clip':
+                            mv_dir = 'forward'
+
                         curr_ls = 'subj'
                         nxt_id = map_clip2subj_idxs[idx]
 
             elif curr_ls == 'subj':
-                xyz = subj_intxs[nxt_id]
                 if nxt_id < 0:
                     nxt_id = len(subj_intxs) - 1
+                elif nxt_id > len(subj_intxs) - 1:
+                    nxt_id = 0
+
+                xyz = subj_intxs[nxt_id]
                 if nxt_id in subj_intxs_idxs: # that means will need to change ls
                     idx = np.where(subj_intxs_idxs == nxt_id)[0][0]
                     if idx not in visited_nodes:
@@ -2335,10 +2363,18 @@ def polyxyzs_clipping(clipping_polyxyzs: list[list[float]], subject_polyxyzs: li
                             idx = unvisited_nodes[0]
 
                     if entry_exit[idx] == False:
-                        mv_dir = 'forward'
+                        if boolean_op == 'intersection':
+                            mv_dir = 'forward'
+                        elif boolean_op == 'union':
+                            mv_dir = 'backward'
+                        elif boolean_op == 'clip_not_subject':
+                            mv_dir = 'backward'
+                        elif boolean_op == 'subject_not_clip':
+                            mv_dir = 'forward'
+                        
                         curr_ls = 'clip'
                         nxt_id = map_subj2clip_idxs[idx]
-            
+
             if len(clip_polys[-1]) == 0:
                 poly_closed = False
                 clip_polys[-1].append(xyz.tolist())
@@ -2356,6 +2392,14 @@ def polyxyzs_clipping(clipping_polyxyzs: list[list[float]], subject_polyxyzs: li
             if len(visited_nodes) == n_intxs and poly_closed:
                 not_complete = False
 
+            print(cnt)
+            print(len(visited_nodes), n_intxs)
+            if len(visited_nodes) == n_intxs and poly_closed == False and cnt == ttl_pts:
+                not_complete = False
+                print(ttl_pts)
+                print('Error the result of the boolean probably have holes')
+                clip_polys = None
+            cnt+=1
         return clip_polys
     
     if type(clipping_polyxyzs) != np.ndarray:
@@ -2416,8 +2460,8 @@ def polyxyzs_clipping(clipping_polyxyzs: list[list[float]], subject_polyxyzs: li
 
     # find the boolean result polygons
     n_intxs = len(intxs_take)
-    clip_polys = gen_clip(subj_intxs, subj_intxs_idxs, clip_intxs, clip_intxs_idxs, entry_exit, 
-                          n_intxs, entry_exit_idxs, map_clip2subj_idxs_entry_exit)
+    clip_polys = gen_clip(subj_intxs, subj_intxs_idxs, clip_intxs, clip_intxs_idxs, n_intxs, entry_exit, 
+                          entry_exit_idxs, map_clip2subj_idxs_entry_exit, boolean_op)
     
     return clip_polys
     
