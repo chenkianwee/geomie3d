@@ -321,6 +321,31 @@ def gen_gridxyz(xrange: list[int], yrange: list[int], zrange: list[int] = None) 
         xyzs = xyzs.T
         return xyzs
 
+def check_2dlist_is_hmgnz(lst2d: list[list[list]] | np.ndarray) -> bool:
+    """
+    Check if the list is homogeneous.
+ 
+    Parameters
+    ----------
+    lst : list | np.ndarray
+        The list to check.
+        
+    Returns
+    -------
+    is_hmgnz : bool
+        True if list is homogeneous.
+    """
+    each_set_cnt = []
+    for setx in lst2d:
+        each_set_cnt.append(len(setx))
+
+    each_set_cnt = np.array(each_set_cnt)
+    uniq = np.unique(each_set_cnt)
+    if len(uniq) == 1:
+        return True
+    else:
+        return False
+
 def pseudocolor(val: float, minval: float, maxval: float, inverse: bool = False) -> list[float]:
     """
     This function converts a value into a rgb value with reference to the minimum and maximum value.
@@ -1108,3 +1133,4 @@ def viz2axis_timeseries(y1_data_dict_ls: list[dict], y2_data_dict_ls: list[dict]
 
     plt.savefig(filepath, bbox_inches = "tight", dpi = 300, transparent=False)
     plt.show()
+   

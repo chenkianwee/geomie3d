@@ -423,11 +423,12 @@ def _affine_rank(xyzs: np.ndarray) -> np.ndarray:
 
     elif nshape == 3:
         uniqs = [np.unique(u, axis=0) for u in xyzs]
-        shape1 = np.shape(uniqs)
-        nshape1 = len(shape1)
-        if nshape1 == 1:
+        is_hmgnz = utility.check_2dlist_is_hmgnz(uniqs)
+        if is_hmgnz == False:
             affine_rank = [rank_affine(uniq) for uniq in uniqs]
-        elif nshape1 == 3:
+            return np.array(affine_rank)
+        else:
+            shape1 = np.shape(uniqs)
             uniqs = np.array(uniqs)
             centroid = xyzs_mean(uniqs)
             nrepeat = np.repeat([shape1[1]], shape1[0])
@@ -452,7 +453,6 @@ def is_coplanar_xyzs(xyzs: np.ndarray) -> bool:
     True or False : bool
         If True the list of points are coplanar.
     """
-    print()
     affine_rank = _affine_rank(xyzs)
     return affine_rank <=2            
 
@@ -2085,7 +2085,7 @@ def dist_vertex2line_edge(vertex_list: list[topobj.Vertex], edge_list: list[topo
     
 def linexyzs_intersect(linexyzs1: np.ndarray, linexyzs2: np.ndarray) -> np.ndarray:
     """
-    Find the intersections between the lines.
+    Find the intersections between the lines. Intersection does not include when the end point of one of the line is touching the other line.
     
     Parameters
     ----------
@@ -2106,6 +2106,8 @@ def linexyzs_intersect(linexyzs1: np.ndarray, linexyzs2: np.ndarray) -> np.ndarr
     if type(linexyzs2) != np.ndarray:
         linexyzs2 = np.array(linexyzs2)
     
+    ndecimals = 6
+
     shape1 = np.shape(linexyzs1)
     shape2 = np.shape(linexyzs2)
     
@@ -2146,6 +2148,9 @@ def linexyzs_intersect(linexyzs1: np.ndarray, linexyzs2: np.ndarray) -> np.ndarr
     int_pts = np.where(is_planar, int_pts, np.nan)
     
     dist = dist_pointxyzs2linexyzs(int_pts, linexyzs2, int_pts = False)
+    # print(int_pts, linexyzs2)
+    dist = np.round(dist, decimals=ndecimals)
+    # print(dist)
     is_on_line2 = np.logical_not(dist!=0)
     is_on_line2 = np.reshape(is_on_line2, (shape3[0],1))
     int_pts = np.where(is_on_line2, int_pts, np.nan)
@@ -2189,124 +2194,233 @@ def lineedge_intersect(edge_list1: list[topobj.Edge], edge_list2: list[topobj.Ed
  
     # vlist = create.vertex_list(int_pts)
     return vlist
-    
-def polyxyzs_clipping(clipping_polyxyzs: np.ndarray, subject_polyxyzs: np.ndarray, ref_vecs: np.ndarray) -> np.ndarray:
+
+def polyxyzs_clipping(clipping_polyxyzs: list[list[float]], subject_polyxyzs: list[list[float]], ref_vec: list[float] | np.ndarray, 
+                      boolean_op: str) -> np.ndarray:
     """
-    NOT COMPLETE: Perform Greiner-Hormann polygon clipping. Both the polygons cannot have holes.
+    - NOT COMPLETE: Perform Greiner-Hormann polygon clipping. Both the polygons cannot have holes.
+    - https://en.wikipedia.org/wiki/Greiner%E2%80%93Hormann_clipping_algorithm
+    - https://davis.wpi.edu/~matt/courses/clipping/ 
     
     Parameters
     ----------
-    clipping_polyxyzs : np.ndarray
-        np.ndarray(shape(number of points in polygon, 3)). The clipping polygons.
+    clipping_polyxyz : list[list[float]]
+        np.ndarray(shape(number of points in polygon, 3)). The clipping polygon.
     
-    subject_polyxyzs : np.ndarray
-        np.ndarray(shape(number of points in polygon, 3)). The clipping polygons.
+    subject_polyxyz : list[list[float]]
+        np.ndarray(shape(number of polygons, number of points in polygon, 3)). The clipping polygons.
+
+    ref_vec : np.ndarray | list[float]
+        list(shape(3)). The normal of the clipping polygon.
     
-    ref_vecs : np.ndarray
-        The reference vector must be perpendicular to the list of points. Array of vectors. A vec is a tuple that documents the xyz direction of a vector e.g. (x,y,z)
-        
+    boolean_op : str
+        can be either 'union', 'difference' and 'intersection'.    
+    
     Returns
     -------
     intersections : np.ndarray
-        array of all the intersection points.
+        np.ndarray(shape(number of polygons, number of points in polygon, 3)), array of all the intersection polygons.
     """
+    def polyxyzs2edges(polyxyzs):
+        polyxyzs1 = polyxyzs[:]
+        # create edge for the polygons
+        polyxyzs1 = np.repeat(polyxyzs1, 2, axis=0)
+        # roll it so the points are arrange in edges
+        polyxyzs1 = np.roll(polyxyzs1, -1, axis=0)
+        # reshape the arrays into edges
+        polyxyzs1 = np.reshape(polyxyzs1, (int(len(polyxyzs1)/2),2,3))
+        return polyxyzs1
+    
+    def calc_alpha(edge_idxs, intxs, polyxyzs):
+        dup_idxs = utility.id_dup_indices_1dlist(edge_idxs)
+        # print(dup_idxs)
+        if len(dup_idxs) !=0:
+            new_intxs = []
+            new_edge_idxs = []
+            dup_flat = []
+            for dup in dup_idxs:
+                orig_idx = edge_idxs[dup[0]]
+                dup_edge_idxs = np.take(edge_idxs, dup, axis=0)
+                start_xyz = np.array([polyxyzs[orig_idx - 1]])
+                end_xyz = polyxyzs[orig_idx]
+                ttl_dist = dist_btw_xyzs(start_xyz[0], end_xyz)
+                start_xyzs = np.repeat(start_xyz, len(dup), axis=0)
+                intxs_alpha = np.take(intxs, dup, axis = 0)
+                dists = dist_btw_xyzs(start_xyzs, intxs_alpha)
+                alphas = dists/ttl_dist
+                alphas_sort_id = np.argsort(alphas)
+                intxs_alpha_sorted = intxs_alpha[alphas_sort_id].tolist()
+                new_intxs.extend(intxs_alpha_sorted)
+                new_edge_idxs.extend(dup_edge_idxs)
+                dup_flat.extend(dup)
+
+            all_idxs = list(range(len(edge_idxs)))
+            non_dup = utility.find_xs_not_in_ys(dup_flat, all_idxs)
+            if len(non_dup) > 0:
+                intxs_ndup = np.take(intxs, non_dup, axis = 0)
+                ndup_edge_idxs = np.take(edge_idxs, non_dup, axis=0)
+                new_intxs.extend(intxs_ndup)
+                new_edge_idxs.extend(ndup_edge_idxs)
+
+            return np.array(new_intxs), np.array(new_edge_idxs)
+        else:
+            return intxs, edge_idxs
+    
+    def gen_clip(subj_intxs, subj_intxs_idxs, clip_intxs, clip_intxs_idxs, n_intxs, entry_exit, entry_exit_idxs, map_clip2subj_idxs_entry_exit):
+        clip_polys = []
+        not_complete = True
+        curr_ls = None
+        visited = 0
+        mv_dir = None
+        
+        if entry_exit[0]:
+            curr_id = subj_intxs_idxs[0]
+            xyz = subj_intxs[curr_id]
+            mv_dir = 'backward'
+            curr_ls = 'subj'
+        else:
+            curr_id = clip_intxs_idxs[0]
+            xyz = clip_intxs[curr_id]
+            mv_dir = 'forward'
+            curr_ls = 'clip'
+        visited += 1
+        visited_nodes = [0]
+
+        clip_polys.append([])
+        clip_polys[-1].append(xyz.tolist())
+        while not_complete:
+            if mv_dir == 'backward':
+                nxt_id = curr_id - 1
+
+            elif mv_dir == 'forward':
+                nxt_id = curr_id + 1
+
+            if curr_ls == 'clip':
+                if nxt_id < 0:
+                    nxt_id = len(clip_intxs) - 1
+                elif nxt_id > len(clip_intxs) - 1:
+                    nxt_id = 0
+
+                # print('in clip next id', nxt_id)
+                xyz = clip_intxs[nxt_id]
+                if nxt_id in clip_intxs_idxs: # that means will need to change ls
+                    idx = np.where(clip_intxs_idxs == nxt_id)[0][0]
+                    subj_idx = map_clip2subj_idxs_entry_exit[idx]
+
+                    if subj_idx not in visited_nodes:
+                        visited_nodes.append(subj_idx)
+                    else: # means this is a repeated node
+                        # u need to move on if there is still unvisited node
+                        unvisited_nodes = utility.find_xs_not_in_ys(entry_exit_idxs, visited_nodes)
+                        if len(unvisited_nodes) > 0:
+                            subj_idx = unvisited_nodes[0]
+
+                    if entry_exit[subj_idx]:
+                        mv_dir = 'backward'
+                        curr_ls = 'subj'
+                        nxt_id = map_clip2subj_idxs[idx]
+
+            elif curr_ls == 'subj':
+                xyz = subj_intxs[nxt_id]
+                if nxt_id < 0:
+                    nxt_id = len(subj_intxs) - 1
+                if nxt_id in subj_intxs_idxs: # that means will need to change ls
+                    idx = np.where(subj_intxs_idxs == nxt_id)[0][0]
+                    if idx not in visited_nodes:
+                        visited_nodes.append(idx)
+                    else: # means this is a repeated node
+                        # u need to move on if there is still unvisited node
+                        unvisited_nodes = utility.find_xs_not_in_ys(entry_exit_idxs, visited_nodes)
+                        if len(unvisited_nodes) > 0:
+                            idx = unvisited_nodes[0]
+
+                    if entry_exit[idx] == False:
+                        mv_dir = 'forward'
+                        curr_ls = 'clip'
+                        nxt_id = map_subj2clip_idxs[idx]
+            
+            if len(clip_polys[-1]) == 0:
+                poly_closed = False
+                clip_polys[-1].append(xyz.tolist())
+            else:
+                if np.array_equal(xyz, clip_polys[-1][0]):
+                    # the polygon is closed
+                    poly_closed = True
+                    if len(visited_nodes) != n_intxs:
+                        clip_polys.append([])
+                else:
+                    poly_closed = False
+                    clip_polys[-1].append(xyz.tolist())
+
+            curr_id = nxt_id
+            if len(visited_nodes) == n_intxs and poly_closed:
+                not_complete = False
+
+        return clip_polys
+    
     if type(clipping_polyxyzs) != np.ndarray:
-        clipping_polyxyzs = np.array(clipping_polyxyzs)
+        clipping_polyxyzs = np.array(clipping_polyxyzs).astype(float)
         
     if type(subject_polyxyzs) != np.ndarray:
-        subject_polyxyzs = np.array(subject_polyxyzs)
+        subject_polyxyzs = np.array(subject_polyxyzs).astype(float)
 
-    clipping_polyxyzs1 = clipping_polyxyzs[:]
-    #create edge for the polygons
-    clipping_polyxyzs1 = np.repeat(clipping_polyxyzs1, 2, axis=0)
-    #roll it so the points are arrange in edges
-    clipping_polyxyzs1 = np.roll(clipping_polyxyzs1, -1, axis=0)
-    #reshape the arrays into edges
-    clipping_polyxyzs1 = np.reshape(clipping_polyxyzs1, (int(len(clipping_polyxyzs1)/2),2,3))
-    
-    subject_polyxyzs1 = subject_polyxyzs[:]
-    #create edge for the polygons
-    subject_polyxyzs1 = np.repeat(subject_polyxyzs1, 2, axis=0)
-    #roll it so the points are arrange in edges
-    subject_polyxyzs1 = np.roll(subject_polyxyzs1, -1, axis=0)
-    #reshape the arrays into edges
-    subject_polyxyzs1 = np.reshape(subject_polyxyzs1, (int(len(subject_polyxyzs1)/2),2,3))
+    is_ccw = is_anticlockwise(subject_polyxyzs, ref_vec)
+    if is_ccw:
+        subject_polyxyzs = np.flip(subject_polyxyzs, axis=0)
 
-    n_sub_poly_edges = len(subject_polyxyzs1)
-    n_clip_poly_edges = len(clipping_polyxyzs1)
-
-    clip_edges_rep = np.repeat(clipping_polyxyzs1, n_sub_poly_edges, axis=0)
-    subj_edges_rep = np.tile(subject_polyxyzs1, (n_clip_poly_edges, 1, 1))
+    # check if both polygons are coplanar, if not just return no intersection
+    all_xyzs = np.append(clipping_polyxyzs, subject_polyxyzs, axis = 0)
+    is_pts_coplanar = is_coplanar_xyzs(all_xyzs)
+    if is_pts_coplanar == False:
+        return None
+    # turn each polygon into edges
+    clip_edges = polyxyzs2edges(clipping_polyxyzs)
+    subj_edges = polyxyzs2edges(subject_polyxyzs)
+    n_clip_edges = len(clip_edges)
+    n_subj_edges = len(subj_edges)
+    # intersect the edges and find intersections
+    clip_edges_rep = np.repeat(clip_edges, n_subj_edges, axis=0)
+    subj_edges_rep = np.tile(subj_edges, (n_clip_edges, 1, 1))
     intxs = linexyzs_intersect(clip_edges_rep, subj_edges_rep)
+    if len(intxs) == 0: # if no intersection no clipping
+        return None 
+    # arrange each intersections into the polygon xyzs
+    # forgot to calculate for alpha value
     intxsT = intxs.T
     intxsT0 = intxsT[0]
     cond1 = np.isnan(intxsT0)
     cond1 = np.logical_not(cond1)
     intx_idxs = np.where(cond1)[0]
-    clip_edge_idxs = np.floor(intx_idxs/n_sub_poly_edges).astype(int) + 1
-    subj_edge_idxs = intx_idxs%n_sub_poly_edges + 1
     intxs_take = np.take(intxs, intx_idxs, axis=0)
-    clipping_polyxyzs_intxs = np.insert(clipping_polyxyzs, clip_edge_idxs, intxs_take, axis = 0)
-    subject_polyxyzs_intxs = np.insert(subject_polyxyzs, subj_edge_idxs, intxs_take, axis = 0)
-    clip_intxs_idxs = find_these_xyzs_in_xyzs(intxs_take, clipping_polyxyzs_intxs)
-    subj_intxs_idxs = find_these_xyzs_in_xyzs(intxs_take, subject_polyxyzs_intxs)
-    print(intxs_take)
-    print(clipping_polyxyzs_intxs)
-    # print(intxs_take)
-    # print(clipping_polyxyzs_intxs)
-    # print(clip_intxs_idxs)
-    # print(clipping_polyxyzs_intxs)
-    # print(subject_polyxyzs_intxs)
-    # calc alphas and insert the intxs into the right order
-    # print(intx_idxs)
-    # print(subj_edge_idxs)
-    # print(clip_edge_idxs)
-    # nshape1 = len(shape1)
-    # nshape2 = len(shape2)
+    #-----------------------------------------------------------------------------------
+    clip_edge_idxs = np.floor(intx_idxs/n_subj_edges).astype(int) + 1 # position in clip
+    subj_edge_idxs = intx_idxs%n_subj_edges + 1 # positions in subj
+    clip_intxs_take, clip_edge_idxs = calc_alpha(clip_edge_idxs, intxs_take, clipping_polyxyzs)
+    subj_intxs_take, subj_edge_idxs = calc_alpha(subj_edge_idxs, intxs_take, subject_polyxyzs)
 
-    # #for the edges
-    # clipping_polyxyzs_edges = np.repeat(clipping_polyxyzs, shape2[1], axis=1)
-    # clip_edge_shape1 = np.shape(clipping_polyxyzs_edges)
-    # clipping_polyxyzs_edges = np.reshape(clipping_polyxyzs_edges, (clip_edge_shape1[0]*clip_edge_shape1[1], clip_edge_shape1[2], clip_edge_shape1[3]))
-    # #for testing ccw
-    # #repeat the edges according to the number of edges the subject polygons have. We are setting up for a double for loop
-    # clipping_polyxyzs = np.repeat(clipping_polyxyzs, shape2[1]*2, axis=1)
-    # shape1_2 = np.shape(clipping_polyxyzs)
-    # #repeat the edges according to the number of edges the clipping polygons have. We are setting up for a double for loop
-    # subject_polyxyzs = np.repeat(subject_polyxyzs, 2, axis=1)
-    # subject_polyxyzs = np.roll(subject_polyxyzs, -1, axis=1)
-    # subject_polyxyzs = np.reshape(subject_polyxyzs, (shape2[0],shape2[1],2,shape2[2]))
-    # subject_polyxyzs = np.repeat(subject_polyxyzs, shape1[1], axis=0)
-    # #flatten the array to the level of the edges
-    # subject_edge_shape1 = np.shape(subject_polyxyzs)
-    # subject_polyxyzs_edges = np.reshape(subject_polyxyzs, (subject_edge_shape1[0]*subject_edge_shape1[1], subject_edge_shape1[2], subject_edge_shape1[3]))
-    # #for testing ccw
-    # subject_polyxyzs = np.reshape(subject_polyxyzs, (shape1_2[0], shape1_2[1], 1, shape1_2[3]))
-    
-    # for_ccw = np.append(clipping_polyxyzs, subject_polyxyzs, axis=2)
-    # shape1_3 = np.shape(for_ccw)
-    # for_ccw = np.reshape(for_ccw, (shape1_3[0]*shape1_3[1], shape1_3[2], shape1_3[3]))
-    # ref_vecs = np.repeat(ref_vecs, shape1_3[1], axis=0)
-    # is_ccw = is_anticlockwise(for_ccw, ref_vecs)
-    # # reshape the result to reflect both the 1st point and 2nd point of the subject polygon
-    # is_ccw = np.reshape(is_ccw, (subject_edge_shape1[0]*subject_edge_shape1[1],2))
-    # is_ccwT = is_ccw.T
-    # # as long as either points from the subject polygon is ccw to the edge, we will perform an intersection to check
-    # cond1 = np.logical_or(is_ccwT[0], is_ccwT[1]) 
-    # cond1 = np.reshape(cond1, (len(cond1),1)) 
-    # int_xyzs = np.where(cond1, linexyzs_intersect(clipping_polyxyzs_edges, subject_polyxyzs_edges), np.nan)
-    # # if both subject polygon points is ccw, keep only the second point
-    # cond2 = np.logical_and(is_ccwT[0], is_ccwT[1]) 
-    # cond2 = np.reshape(cond2, (len(cond1),1))
-    # print(is_ccw)
-    # print(np.reshape(cond2, (int(len(cond1)/4), 4, 1)))
-    
-    # if nshape1 == 2:  # only 1 set of polygons each
-    #     pass
-    
-    # elif nshape1 == 3:
-    #     pass
+    clip_intxs = np.insert(clipping_polyxyzs, clip_edge_idxs, clip_intxs_take, axis = 0)
+    subj_intxs = np.insert(subject_polyxyzs, subj_edge_idxs, subj_intxs_take, axis = 0)
 
+    clip_intxs_idxs = find_these_xyzs_in_xyzs([clip_intxs_take], [clip_intxs])[1]
+    subj_intxs_idxs = find_these_xyzs_in_xyzs([subj_intxs_take], [subj_intxs])[1]
+
+    map_subj2clip_idxs = find_these_xyzs_in_xyzs([subj_intxs_take], [clip_intxs])[1]
+    map_clip2subj_idxs = find_these_xyzs_in_xyzs([clip_intxs_take], [subj_intxs])[1]
+
+    # find the entry or exit status of each intersection
+    subj_intxs_idxs_bef = subj_intxs_idxs - 1
+    subj_intxs_bef = np.take(subj_intxs, subj_intxs_idxs_bef, axis = 0)
+    entry_exit = are_xyzs_in_polyxyzs([subj_intxs_bef], [clipping_polyxyzs])[0] # True = Exit, False = Entry
+    entry_exit_idxs = list(range(len(entry_exit)))
+    map_clip2subj_idxs_entry_exit = find_these_xyzs_in_xyzs([clip_intxs_take], [subj_intxs_take])[1]
+
+    # find the boolean result polygons
+    n_intxs = len(intxs_take)
+    clip_polys = gen_clip(subj_intxs, subj_intxs_idxs, clip_intxs, clip_intxs_idxs, entry_exit, 
+                          n_intxs, entry_exit_idxs, map_clip2subj_idxs_entry_exit)
+    
+    return clip_polys
+    
 def polygons_intersections(clipping_polys, subject_polys):
     """
     Find the intersections between the clipping polys and the subject polys
@@ -2645,7 +2759,8 @@ def find_these_xyzs_in_xyzs(these_xyzs_2dlist: list[list[list[float]]], xyz_2dli
 
 def are_xyzs_in_polyxyzs(xyz_2dlist: list[list[list[float]]], polyxyzs: list[list[list[float]]]) -> np.ndarray:
     """
-    calculate if point xyzs is in polygon xyzs 
+    - calculate if point xyzs is in polygon xyzs. If the point lies on the edges of the polygons it is counted as inside the polygon.
+    - implemented based on https://en.wikipedia.org/wiki/Even%E2%80%93odd_rule
  
     Parameters
     ----------
@@ -2663,7 +2778,7 @@ def are_xyzs_in_polyxyzs(xyz_2dlist: list[list[list[float]]], polyxyzs: list[lis
     nsets = len(xyz_2dlist)
     npolys = len(polyxyzs)
     if nsets != npolys:
-        print('ERRRO NUMBER OF SETS OF POINTS NOT EQUAL TO NUMBER OF POLYGONS')
+        print('ERROR NUMBER OF SETS OF POINTS NOT EQUAL TO NUMBER OF POLYGONS')
         return None
     
     each_set_cnt = []
@@ -2718,37 +2833,38 @@ def are_xyzs_in_polyxyzs(xyz_2dlist: list[list[list[float]]], polyxyzs: list[lis
     mv_bbox_xyz = np.reshape(mv_bbox_xyz, [p2t_shp[0], 1, p2t_shp[1]])
     test_edges = np.append(points2test, mv_bbox_xyz, axis=1)
     test_edges = np.round(test_edges, decimals=ndecimals)
-    print(test_edges)
-
     # get all the corresponding polygons
     poly2test = allxyzs[:, 1:]
     poly2test = np.take(poly2test, is_coplanar_id, axis=0)
-    poly2test = np.repeat(poly2test, 2, axis=1)
-    poly2test = np.roll(poly2test, -1, axis=1)
+    p2t_edges, is_nt_nan_id2_intx, intx_res, poly2t_shp, is_nt_nan_id2 = _rmv_nan_frm_hmgn_polys_edges_xyzs(poly2test)
 
-    # need to remove all the nan to prepare for the line line intersection
-    poly2t_shp = np.shape(poly2test)
-    poly2test_flat = np.reshape(poly2test, [poly2t_shp[0] * poly2t_shp[1], poly2t_shp[2]])
-    p2t_flat_T_0 = poly2test_flat.T[0]
-    is_nan2 = np.isnan(p2t_flat_T_0)
-    is_nan_id2 = np.where(is_nan2)[0]
-    is_nan_id2 = is_nan_id2/2
-    is_nan_id2 = np.ceil(is_nan_id2) # I am not so sure if this will work everytime, this is because of the roll -1 
-    is_nan_id2 = np.unique(is_nan_id2).astype(int)
-    # ---------------------------------
-    is_nt_nan2 = np.logical_not(is_nan2)
-    is_nt_nan_id2 = np.where(is_nt_nan2)[0]
-    is_nt_nan_id2_intx = utility.find_xs_not_in_ys(list(range(int(poly2t_shp[0] * poly2t_shp[1]/2))), is_nan_id2)
-    is_nt_nan_id2_intx = np.reshape(is_nt_nan_id2_intx, [is_nt_nan_id2_intx.size, 1])
+    # region: to be deleted if _rmv_nan_works
+    # poly2test = np.repeat(poly2test, 2, axis=1)
+    # poly2test = np.roll(poly2test, -1, axis=1)
+    # # need to remove all the nan to prepare for the line line intersection
+    # poly2t_shp = np.shape(poly2test)
+    # poly2test_flat = np.reshape(poly2test, [poly2t_shp[0] * poly2t_shp[1], poly2t_shp[2]])
+    # p2t_flat_T_0 = poly2test_flat.T[0]
+    # is_nan2 = np.isnan(p2t_flat_T_0)
+    # is_nan_id2 = np.where(is_nan2)[0]
+    # is_nan_id2 = is_nan_id2/2
+    # is_nan_id2 = np.ceil(is_nan_id2) # I am not so sure if this will work everytime, this is because of the roll -1 
+    # is_nan_id2 = np.unique(is_nan_id2).astype(int)
+    # # ---------------------------------
+    # is_nt_nan2 = np.logical_not(is_nan2)
+    # is_nt_nan_id2 = np.where(is_nt_nan2)[0]
+    # is_nt_nan_id2_intx = utility.find_xs_not_in_ys(list(range(int(poly2t_shp[0] * poly2t_shp[1]/2))), is_nan_id2)
+    # is_nt_nan_id2_intx = np.reshape(is_nt_nan_id2_intx, [is_nt_nan_id2_intx.size, 1])
 
-    # create a dummy result array for putting in the results later so it is easy to reshape and compute the results
-    intx_res = np.empty([int(poly2t_shp[0] * poly2t_shp[1]/2), poly2t_shp[2]])
-    intx_res.fill(np.nan)
+    # # create a dummy result array for putting in the results later so it is easy to reshape and compute the results
+    # intx_res = np.empty([int(poly2t_shp[0] * poly2t_shp[1]/2), poly2t_shp[2]])
+    # intx_res.fill(np.nan)
 
-    poly2test_flat_nt_nan = np.take(poly2test_flat, is_nt_nan_id2, axis=0)
-    p2t_nt_nan_shp = np.shape(poly2test_flat_nt_nan)
-    p2t_edges = np.reshape(poly2test_flat_nt_nan, [int(p2t_nt_nan_shp[0]/2), 2, p2t_nt_nan_shp[1]])
-
+    # poly2test_flat_nt_nan = np.take(poly2test_flat, is_nt_nan_id2, axis=0)
+    # p2t_nt_nan_shp = np.shape(poly2test_flat_nt_nan)
+    # p2t_edges = np.reshape(poly2test_flat_nt_nan, [int(p2t_nt_nan_shp[0]/2), 2, p2t_nt_nan_shp[1]])
+    # endregion: to be deleted
+    
     # reshape the test edges to match the poly xyzs shape to perform the line-line intersection
     tedges_rep = np.repeat(test_edges, int(poly2t_shp[1]/2), axis=0)
     tedges_shp = np.shape(tedges_rep)
@@ -2769,7 +2885,6 @@ def are_xyzs_in_polyxyzs(xyz_2dlist: list[list[list[float]]], polyxyzs: list[lis
         is_nt_nan_intx_id = np.where(is_nt_nan_intx)[0]
         intx_nt_nan = np.take(intx, is_nt_nan_intx_id, axis=0)
         intx_uniq = np.unique(intx_nt_nan, axis=0)
-        print(intx_nt_nan)
         nintx = len(intx_uniq)
         if nintx%2 == 0:
             in_poly = False
@@ -2817,3 +2932,58 @@ def are_polygon_faces_convex(faces: list[topobj.Face]) -> np.ndarray:
         else:
             are_convex.append(False)
     return are_convex
+
+def _rmv_nan_frm_hmgn_polys_edges_xyzs(poly_xyzs2d: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """
+    remove nan from polys_edges_xyzs so as to prepare for further operation e.g. line-line intersection.
+
+    Parameters
+    ----------
+    poly_xyzs2d : np.ndarray
+        np.ndarray[shape(number of polygons, number of points in polygon, 3)]. This array will contain np.nan in the xyzs that need to be removed due to the homogenized operation.
+    
+    Returns
+    -------
+    poly_edges_nt_nan: np.ndarray
+        np.ndarray[shape(ttl number of edges in all polygons, 2, 3 )].
+
+    is_nt_nan_id_res: np.ndarray
+        np.ndarray[shape(number of edges that is not np.nan, 1 )]. The index of the edges in the polygon that are not np.nan.
+
+    ttl_edges_res: np.ndarray
+        np.ndarray[shape(number of edges, 3 )]. An empty array for putting results of future operation into the original edge shape.
+    
+    poly_edges_shp: np.ndarray
+       shape of the original poly edges with nan.
+
+    is_nt_nan_id: np.ndarray
+       index of the original edges in the polygon that are not np.nan.
+
+    """
+    poly_edges = np.repeat(poly_xyzs2d, 2, axis=1)
+    poly_edges = np.roll(poly_edges, -1, axis=1)
+    # need to remove all the nan to prepare for future operations e.g. the line line intersection
+    poly_edges_shp = np.shape(poly_edges)
+    poly_edges_flat = np.reshape(poly_edges, [poly_edges_shp[0] * poly_edges_shp[1], poly_edges_shp[2]])
+    pe_flat_T_0 = poly_edges_flat.T[0]
+    is_nan = np.isnan(pe_flat_T_0)
+    is_nan_id = np.where(is_nan)[0]
+    is_nan_id = is_nan_id/2
+    is_nan_id = np.ceil(is_nan_id) # I am not so sure if this will work everytime, this is because of the roll -1 
+    is_nan_id = np.unique(is_nan_id).astype(int)
+    # ---------------------------------
+    is_nt_nan = np.logical_not(is_nan)
+    is_nt_nan_id = np.where(is_nt_nan)[0]
+    ttl_nedges = int(poly_edges_shp[0] * poly_edges_shp[1]/2)
+    is_nt_nan_id_res = utility.find_xs_not_in_ys(list(range(ttl_nedges)), is_nan_id)
+    is_nt_nan_id_res = np.reshape(is_nt_nan_id_res, [is_nt_nan_id_res.size, 1])
+
+    # create a dummy result array for putting in the results later so it is easy to reshape and compute the results
+    ttl_edges_res = np.empty([ttl_nedges, poly_edges_shp[2]])
+    ttl_edges_res.fill(np.nan)
+
+    poly_edges_flat_nt_nan = np.take(poly_edges_flat, is_nt_nan_id, axis=0)
+    pe_nt_nan_shp = np.shape(poly_edges_flat_nt_nan)
+    poly_edges_nt_nan = np.reshape(poly_edges_flat_nt_nan, [int(pe_nt_nan_shp[0]/2), 2, pe_nt_nan_shp[1]])
+
+    return poly_edges_nt_nan, is_nt_nan_id_res, ttl_edges_res, poly_edges_shp, is_nt_nan_id

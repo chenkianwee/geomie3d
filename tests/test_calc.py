@@ -526,3 +526,20 @@ def test_calc_are_polys_convex():
         f = geomie3d.create.polygon_face_frm_verts(vlist)
         faces.append(f)
     are_convex = geomie3d.calculate.are_polygon_faces_convex(faces)
+
+def test_calc_pt_in_polygon():
+    xyz_2dlist = [[[3,2,0], [4,5.5,0]],
+              [[3,4,0], [7,5,0], [7,7,1]],
+              [[3,8,0], [4,6,0]]]
+
+    polys = [[[1,1,0], [5,1,0], [5,5,0], [1,5,0]], 
+            [[5,5,0], [7,3,0], [8,5,0], [8,8,0], [5,8,0]],
+            [[1,6,0], [3,7,0], [5,6,0], [5,10,0], [1,10,0]]]
+
+    in_polys = geomie3d.calculate.are_xyzs_in_polyxyzs(xyz_2dlist, polys)
+
+def test_find_these_xyzs_in_xyzs():
+    a = [[[10,10,0], [10,20,0]], [[15,5,0], [20,3,0]], [[1,1,1.5], [2,2,2], [15,15,0], [25,15,0]]]
+    b = [[[10,10,0], [20,10,0], [20,20,0], [10,20,0]], [[15,5,0], [20,3,0], [25,5,0]], [[25,15,0], [15,15,0]]]
+
+    indxs = geomie3d.calculate.find_these_xyzs_in_xyzs(a,b)

@@ -119,15 +119,44 @@ class PolygonSurface(Surface):
     
     def calc_normal(self):
         """
-        calculates the normal of the surface
+        calculates the normal of the surface,
+        - implemented based on this https://stackoverflow.com/questions/39001642/calculating-surface-normal-in-python-using-newells-method
+        - https://www.khronos.org/opengl/wiki/Calculating_a_Surface_Normal
         """
         point_list = self.point_list
-        #calculate the normal of the surface
-        xyz_list = [point.xyz for point in point_list]
-        vector1 = xyz_list[1] - xyz_list[0]
-        vector2 = xyz_list[-1] - xyz_list[0]
-        normal = calculate.cross_product(vector1, vector2)
-        normal = calculate.normalise_vectors(normal)
+        xyzs = np.array([point.xyz for point in point_list])
+        xyzsT = xyzs.T
+        x = xyzsT[0]
+        y = xyzsT[1]
+        z = xyzsT[2]
+
+        x_roll = np.roll(x, -1, axis=0)
+        y_roll = np.roll(y, -1, axis=0)
+        z_roll = np.roll(z, -1, axis=0)
+
+        n1 = (y - y_roll) * (z + z_roll)
+        n2 = (z - z_roll) * (x + x_roll)
+        n3 = (x - x_roll) * (y + y_roll)
+
+        n1_sum = np.sum(n1, axis = 0)
+        n2_sum = np.sum(n2, axis = 0)
+        n3_sum = np.sum(n3, axis = 0)
+        n = [n1_sum, n2_sum, n3_sum]
+        normal = calculate.normalise_vectors(n)
+        normal = np.round(normal, decimals = 6)
+
+        # loop implementation 
+        # n = [0.0, 0.0, 0.0]
+        # for i, v_curr in enumerate(point_list):
+        #     v_curr = v_curr.xyz
+        #     v_next = point_list[(i+1) % len(point_list)]
+        #     v_next = v_next.xyz
+        #     n[0] += (v_curr[1] - v_next[1]) * (v_curr[2] + v_next[2])
+        #     n[1] += (v_curr[2] - v_next[2]) * (v_curr[0] + v_next[0])
+        #     n[2] += (v_curr[0] - v_next[0]) * (v_curr[1] + v_next[1])
+
+        # normal = calculate.normalise_vectors(n)
+        # normal = np.round(normal, decimals = 6)
         self.normal = normal
     
     def update(self, point_list: list[Point],  hole_point_2dlist: list[list[Point]] = []):
