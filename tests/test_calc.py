@@ -543,3 +543,18 @@ def test_find_these_xyzs_in_xyzs():
     b = [[[10,10,0], [20,10,0], [20,20,0], [10,20,0]], [[15,5,0], [20,3,0], [25,5,0]], [[25,15,0], [15,15,0]]]
 
     indxs = geomie3d.calculate.find_these_xyzs_in_xyzs(a,b)
+
+def test_calc_boolean_2faces():
+    # defining the boundary wire 1
+    poly1 = [[10.0, 10.0, 5], [20, 10, 5], [20, 20, 5], [10, 20, 5]]
+    poly2 = [[11, 5, 5], [19, 5, 5], [19, 12, 5], [15, 12, 5], [15, 11, 5], [16, 11, 5], [16, 11.5, 5], [18, 11.5, 5],
+            [18, 8, 5], [14, 8, 5], [14, 12, 5], [11, 12, 5]]
+
+    def xyzs2faces(poly):
+        polyvs = geomie3d.create.vertex_list(poly)
+        f = geomie3d.create.polygon_face_frm_verts(polyvs)
+        return f
+
+    face1 = xyzs2faces(poly1)
+    face2 = xyzs2faces(poly2)
+    res_faces = geomie3d.calculate.polygons_clipping(face1, face2, 'subject_not_clip')

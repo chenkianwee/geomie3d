@@ -2195,7 +2195,7 @@ def lineedge_intersect(edge_list1: list[topobj.Edge], edge_list2: list[topobj.Ed
     # vlist = create.vertex_list(int_pts)
     return vlist
 
-def polyxyzs_clipping(clipping_polyxyzs: list[list[float]], subject_polyxyzs: list[list[float]], ref_vec: list[float] | np.ndarray, 
+def polyxyzs_clipping(clipping_polyxyzs: np.ndarray, subject_polyxyzs: np.ndarray, ref_vec: list[float] | np.ndarray, 
                       boolean_op: str) -> np.ndarray:
     """
     - Perform Greiner-Hormann polygon clipping. Both the polygons cannot have holes. The result of the operation cannot have holes.
@@ -2203,10 +2203,10 @@ def polyxyzs_clipping(clipping_polyxyzs: list[list[float]], subject_polyxyzs: li
     
     Parameters
     ----------
-    clipping_polyxyz : list[list[float]]
+    clipping_polyxyz : np.ndarray
         np.ndarray(shape(number of points in polygon, 3)). The clipping polygon.
     
-    subject_polyxyz : list[list[float]]
+    subject_polyxyz : np.ndarray
         np.ndarray(shape(number of polygons, number of points in polygon, 3)). The clipping polygons.
 
     ref_vec : np.ndarray | list[float]
@@ -2218,7 +2218,7 @@ def polyxyzs_clipping(clipping_polyxyzs: list[list[float]], subject_polyxyzs: li
     Returns
     -------
     intersections : np.ndarray
-        np.ndarray(shape(number of polygons, number of points in polygon, 3)), array of all the intersection polygons.
+        np.ndarray(shape(number of polygons, number of points in polygon, 3)), array of all the clipped polygons.
     """
     def polyxyzs2edges(polyxyzs):
         polyxyzs1 = polyxyzs[:]
@@ -2392,13 +2392,16 @@ def polyxyzs_clipping(clipping_polyxyzs: list[list[float]], subject_polyxyzs: li
             if len(visited_nodes) == n_intxs and poly_closed:
                 not_complete = False
 
-            print(cnt)
-            print(len(visited_nodes), n_intxs)
-            if len(visited_nodes) == n_intxs and poly_closed == False and cnt == ttl_pts:
+            elif len(visited_nodes) == n_intxs and poly_closed == False and cnt == ttl_pts:
                 not_complete = False
-                print(ttl_pts)
                 print('Error the result of the boolean probably have holes')
                 clip_polys = None
+            
+            elif cnt == ttl_pts:
+                not_complete = False
+                print('Error unable to find boolean polygons')
+                clip_polys = None
+
             cnt+=1
         return clip_polys
     
@@ -2460,29 +2463,56 @@ def polyxyzs_clipping(clipping_polyxyzs: list[list[float]], subject_polyxyzs: li
 
     # find the boolean result polygons
     n_intxs = len(intxs_take)
+    if boolean_op not in ['intersection', 'union', 'clip_not_subject', 'subject_not_clip']:
+        print("Error!! Boolean operation not recognize. Please specify either 'intersection', 'union', 'clip_not_subject' or 'subject_not_clip'")
+        return None
+    
     clip_polys = gen_clip(subj_intxs, subj_intxs_idxs, clip_intxs, clip_intxs_idxs, n_intxs, entry_exit, 
                           entry_exit_idxs, map_clip2subj_idxs_entry_exit, boolean_op)
     
     return clip_polys
     
-def polygons_intersections(clipping_polys, subject_polys):
+def polygons_clipping(clipping_poly: topobj.Face, subject_poly: topobj.Face, boolean_op: str) -> list[topobj.Face]:
     """
-    Find the intersections between the clipping polys and the subject polys
+    Find the intersections between the clipping polys and the subject polys. Both the polygons cannot have holes. The result of the operation cannot have holes.
     
     Parameters
     ----------
-    clipping_polys : ndarray
-        array of polygons [clipping_poly1, clipping_poly2, ...]. Each clipping_poly is define as [[x1,y1,z1],[x2,y2,z2],[x3,y3,z3]].
+    clipping_poly : topobj.Face
+        Clipping face.
     
-    subject_polys : ndarray
-        array of polygons [subject_poly1, subject_poly2, ...]. Each subject_poly is define as [[x1,y1,z1],[x2,y2,z2],[x3,y3,z3]].
-        
+    subject_poly : topobj.Face
+        Subject face.
+    
+    boolean_op : str
+        can be either 'union', 'intersection', 'clip_not_subject', 'subject_not_clip'.    
+
     Returns
     -------
-    intersections : ndarray
-        array of all the intersection points.
+    intersect : list[topobj.Face]
+        results of the boolean operation. None return when operations do not produce any faces.
     """
-    pass
+    clip_hole_verts = get.hole_vertices_frm_face(clipping_poly)
+    subj_hole_verts = get.hole_vertices_frm_face(subject_poly)
+    if len(clip_hole_verts) != 0 or len(subj_hole_verts) != 0:
+        print('polygon faces have holes!! Holes will be ignored')
+    
+    clip_normal = get.face_normal(clipping_poly)
+    clip_verts = get.bdry_vertices_frm_face(clipping_poly)
+    subj_verts = get.bdry_vertices_frm_face(subject_poly)
+    clip_xyzs = np.array([vert.point.xyz for vert in clip_verts]).astype(float)
+    subj_xyzs = np.array([vert.point.xyz for vert in subj_verts]).astype(float)
+    
+    clip_res_xyzs = polyxyzs_clipping(clip_xyzs, subj_xyzs, clip_normal, boolean_op)
+    if clip_res_xyzs != None:
+        intfs = []
+        for clip in clip_res_xyzs:
+            cv = create.vertex_list(clip)
+            int_f = create.polygon_face_frm_verts(cv)
+            intfs.append(int_f)
+        return intfs
+    else:
+        return None
 
 def grp_faces_on_nrml(face_list: list[topobj.Face], return_idx: bool = False, decimals: int = None) -> tuple[list[list[topobj.Face]], list[topobj.Face]]:
     """
