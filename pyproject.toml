@@ -14,11 +14,11 @@ requires-python = ">=3.10"
 classifiers = ["License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
                "Programming Language :: Python :: 3.10",
                "Operating System :: OS Independent"]
-dependencies = ['numpy==1.26.3',
-                'pyqtgraph==0.13.3', 
+dependencies = ['numpy==1.26.4',
+                'pyqtgraph==0.13.7', 
                 'PyOpenGL==3.1.7',
-                'PyQt6==6.6.1',
-                'python-dateutil==2.8.2']
+                'PyQt6==6.7.0',
+                'python-dateutil==2.9.0']
 
 [project.urls]
 "Homepage" = "https://github.com/chenkianwee/geomie3d"
