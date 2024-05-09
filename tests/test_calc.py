@@ -558,3 +558,13 @@ def test_calc_boolean_2faces():
     face1 = xyzs2faces(poly1)
     face2 = xyzs2faces(poly2)
     res_faces = geomie3d.calculate.polygons_clipping(face1, face2, 'subject_not_clip')
+    xyz_ls = []
+    for f in res_faces:
+        vs = geomie3d.get.vertices_frm_face(f)
+        xyzs = np.array([v.point.xyz for v in vs])
+        xyz_ls.append(xyzs)
+
+    xyz_ls = np.array(xyzs)
+    correct_answer = np.array([[14, 10,  5,], [14,  8,  5,], [18,  8,  5], [18, 10,  5], 
+                               [19, 10,  5], [19,  5,  5], [11,  5,  5], [11, 10,  5]]).astype(float)
+    assert np.array_equiv(xyz_ls, correct_answer) 

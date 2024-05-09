@@ -89,22 +89,22 @@ class BaseAnimate(QtWidgets.QWidget):
            """
            self.parm3d = dict(name='Parm3d', type='group', expanded = True, title = "3D View Controls",
                       children=[
-                                   dict(name='Data Range Loaded', type = 'str', title = "Data Range Loaded", readonly = True),
-                                   dict(name='Current Date', type = 'str', title = "Current Date", readonly = True),
-                                   dict(name='Search Date', type = 'str', title = "Search Date", value = "yyyy-mm-ddTHH:MM:SS"),
+                                   dict(name='Data Range Loaded', type = 'str', title = "Data Range Loaded", default = '', readonly = True),
+                                   dict(name='Current Date', type = 'str', title = "Current Date", default = '', readonly = True),
+                                   dict(name='Search Date', type = 'str', title = "Search Date", default = "yyyy-mm-ddTHH:MM:SS"),
                                    dict(name='Search', type = 'action', title = "Search"),
-                                   dict(name='Search Result', type = 'str', value = '', readonly = True),
+                                   dict(name='Search Result', type = 'str', default = '', readonly = True),
                                    dict(name='Next', type = 'action', title = "Next"),
                                    dict(name='Previous', type = 'action', title = "Previous")
                                ]
                        )
            self.animate_parm = dict(name='Animate Parms', type='group', expanded = False, title = "Animate Parameters",
                       children=[
-                                  dict(name='Play Status', type = 'str', title = "Play Status", value = 'Pause(Forward)', readonly=True),
+                                  dict(name='Play Status', type = 'str', title = "Play Status", default = 'Pause(Forward)', readonly=True),
                                   dict(name='Pause/Play', type = 'action', title = "Pause/Play"),
                                   dict(name='Forward', type = 'action', title = "Forward"),
                                   dict(name='Rewind', type = 'action', title = "Rewind"),
-                                  dict(name='Seconds/Frame', type = 'float', title = "Seconds/Frame", value = 1.0),
+                                  dict(name='Seconds/Frame', type = 'float', title = "Seconds/Frame", default = 1.0),
                                   dict(name='Change Playback Speed', type = 'action', title = "Change Playback Speed")
                                ]
                        )
@@ -366,8 +366,8 @@ class VizTopo(QtWidgets.QWidget):
         """
         self.export3d = dict(name='Export3d', type='group', expanded = True, title = "Export Image",
                     children=[
-                                dict(name='xpixels', type = 'int', title = "XPixels", value = 1000, readonly = False),
-                                dict(name='ypixels', type = 'int', title = "YPixels", value = 1000, readonly = False),
+                                dict(name='xpixels', type = 'int', title = "XPixels", default = 1000, readonly = False),
+                                dict(name='ypixels', type = 'int', title = "YPixels", default = 1000, readonly = False),
                                 dict(name = 'Export', type = 'action')
                             ]
                     )
