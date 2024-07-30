@@ -441,16 +441,21 @@ def planes_frm_3pts(xyzs: np.ndarray) -> np.ndarray:
     is0 = np.logical_and(is01, cis0)
     is0x3 = np.repeat(is0, 3)
     is0x3 = np.reshape(is0x3, (len(is0), 3))
+    # normalise the vectors
+    nrmls = np.vstack((a, b, c))
+    nrmls = nrmls.T
+    nrmls = np.where(is0x3, np.nan, nrmls)
+    nrmls = normalise_vectors(nrmls)
+    abc = nrmls.T
+    a = abc[0]
+    b = abc[1]
+    c = abc[2]
+
     ax = np.where(is0, np.nan, -1 * a * xyzs[:, 0, 0])
     bx = np.where(is0, np.nan, b * xyzs[:, 0, 1])
     cx = np.where(is0, np.nan, c * xyzs[:, 0, 2])
     d = ax - bx -cx
-    nrmls = np.vstack((a, b, c))
-    nrmls = nrmls.T
-    nrmls = np.where(is0x3, np.nan, nrmls)
-
-    nrmls = normalise_vectors(nrmls)
-    abc = nrmls.T
+    
     abcd = np.vstack((abc, d))
     abcdT = abcd.T
     return abcdT
@@ -514,6 +519,7 @@ def is_coplanar_xyzs(xyzs: np.ndarray, atol: float = 1e-08, rtol: float = 1e-05)
     if nshape == 1:  # only 1 set of points
         if type(xyzs) != np.ndarray:
             xyzs = np.array(xyzs)
+        
         return a_coplanar(xyzs)
 
     elif nshape == 2: #multiple sets of points
@@ -2677,7 +2683,9 @@ def polyxyzs_clipping(clipping_polyxyzs: np.ndarray, subject_polyxyzs: np.ndarra
 
     # check if both polygons are coplanar, if not just return no intersection
     all_xyzs = np.append(clipping_polyxyzs, subject_polyxyzs, axis = 0)
+    print(all_xyzs)
     is_pts_coplanar = is_coplanar_xyzs(all_xyzs)
+    print(is_pts_coplanar)
     if is_pts_coplanar == False:
         return None
     # turn each polygon into edges
