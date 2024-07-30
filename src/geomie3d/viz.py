@@ -2036,7 +2036,7 @@ def _convert_topo_dictionary_list4viz(topo_dictionary_list, view3d, gl_option='o
         
         #if there are faces to be viz
         if len(all_faces) > 0:
-            mesh_dict = modify.faces2mesh(all_faces)
+            mesh_dict = modify.faces2trimesh(all_faces)
             #flip the indices
             verts = mesh_dict['vertices']
             idx = mesh_dict['indices']
@@ -2254,7 +2254,7 @@ def _clr_topos(topos: list[topobj.Topology], colour: list, view3d: gl.GLViewWidg
         view3d.addItem(viz_lines)
 
     if len(faces) > 0:
-        mesh_dict = modify.faces2mesh(faces)
+        mesh_dict = modify.faces2trimesh(faces)
         #flip the indices
         verts = mesh_dict['vertices']
         idx = mesh_dict['indices']

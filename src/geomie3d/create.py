@@ -230,7 +230,7 @@ def xyzs_frm_bboxes(bbox_ls: list[utility.Bbox]) -> np.ndarray:
         np.ndarray(shape(8, 3)). Bounding box is defined by 8 points.
     """
     bbox_arr_ls = np.array([bbox.bbox_arr for bbox in bbox_ls])
-    
+    # print(bbox_arr_ls)
     xyzs1 = np.take(bbox_arr_ls, [0,1,2], axis=1)
     xyzs2 = np.take(bbox_arr_ls, [3,1,2], axis=1)
     xyzs3 = np.take(bbox_arr_ls, [3,4,2], axis=1)

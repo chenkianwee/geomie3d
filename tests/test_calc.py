@@ -117,25 +117,48 @@ def test_is_anticlockwise():
     is_anti = geomie3d.calculate.is_anticlockwise(xyzs, ref_vec)
 
 def test_calc_is_coplanar_collinear():
-    xyzs = [[[0,0,0], [3,0,0],[2,3,0],[0,3,1]],
-        [[0,0,0], [3,0,0],[2,3,0],[1,3,0]]]
+    xyzs1 = [[[0,0,0], [3,0,0],[2,3,0],[0,3,1], [1,3,0], [4,3,0]],
+        [[0,0,0], [3,0,0],[2,3,0],[1,3,0], [2,4,0], [0,4,0]]]
 
-    vs2 = [geomie3d.create.vertex_list(xyz) for xyz in xyzs]
+    xyzs2 = [[[0,0,0], [3,0,0],[2,3,0],[0,3,1], [1,3,0], [4,3,0]],
+            [[0,0,0], [3,0,0],[2,3,0],[1,3,0], [2,4,0]]]
 
-    xyzs = [[0,0,0], [3,0,0], [2,3,0], [0,3,0], [0,3,0], [0,0,0]]
-    is_coplanar = geomie3d.calculate.is_coplanar_xyzs(xyzs)
+    xyzs3 = [[0,0,0], [3,0,0], [2,3,0], [0,3,0], [0,3,0], [0,0,0]]
+
+    xyzs4 = [[0,0,0], [0,10,0], [0,20,1]]
+
+    vs1 = [geomie3d.create.vertex_list(xyz) for xyz in xyzs1]
+    vs2 = [geomie3d.create.vertex_list(xyz) for xyz in xyzs2]
+    vs3 = [geomie3d.create.vertex(xyz) for xyz in xyzs3]
+    vs4 = [geomie3d.create.vertex(xyz) for xyz in xyzs4]
+
+    is_coplanar = geomie3d.calculate.is_coplanar_xyzs(xyzs1)
+    assert np.array_equal(is_coplanar, np.array([False, True]))
+
+    is_coplanar = geomie3d.calculate.is_coplanar_xyzs(xyzs2)
+    assert np.array_equal(is_coplanar, np.array([False, True]))
+
+    is_coplanar = geomie3d.calculate.is_coplanar_xyzs(xyzs3)
+    assert is_coplanar == True
+
+    is_coplanar = geomie3d.calculate.is_coplanar(vs1)
+    assert np.array_equal(is_coplanar, np.array([False, True]))
+ 
     is_coplanar = geomie3d.calculate.is_coplanar(vs2)
+    assert np.array_equal(is_coplanar, np.array([False, True]))
 
-    a = np.array(xyzs)
-    centre_pt = geomie3d.calculate.xyzs_mean(xyzs)
-    print(centre_pt)
+    is_coplanar = geomie3d.calculate.is_coplanar(vs3)
+    assert is_coplanar == True
+  
 
-    xyzs2 = [[0,0,0],
-            [0,10,0],
-            [0,20,1]]
+    centre_pt = geomie3d.calculate.xyzs_mean(xyzs1)
+    cps = np.array([[1.66666667, 2.0, 0.16666667],
+                    [1.33333333, 2.33333333, 0.]])
 
-    vs2 = geomie3d.create.vertex_list(xyzs2)
-    is_collinear = geomie3d.calculate.is_collinear(vs2)
+    assert np.allclose(centre_pt, cps)
+
+    is_collinear = geomie3d.calculate.is_collinear(vs4)
+    assert is_collinear == False
 
 def test_calc_linexyzs_frm_ts():
     linexyzs = [[[1,0,0], [1,6,0]], 
@@ -568,3 +591,36 @@ def test_calc_boolean_2faces():
     correct_answer = np.array([[14, 10,  5,], [14,  8,  5,], [18,  8,  5], [18, 10,  5], 
                                [19, 10,  5], [19,  5,  5], [11,  5,  5], [11, 10,  5]]).astype(float)
     assert np.array_equiv(xyz_ls, correct_answer) 
+
+def calc_are_verts_in_polygons():
+    vs = geomie3d.create.vertex_list([[3,3,0], [3,0.5,0]])
+    polyvs = geomie3d.create.vertex_list([[1,1,0], [5,1,0], [5,5,0], [1,5,0]])
+    poly = geomie3d.create.polygon_face_frm_verts(polyvs)
+
+    are_xyzs2 = geomie3d.calculate.are_verts_in_polygons([vs, vs], [poly, poly])
+
+    assert are_xyzs2 == [[True, False], [True, False]]
+
+def calc_dist_xyz2poly():
+    xyzs = [[8,3,2.5], [8,4,2]]
+    polyxyzs = [[[1,1,0], [5,1,0], [5,5,0], [1,5,0]], [[1,1,1], [5,1,1], [5,5,1]]]
+
+    nrmlxyzs = [[0,0,1], [0,0,-1]]
+    geomie3d.calculate.dist_pointxyzs2polyxyzs(xyzs, polyxyzs, nrmlxyzs, int_pts=True)
+    dist2polys, polyintxs = geomie3d.calculate.dist_pointxyzs2polyxyzs(xyzs, polyxyzs, nrmlxyzs, int_pts=True)
+
+    assert np.allclose(dist2polys, np.array([3.90512484, 3.16227766]))
+    assert np.array_equal(polyintxs, np.array([[5,3,0], [5,4,1]]))
+
+    verts = geomie3d.create.vertex_list(xyzs)
+    polys = []
+    for polyxyz in polyxyzs:
+        poly_verts = geomie3d.create.vertex_list(polyxyz)
+        poly = geomie3d.create.polygon_face_frm_verts(poly_verts)
+        polys.append(poly)
+
+    dists, intxs = geomie3d.calculate.dist_verts2polyfaces(verts, polys, int_pts=True)
+    intxyzs = np.array([v.point.xyz for v in intxs])
+
+    assert np.allclose(dists, np.array([3.90512484, 3.16227766]))
+    assert np.array_equal(intxyzs, np.array([[5,3,0], [5,4,1]]))

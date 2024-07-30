@@ -54,7 +54,7 @@ def fuse_vertices(vertex_list: list[topobj.Vertex], decimals: int = 6) -> list[t
                                       return_index=True)
     
     dup_ids = utility.id_dup_indices_1dlist(inverse)
-    for cnt,d_id in enumerate(dup_ids):
+    for d_id in dup_ids:
         d = np.take(vertex_list, d_id, axis=0)
         att_list = [v.attributes for v in d]
         new_dict = {"fused_vertex"+str(x):att_list[x] 
@@ -92,7 +92,7 @@ def fuse_points(point_list: list[geom.Point], decimals: int = 6) -> list[geom.Po
     unique_p = point_list[u_ids]
     return unique_p
 
-def triangulate_face(face: topobj.Face, indices: bool = False) -> list[topobj.Face]:
+def triangulate_face(face: topobj.Face, indices: bool = False) -> list[topobj.Face] | list:
     """
     Triangulates a face.
  
@@ -106,8 +106,9 @@ def triangulate_face(face: topobj.Face, indices: bool = False) -> list[topobj.Fa
  
     Returns
     -------
-    list of face : list[topobj.Face]
-        A list of triangles constructed from the meshing.
+    list of face : list[topobj.Face] | list
+        - A list of triangles constructed from the meshing.
+        - a list with 2 lists: in the first list contain the vertices=np.ndarray[number of points, 3] and the second indices=np.ndarray[number of tri * 3]
     """
     srf_type = face.surface_type
     if srf_type == geom.SrfType.POLYGON:
@@ -234,9 +235,9 @@ def triangulate_face(face: topobj.Face, indices: bool = False) -> list[topobj.Fa
                 indx.append(tri2)
             return [np.array(gpts), np.array(indx)]
             
-def faces2mesh(face_list: list[topobj.Face]) -> dict:
+def faces2trimesh(face_list: list[topobj.Face]) -> dict:
     """
-    This function converts faces to a mesh for visualisation.
+    This function converts faces to a triangulated mesh for visualisation.
  
     Parameters
     ----------
@@ -256,8 +257,6 @@ def faces2mesh(face_list: list[topobj.Face]) -> dict:
     for f in face_list:
         srf_type = f.surface_type
         if srf_type == geom.SrfType.POLYGON or srf_type == geom.SrfType.BSPLINE:
-            vs = get.vertices_frm_face(f)
-            xyzs = [v.point.xyz for v in vs]
             xyzs_indxs = triangulate_face(f, indices = True)
             if len(all_xyzs) == 0:
                 all_xyzs = xyzs_indxs[0]
@@ -271,8 +270,112 @@ def faces2mesh(face_list: list[topobj.Face]) -> dict:
                 all_idxs = np.append(all_idxs, indxs_new, axis=0)
         
             idx_cnt += len(xyzs_indxs[0])
-        
+    
+    indx_shape = np.shape(all_idxs)
+    flat_idxs = all_idxs.flatten()
+    all_xyzs, all_idxs = _fuse_mesh_xyzs_indxs(all_xyzs, flat_idxs)
+    all_idxs = np.reshape(all_idxs, indx_shape)
+
     return {"vertices":all_xyzs, "indices":all_idxs}
+
+def faces2polymesh(face_list: list[topobj.Face]) -> dict:
+    """
+    This function converts faces to a poly mesh, no triangulation is performed.
+ 
+    Parameters
+    ----------
+    face_list : list[topobj.Face]
+        the list of face object to be meshed.The face must be single facing, it
+        cannot have regions that are facing itself.
+ 
+    Returns
+    -------
+    mesh_dictionary : dict
+        vertices: np.ndarray[shape(Npoints,3)] of the vertices
+        indices: list[shape(Npolys, points in polygons)] indices of the polygons.
+    """
+    all_xyzs = []
+    all_idxs = []
+    aface_npts = []
+    idx_cnt = 0
+    for f in face_list:
+        srf_type = f.surface_type
+        if srf_type == geom.SrfType.POLYGON:
+            vlist = get.bdry_vertices_frm_face(f)
+            xyzs = np.array([v.point.xyz for v in vlist])
+            indxs = np.array(range(len(vlist)))
+            aface_npts.append(len(indxs))
+            if len(all_xyzs) == 0:
+                all_xyzs = xyzs
+            else:
+                all_xyzs = np.append(all_xyzs, xyzs, axis=0)
+            
+            if len(all_idxs) == 0:
+                all_idxs = indxs
+            else:
+                indxs_new =  indxs + idx_cnt
+                all_idxs = np.append(all_idxs, indxs_new, axis=0)
+        
+            idx_cnt += len(xyzs)
+
+        #TODO: account for bspline surfaces
+        # elif srf_type == geom.SrfType.BSPLINE:
+        #     pass
+    
+    all_xyzs, all_idxs = _fuse_mesh_xyzs_indxs(all_xyzs, all_idxs)
+    all_idxs_2d = []
+    start_idx = 0
+    for aface_npt in aface_npts:
+        end_idx = start_idx+aface_npt
+        all_idxs_2d.append(all_idxs[start_idx:end_idx])
+        start_idx = end_idx
+        
+    return {"vertices":all_xyzs, "indices":all_idxs_2d}
+
+def _fuse_mesh_xyzs_indxs(xyzs: np.ndarray | list, idxs: np.ndarray | list) -> tuple[np.ndarray, np.ndarray]:
+    """
+    This function converts faces to a poly mesh, no triangulation is performed.
+ 
+    Parameters
+    ----------
+    xyzs : np.ndarray | list
+        np.ndarray[shape(number of points, 3)] the xyzs to fuse.
+    
+    idxs : np.ndarray | list
+        np.ndarray[shape(number of shapes * points in each shape)] the index to be sorted based on the fuse.
+        
+    Returns
+    -------
+    tuple[np.ndarray, np.ndarray]
+        - 0 = vertices: np.ndarray[shape(Npoints,3)] xyzs that are fused.
+        - 1 = indices: list[shape(Npolys * points in polygons)] the sorted indices of the geometry.
+    """
+    vals, u_ids, inverse = np.unique(xyzs, axis = 0,
+                                     return_inverse=True,
+                                     return_index=True)
+    
+    u_ids = np.sort(u_ids)
+    vals = np.take(xyzs, u_ids, axis=0)
+
+    dup_ids = utility.id_dup_indices_1dlist(inverse)
+    all_idxs2 = []
+    for idx in idxs:
+        found = False
+        for dup in dup_ids:
+            dup = dup.tolist()
+            if idx in dup:
+                all_idxs2.append(np.min(dup))
+                found = True
+                break
+        if found == False:
+            all_idxs2.append(idx)
+
+    all_idxs3 = []
+    for idx in all_idxs2:
+        uid_indx = np.where(u_ids==idx)[0][0]
+        all_idxs3.append(int(uid_indx))
+
+    return [vals, all_idxs3]
 
 def edges2lineedges(edge_list: list[topobj.Edge]) -> list[topobj.Edge]:
     """

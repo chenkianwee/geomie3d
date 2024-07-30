@@ -30,6 +30,7 @@ from . import modify
 from . import get
 from . import create
 from . import topobj
+from . import calculate
 
 class CoordinateSystem(object):
     def __init__(self, origin: list[float], x_dir: list[float], y_dir:list[float]):
@@ -146,6 +147,75 @@ class Bbox(object):
         """The max z"""
         self.attributes: dict = attributes
         """dictionary of the attributes"""
+    
+    def overwrite_attributes(self, new_attributes: dict):
+        """
+        This function overwrites the attribute dictionary with the new dictionary.
+     
+        Parameters
+        ----------
+        new_attributes : dict
+            The dictionary of attributes appended to the object.
+        """
+        self.attributes = new_attributes
+        
+    def update_attributes(self, new_attributes: dict):
+        """
+        This function overwrites the attribute dictionary with the new dictionary.
+     
+        Parameters
+        ----------
+        new_attributes : dict
+            The dictionary of attributes appended to the object.
+        """
+        old_att = self.attributes
+        update_att = old_att.copy()
+        update_att.update(new_attributes)
+        self.attributes = update_att
+
+class Plane(object):
+    def __init__(self, pointxyz: list[float], nrmlxyz: list[float], attributes: dict = {}):
+        """
+        A plane object is define as ax + by + cz + d = 0. http://mathonline.wikidot.com/point-normal-form-of-a-plane
+        
+        Parameters
+        ----------
+        pointxyz : list[float]
+            a point on the plane.
+
+        nrmlxyz : list[float]
+            the normal of the plane.
+            
+        attributes : dict, optional
+            dictionary of the attributes.
+        """
+        self.a: float = nrmlxyz[0]
+        """the a coefficient"""
+        self.b: float = nrmlxyz[1]
+        """the b coefficient"""
+        self.c: float = nrmlxyz[2]
+        """the c coefficient"""
+        self.attributes: dict = attributes
+        """dictionary of the attributes"""
+        self.d: float = self.calc_d(pointxyz)
+        """the d coefficient"""
+
+    def calc_d(self, pointxyz: list[float]) -> float:
+        """
+        Calculates the d coefficient of the plane.
+     
+        Parameters
+        ----------
+        pointxyz: list[float]
+            a point on the plane.
+
+        Returns
+        -------
+        float
+            the coefficient d.
+        """
+        d = calculate.planes_frm_pointxyzs_nrmls([pointxyz], [[self.a, self.b, self.c]])[0][3]
+        return d
     
     def overwrite_attributes(self, new_attributes: dict):
         """
@@ -840,8 +910,8 @@ def _read_composite(composite_dict: dict) -> topobj.Composite:
     return c
 
 def viz1axis_timeseries(data_dict_ls: list[dict], plot_title: str, xaxis_label: str, yaxis_label: str, filepath: str,
-                        yaxis_lim: list[float] = None, dateformat: str = None, legend_loc: dict = None, tight_layout: bool = True, 
-                        inf_lines: list[dict] = None, regions: list[dict] = None):
+                        yaxis_lim: list[float] = None, dateformat: str = None, xtick_rot: float = 40, label_fontsize: int = 18, tick_fontsize: int = 16,
+                        legend_loc: dict = None, tight_layout: bool = True, inf_lines: list[dict] = None, regions: list[dict] = None, viz: bool = True):
     """
     Viz timeseries data in a 1 axis x-y plot
     
@@ -874,7 +944,16 @@ def viz1axis_timeseries(data_dict_ls: list[dict], plot_title: str, xaxis_label: 
         tuple specifying the lower and upper limit of the yaxis (lwr, uppr)
     
     dateformat : str, optional
-        specify how to viz the date time on the x-axis, e.g.'%Y-%m-%dT%H:%M:%S'. Default 'H:%M:%S' 
+        specify how to viz the date time on the x-axis, e.g.'%Y-%m-%dT%H:%M:%S'. Default 'H:%M:%S'
+
+    xtick_rot : float, optional
+        specify the rotation of the placement of xticks. Default 40 degree 
+
+    label_fontsize : int, optional
+        the fontsize of the labels, include x and y label and the title. Default 18 
+
+    tick_fontsize : int, optional
+        the fontsize of the ticks, include x and y ticks. Default 16
     
     legend_loc : dict, optional
         specify the location of the legend
@@ -898,14 +977,20 @@ def viz1axis_timeseries(data_dict_ls: list[dict], plot_title: str, xaxis_label: 
         - orientation: str, 'vertical', 'horizontal' or 'custom'
         - range: list of floats, [lwr_limit, upr_limit] e.g. [50,70], if 'custom', [[xrange], [yrange1], [yrange2]]
         - colour: tuple, (r,g,b,a)
+
+    viz : bool, optional
+        if set to True will show the graph. Default to True.
     """
     import matplotlib.pyplot as plt
     from matplotlib.dates import DateFormatter
-
+    label_fontsize = 14
+    tick_fontsize = 12
     fig, ax1 = plt.subplots()
-    plt.title(plot_title, fontsize=10 )
-    ax1.set_xlabel(xaxis_label, fontsize=10)
-    ax1.set_ylabel(yaxis_label, fontsize=10)
+    plt.title(plot_title, fontsize = label_fontsize )
+    ax1.set_xlabel(xaxis_label, fontsize = label_fontsize)
+    ax1.set_ylabel(yaxis_label, fontsize = label_fontsize)
+    plt.xticks(fontsize=tick_fontsize)
+    plt.yticks(fontsize=tick_fontsize)
     if yaxis_lim is not None:
         plt.ylim(yaxis_lim[0],yaxis_lim[1])
     
@@ -927,7 +1012,7 @@ def viz1axis_timeseries(data_dict_ls: list[dict], plot_title: str, xaxis_label: 
     ax1.xaxis.set_major_formatter(formatter)
     plt.gcf().autofmt_xdate()
     for label in ax1.get_xticklabels():
-        label.set_rotation(40)
+        label.set_rotation(xtick_rot)
     
     if inf_lines is not None:
         for l in inf_lines:
@@ -952,12 +1037,10 @@ def viz1axis_timeseries(data_dict_ls: list[dict], plot_title: str, xaxis_label: 
             elif r['orientation'] == 'custom':
                 ax1.fill_between(r['range'][0], r['range'][1], r['range'][2], label = r['label'], color = r['colour'])
     
-    if legend_loc is None:
-        ax1.legend(loc='best')
-    else:
+    if legend_loc is not None:
         ax1.legend(loc=legend_loc['loc'], 
                    bbox_to_anchor=legend_loc['bbox_to_anchor'], 
-                   fancybox=True, ncol=legend_loc['ncol'])
+                   fancybox=True, ncol=legend_loc['ncol'], fontsize = tick_fontsize)
     
     ax1.grid(True, axis = 'y', linestyle='--', linewidth = 0.3)
     ax1.grid(True, axis = 'x', linestyle='--', linewidth = 0.3)
@@ -966,12 +1049,14 @@ def viz1axis_timeseries(data_dict_ls: list[dict], plot_title: str, xaxis_label: 
         plt.tight_layout()
     
     plt.savefig(filepath, bbox_inches = "tight", dpi = 300, transparent=False)
-    plt.show()
-
+    plt.close()
+    if viz == True:
+        plt.show()
+    
 def viz2axis_timeseries(y1_data_dict_ls: list[dict], y2_data_dict_ls: list[dict], plot_title: str, xaxis_label: str, yaxis1_label: str,
                         yaxis2_label: str, filepath: str, yaxis1_lim: list[float] = None, yaxis2_lim: list[float] = None, yaxis2_color: str = 'b',
-                        dateformat: str = None, legend_loc1: dict = None, legend_loc2: dict = None, tight_layout: bool = True, 
-                        inf_lines: list[dict] = None, regions: list[dict] = None):
+                        dateformat: str = None, xtick_rot: float = 40, label_fontsize: int = 18, tick_fontsize: int = 16, legend_loc1: dict = None, legend_loc2: dict = None, tight_layout: bool = True, 
+                        inf_lines: list[dict] = None, regions: list[dict] = None, viz: bool = True):
     """
     Viz timeseries data in a 1 axis x-y plot
 
@@ -1018,15 +1103,24 @@ def viz2axis_timeseries(y1_data_dict_ls: list[dict], y2_data_dict_ls: list[dict]
     dateformat : str, optional
         specify how to viz the date time on the x-axis, e.g.'%Y-%m-%dT%H:%M:%S'. Default 'H:%M:%S'
 
+    xtick_rot : float, optional
+        specify the rotation of the placement of xticks. Default 40 degree
+
+    label_fontsize : int, optional
+        the fontsize of the labels, include x and y label and the title. Default 18 
+
+    tick_fontsize : int, optional
+        the fontsize of the ticks, include x and y ticks. Default 16
+        
     legend_loc1 : dict, optional
-        specify the location of the legend of the first y-axis
-        - 'loc', str, e.g. upper right, center left, lower center
+        specify the location of the legend of the first y-axis. If None no legend.
+        - 'loc', str, e.g. upper right, center left, lower center, best
         - 'bbox_to_anchor',tuple, (x, y)
         - 'ncol', int, number of columns for the legend box
 
     legend_loc2 : dict, optional
-        specify the location of the legend of the 2nd y-axis
-        - 'loc', str, e.g. upper right, center left, lower center
+        specify the location of the legend of the 2nd y-axis. If None no legend
+        - 'loc', str, e.g. upper right, center left, lower center, best
         - 'bbox_to_anchor',tuple, (x, y)
         - 'ncol', int, number of columns for the legend box
 
@@ -1047,14 +1141,17 @@ def viz2axis_timeseries(y1_data_dict_ls: list[dict], y2_data_dict_ls: list[dict]
         - range: list of floats, [lwr_limit, upr_limit] e.g. [50,70] 
         - colour: tuple, (r,g,b,a)
 
+    viz : bool, optional
+        if set to True will show the graph. Default to True.
     """
     import matplotlib.pyplot as plt
     from matplotlib.dates import DateFormatter
-
     fig, ax1 = plt.subplots()
-    plt.title(plot_title, fontsize=10 )
-    ax1.set_xlabel(xaxis_label, fontsize=10)
-    ax1.set_ylabel(yaxis1_label, fontsize=10)
+    plt.title(plot_title, fontsize=label_fontsize)
+    ax1.set_xlabel(xaxis_label, fontsize=label_fontsize)
+    ax1.set_ylabel(yaxis1_label, fontsize=label_fontsize)
+    plt.xticks(fontsize=tick_fontsize)
+    ax1.tick_params(axis='y', labelsize=tick_fontsize)
     if yaxis1_lim is not None:
         plt.ylim(yaxis1_lim[0],yaxis1_lim[1])
     
@@ -1076,7 +1173,7 @@ def viz2axis_timeseries(y1_data_dict_ls: list[dict], y2_data_dict_ls: list[dict]
     ax1.xaxis.set_major_formatter(formatter)
     plt.gcf().autofmt_xdate()
     for label in ax1.get_xticklabels():
-        label.set_rotation(40)
+        label.set_rotation(xtick_rot)
     
     if inf_lines is not None:
         for l in inf_lines:
@@ -1097,12 +1194,10 @@ def viz2axis_timeseries(y1_data_dict_ls: list[dict], y2_data_dict_ls: list[dict]
             elif r['orientation'] == 'horizontal':
                 ax1.fill_between([min(x), max(x)], r['range'][0], r['range'][1], label = r['label'], color = r['colour'])
     
-    if legend_loc1 is None:
-        ax1.legend(loc='best')
-    else:
+    if legend_loc1 is not None:
         ax1.legend(loc=legend_loc1['loc'],
                    bbox_to_anchor=legend_loc1['bbox_to_anchor'],
-                   fancybox=True, ncol=legend_loc1['ncol'])
+                   fancybox=True, ncol=legend_loc1['ncol'], fontsize = tick_fontsize)
 
     ax1.grid(True, axis = 'y', linestyle='--', linewidth = 0.3)
     ax1.grid(True, axis = 'x', linestyle='--', linewidth = 0.3)
@@ -1111,26 +1206,28 @@ def viz2axis_timeseries(y1_data_dict_ls: list[dict], y2_data_dict_ls: list[dict]
     #THE SECOND AXIS
     #=================================================================================================================================
     ax2 = ax1.twinx()
-
+    ax2.tick_params(axis='y', labelsize=tick_fontsize)
     for dd in y2_data_dict_ls:
         ax2.plot(list(dd['datax']), list(dd['datay']),
                   linestyle = dd['linestyle'], linewidth=dd['linewidth'],
                   marker = dd['marker'], markersize = dd['marker_size'],
                   c = dd['color'], label = dd['label'])
 
-    ax2.set_ylabel(yaxis2_label, color='b', fontsize=10)
+    ax2.set_ylabel(yaxis2_label, color='b', fontsize=label_fontsize)
     ax2.tick_params('y', colors = yaxis2_color)
+    if yaxis2_lim is not None:
+        ax2.set_ylim(yaxis2_lim[0],yaxis2_lim[1])
 
-    if legend_loc2 is None:
-        ax2.legend(loc='best')
-    else:
+    if legend_loc2 is not None:
         ax2.legend(loc=legend_loc2['loc'],
                    bbox_to_anchor=legend_loc2['bbox_to_anchor'],
-                   fancybox=True, ncol=legend_loc2['ncol'])
+                   fancybox=True, ncol=legend_loc2['ncol'], fontsize = tick_fontsize)
 
     if tight_layout == True:
       plt.tight_layout()
 
     plt.savefig(filepath, bbox_inches = "tight", dpi = 300, transparent=False)
-    plt.show()
+    plt.close()
+    if viz == True:
+        plt.show()
    

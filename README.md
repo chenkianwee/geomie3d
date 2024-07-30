@@ -40,3 +40,7 @@ os.environ['QT_QPA_PLATFORM'] = 'wayland-egl' -> os.environ['QT_QPA_PLATFORM'] =
 If the openGL is giving you issue with the viz function do this to solve the issue 
 1. go to /etc/gdm3/custom.conf and uncomment WaylandEnable=false
 2. go to /etc/environment and add this line QT_QPA_PLATFORM=xcb to the file
+
+## Precision Issue
+- calculate and modify module need to address the issue of precisions
+    - functions linexyzs_intersect, lineedge_intersect, fuse_vertices, fuse_points
