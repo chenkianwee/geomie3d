@@ -145,18 +145,6 @@ class PolygonSurface(Surface):
         normal = calculate.normalise_vectors(n)
         normal = np.round(normal, decimals = 6)
 
-        # loop implementation 
-        # n = [0.0, 0.0, 0.0]
-        # for i, v_curr in enumerate(point_list):
-        #     v_curr = v_curr.xyz
-        #     v_next = point_list[(i+1) % len(point_list)]
-        #     v_next = v_next.xyz
-        #     n[0] += (v_curr[1] - v_next[1]) * (v_curr[2] + v_next[2])
-        #     n[1] += (v_curr[2] - v_next[2]) * (v_curr[0] + v_next[0])
-        #     n[2] += (v_curr[0] - v_next[0]) * (v_curr[1] + v_next[1])
-
-        # normal = calculate.normalise_vectors(n)
-        # normal = np.round(normal, decimals = 6)
         self.normal = normal
     
     def update(self, point_list: list[Point],  hole_point_2dlist: list[list[Point]] = []):

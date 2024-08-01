@@ -257,8 +257,8 @@ class Face(Topology):
             The list of wire objects that define the holes in the face.
      
         """
-        if type(hole_wire_list) != np.ndarray:
-            hole_wire_list = np.array(hole_wire_list)
+        # if type(hole_wire_list) != np.ndarray:
+        #     hole_wire_list = np.array(hole_wire_list)
             
         self.surface_type = geom.SrfType.POLYGON
         self.bdry_wire = bdry_wire

@@ -323,58 +323,69 @@ class BaseAnimate(QtWidgets.QWidget):
         if (sys.flags.interactive != 1) or not hasattr(QtCore, 'PYQT_VERSION'):
             pg.exec()
 
-class VizTopo(QtWidgets.QWidget):
-    def __init__(self, topo_dictionary_list: list[dict], gl_option: str):
+class AFalsecolour(BaseAnimate):
+    def __init__(self, topo_2dlist: list[list[topobj.Topology]], results2d: list[list[float]], topo_unixtime: list[float], 
+                 false_min_max_val: list[float] = None, other_topo_2ddlist: list[list[dict]] = [], gl_option: str = 'opaque'):
         """
-        gui object for visualizing topologies
+        Initializes a falsecolour animation window.
+    
+        Parameters
+        ----------
+        topo_2dlist : list[list[topobj.Topology]]
+            2dlist of topologies. You can have one set of geometries to multiple sets of results.
+        
+        results2d : list[list[float]]
+            2d list of performance value to be visualise as falsecolour.
+        
+        topo_datetime_ls : list[datetime.datetime]
+            timestamp of the topology data.
+        
+        false_min_max_val : list[float], optional
+            list of two values [min_val, max_val] for the falsecolour visualisation.
+        
+        other_topo_2ddlist : list[list[dict]], optional
+            A 2d list of dictionary specifying the visualisation parameters.
+            - topo_list: the topos to visualise
+            - colour:  keywords (RED,ORANGE,YELLOW,GREEN,BLUE,BLACK,WHITE) or rgb tuple to specify the colours
+            - draw_edges: bool whether to draw the edges of mesh, default is True
+            - point_size: size of the point
+            - px_mode: True or False, if true the size of the point is in pixel if not its in meters
+            - attribute: name of the attribute to viz
+        
+        gl_option : str, optional
+            str describing the gl option for the 3d view, default is 'opqaue', can be 'opaque', 'additive', 'translucent' 
         """
-        QtWidgets.QWidget.__init__(self)
+        super(AFalsecolour, self).__init__(topo_unixtime, gl_option)
         self.setupGUI()
         self.insert_parm3d()
-        self.topo_dictionary_list: list[dict] = topo_dictionary_list
-        """list of dictionary specifying the topologies to visualize"""
-        self.gl_option: str = gl_option
-        """gl option for the 3d view"""
+        self.topo_2dlist: list[list[topobj.Topology]] = topo_2dlist
+        """2dlist of topologies. You can have one set of geometries to multiple sets of results."""
+        self.results2d: list[list[float]] = results2d
+        """2d list of performance value to be visualise as falsecolour."""
+        self.false_min_max_val: list[float] = false_min_max_val
+        """list of two values [min_val, max_val] for the falsecolour visualisation."""
+        self.other_topo_2ddlist: list[list[dict]] = other_topo_2ddlist
+        """A 2d list of dictionary specifying the visualisation parameters."""
+        #process data to visualise 3d model
+        res_flat = list(chain(*results2d))
+        self.real_min_max: list[float] = [min(res_flat), max(res_flat)]
+        """the min max value of the results"""
+        self.create_3d_dict()
+        self.topo_unixtime_sorted: list[float] = sorted(self.model3d_dict.keys())
+        """timestamp of the topology data arranged in chronological order."""
+        self.current_time_index: int = 0
+        """index of the current timestamp"""
+        self.n3dtimes: int = len(self.topo_unixtime_sorted)
+        """the number of timestamps"""
+        
+        start_3d_unixt = self.topo_unixtime_sorted[0]
+        end_3d_unixt = self.topo_unixtime_sorted[-1]
+        date_str_start = datetime.datetime.fromtimestamp(start_3d_unixt).strftime('%Y-%m-%dT%H:%M:%S')
+        date_str_end = datetime.datetime.fromtimestamp(end_3d_unixt).strftime('%Y-%m-%dT%H:%M:%S')
+        range_str = date_str_start + ' to ' + date_str_end
+        self.params.param('Parm3d').param('Data Range Loaded').setValue(range_str)
+        #load the initial spatial time-series data
         self.load_3dmodel(zoom_extent = True)
-        self.backgroundc: str = 'k'
-        """background color of the 3d view port"""
-        
-    def setupGUI(self):
-        """
-        function for setting up the base gui
-        """
-        self.layout = QtWidgets.QVBoxLayout()
-        self.setLayout(self.layout)
-        #create the right panel
-        self.splitter = QtWidgets.QSplitter()
-        self.splitter.setOrientation(QtCore.Qt.Orientation.Horizontal)
-        #create the parameter tree for housing the parameters
-        self.tree = ParameterTree(showHeader=False)
-        self.splitter.addWidget(self.tree)
-        #create the 3d view
-        self.view3d = gl.GLViewWidget()
-        self.splitter.addWidget(self.view3d)
-        self.layout.addWidget(self.splitter)
-        
-        self.screen_width = self.screen().size().width()
-        self.screen_height = self.screen().size().height()
-        self.splitter.setSizes([int(self.screen_width/3), self.screen_width])
-        
-    def insert_parm3d(self):
-        """
-        function for setting up the base parameters of the gui
-        """
-        self.export3d = dict(name='Export3d', type='group', expanded = True, title = "Export Image",
-                    children=[
-                                dict(name='xpixels', type = 'int', title = "XPixels", default = 1000, readonly = False),
-                                dict(name='ypixels', type = 'int', title = "YPixels", default = 1000, readonly = False),
-                                dict(name = 'Export', type = 'action')
-                            ]
-                    )
-
-        self.params = Parameter.create(name = "Export", type = "group", children = [self.export3d])
-        self.params.param('Export3d').param('Export').sigActivated.connect(self.export)
-        self.tree.addParameters(self.params, showTop=False)
     
     def load_3dmodel(self, zoom_extent: bool = False):
         """
@@ -385,7 +396,150 @@ class VizTopo(QtWidgets.QWidget):
         zoom_extent : bool, optional
             zoom to the 3d model. Default = False.
         """
-        bbox_list = _convert_topo_dictionary_list4viz(self.topo_dictionary_list, self.view3d, gl_option=self.gl_option)
+        #clear the 3dview
+        self.clear_3dview()
+        model3d_dict = self.model3d_dict
+        
+        topo_unixtime_sorted = self.topo_unixtime_sorted
+        current_time_index = self.current_time_index
+        
+        current_unix_time = topo_unixtime_sorted[current_time_index]
+        model_res = model3d_dict[current_unix_time] 
+        topo_list = model_res[0]
+        results = model_res[1]
+        other_topo_dlist = model_res[2]
+        
+        false_min_max_val = self.false_min_max_val
+        if false_min_max_val == None:
+            colours, legendbar = self.gen_falsecolour_bar(self.real_min_max[0], self.real_min_max[0], results)
+        else:
+            colours, legendbar = self.gen_falsecolour_bar(false_min_max_val[0], false_min_max_val[1], results)
+            
+        colour_refs = self.colour_refs
+        
+        clr_ints = _sort_topos2clr_ints(topo_list, colours, colour_refs)
+        
+        for cnt,clr_int in enumerate(clr_ints):
+            colour = colour_refs[cnt*2]
+            _clr_topos(clr_int, colour, self.view3d, gl_option = self.gl_option)
+        
+        self.view3d.addItem(gl.GLAxisItem())
+        if zoom_extent == True:
+            cmp = create.composite(topo_list)
+            bbox = calculate.bbox_frm_topo(cmp)
+            midpt = calculate.bboxes_centre([bbox])[0]
+            self.view3d.opts['center'] = QtGui.QVector3D(midpt[0], midpt[1], midpt[2])
+            
+            
+            lwr_left = [bbox.minx, bbox.miny, bbox.minz]
+            upr_right =  [bbox.maxx, bbox.maxy, bbox.maxz]
+            dist = calculate.dist_btw_xyzs(lwr_left, upr_right)
+            self.view3d.opts['distance'] = dist*1.5
+        
+        if len(other_topo_dlist) != 0:
+            _convert_topo_dictionary_list4viz(other_topo_dlist, self.view3d, gl_option = self.gl_option)
+            
+        self.view3d.addItem(legendbar)
+        date_str = datetime.datetime.fromtimestamp(current_unix_time).strftime('%Y-%m-%dT%H:%M:%S')
+        
+        self.params.param('Parm3d').param('Current Date').setValue(date_str)
+        
+    def create_3d_dict(self):
+        """
+        create a dictionary of all the topologies arrange according to their timestamp
+        """
+        topo_2dlist = self.topo_2dlist
+        self.only1geom = False
+        if len(topo_2dlist) == 1:
+            self.only1geom = True
+            
+        results2d = self.results2d
+        topo_unixtime = self.topo_unixtime
+        other_topo_2ddlist = self.other_topo_2ddlist
+        
+        model3d_dict = {}
+        if self.only1geom:
+            for cnt, utime in enumerate(topo_unixtime):
+                topo_ls = topo_2dlist[0]
+                results = results2d[cnt]
+                if len(other_topo_2ddlist) != 0:
+                    other_topo_dlist = other_topo_2ddlist[cnt]
+                else: 
+                    other_topo_dlist = []
+                model3d_dict[utime] = [topo_ls, results, other_topo_dlist]
+        else:
+            for cnt, utime in enumerate(topo_unixtime):
+                topo_ls = topo_2dlist[cnt]
+                results = results2d[cnt]
+                if len(other_topo_2ddlist) != 0:
+                    other_topo_dlist = other_topo_2ddlist[cnt]
+                else: 
+                    other_topo_dlist = []
+                model3d_dict[utime] = [topo_ls, results, other_topo_dlist]
+                
+        self.model3d_dict = model3d_dict
+
+class AnimateTopo(BaseAnimate):
+    def __init__(self, topo_2ddlist: list[list[dict]], topo_unixtime: list[float], gl_option: str = 'opaque'):
+        """
+        Produces an animation window.
+    
+        Parameters
+        ----------
+        topo_2ddlist : list[list[dict]]
+            A 2d list of dictionary specifying the visualisation parameters.
+            - topo_list: the topos to visualise
+            - colour:  keywords (RED,ORANGE,YELLOW,GREEN,BLUE,BLACK,WHITE) or rgb tuple to specify the colours
+            - draw_edges: bool whether to draw the edges of mesh, default is True
+            - point_size: size of the point
+            - px_mode: True or False, if true the size of the point is in pixel if not its in meters
+            - attribute: name of the attribute to viz
+        
+        topo_datetime_ls : list[datetime.datetime]
+            timestamp of the topology data.
+        
+        gl_option : str, optional
+            str describing the gl option for the 3d view, default is 'opqaue', can be 'opaque', 'additive', 'translucent' 
+        """
+        super(AnimateTopo, self).__init__(topo_unixtime, gl_option)
+        self.setupGUI()
+        self.insert_parm3d()
+        # check if there are multiple sets of geometry or just one set of geometry with multiple results
+        self.topo_2ddlist: list[list[dict]] = topo_2ddlist
+        """2dlist of topologies."""
+        self.create_3d_dict()
+        self.topo_unixtime_sorted: list[float] = sorted(self.model3d_dict.keys())
+        """timestamp of the topology data arranged in chronological order."""
+        self.n3dtimes: int = len(self.topo_unixtime_sorted)
+        """the number of timestamps"""
+
+        start_3d_unixt = self.topo_unixtime_sorted[0]
+        end_3d_unixt = self.topo_unixtime_sorted[-1]
+        date_str_start = datetime.datetime.fromtimestamp(start_3d_unixt).strftime('%Y-%m-%dT%H:%M:%S')
+        date_str_end = datetime.datetime.fromtimestamp(end_3d_unixt).strftime('%Y-%m-%dT%H:%M:%S')
+        range_str = date_str_start + ' to ' + date_str_end
+        self.params.param('Parm3d').param('Data Range Loaded').setValue(range_str)
+        self.load_3dmodel(zoom_extent=True)
+        
+    def load_3dmodel(self, zoom_extent: bool = False):
+        """
+        loads the 3d model onto the 3d view port.
+
+        Parameters
+        ----------
+        zoom_extent : bool, optional
+            zoom to the 3d model. Default = False.
+        """
+        #clear the 3dview
+        self.clear_3dview()
+        model3d_dict = self.model3d_dict
+        
+        topo_unixtime_sorted = self.topo_unixtime_sorted
+        current_time_index = self.current_time_index
+        
+        current_unix_time = topo_unixtime_sorted[current_time_index]
+        topo_dlist  = model3d_dict[current_unix_time] 
+        bbox_list = _convert_topo_dictionary_list4viz(topo_dlist, self.view3d, gl_option = self.gl_option)
         if zoom_extent == True:
             overall_bbox = calculate.bbox_frm_bboxes(bbox_list)
             midpt = calculate.bboxes_centre([overall_bbox])[0]
@@ -395,25 +549,25 @@ class VizTopo(QtWidgets.QWidget):
             upr_right =  [overall_bbox.maxx, overall_bbox.maxy, overall_bbox.maxz]
             dist = calculate.dist_btw_xyzs(lwr_left, upr_right)
             self.view3d.opts['distance'] = dist*1.5
+        
+        date_str = datetime.datetime.fromtimestamp(current_unix_time).strftime('%Y-%m-%dT%H:%M:%S')
+        
+        self.params.param('Parm3d').param('Current Date').setValue(date_str)
+        
+    def create_3d_dict(self):
+        """
+        create a dictionary of all the topologies arrange according to their timestamp
+        """
+        topo_2ddlist = self.topo_2ddlist
+        topo_unixtime = self.topo_unixtime
+        
+        model3d_dict = {}
+    
+        for cnt, utime in enumerate(topo_unixtime):
+            topo_dlist = topo_2ddlist[cnt]
+            model3d_dict[utime] = topo_dlist
             
-        axs = gl.GLAxisItem()
-        axs.setSize(x=1, y=1, z=1)
-        self.view3d.addItem(axs)
-        
-    def export(self):
-        """
-        export the image on the 3d view port.
-        """
-        fn = pg.FileDialog.getSaveFileName(self, "Choose File Path", "exported_img.png", 'PNG (*.png);; JPEG (*.jpg)')
-        
-        if fn == '':
-            return
-        
-        xpixels = self.params.param('Export3d').param('xpixels').value()
-        ypixels = self.params.param('Export3d').param('ypixels').value()
-        
-        res_path = str(fn[0])
-        _export_img(res_path, xpixels, ypixels, self.view3d)
+        self.model3d_dict = model3d_dict
 
 class FalsecolourView(QtWidgets.QWidget):
     def __init__(self):
@@ -497,6 +651,54 @@ class FalsecolourView(QtWidgets.QWidget):
         colours, gll, bcolour = _map_gen_bar(user_min, user_max, real_min, real_max, results)
         self.colour_refs = bcolour
         return colours, gll
+
+class GraphView(QtWidgets.QWidget):
+    def __init__(self, is_time_series: bool):
+        """
+        loads a graph view gui.
+
+        Parameters
+        ----------
+        is_time_series : bool
+            whether the data set is time-series.
+        """
+        QtWidgets.QWidget.__init__(self)
+        self.setupGUI(is_time_series)
+        
+    def setupGUI(self, is_time_series: bool):
+        """
+        setup the gui of the graph
+
+        Parameters
+        ----------
+        is_time_series : bool
+            whether the data set is time-series.
+        """
+        self.layout = QtWidgets.QVBoxLayout()
+        self.layout.setContentsMargins(0,0,0,0)
+        self.setLayout(self.layout)
+        
+        self.plot = pg.plot()
+        self.p1 = self.plot.plotItem
+        if is_time_series == True:
+            # self.p1.setAxisItems(axisItems = {'bottom': pg.DateAxisItem(utcOffset=time.timezone)})
+            self.p1.setAxisItems(axisItems = {'bottom': pg.DateAxisItem()})
+        
+        self.plot.showGrid(x=True, y=True)
+        self.layout.addWidget(self.plot)
+        
+    def add_scatter(self, scatterplot_ls: list[pg.ScatterPlotItem]):
+        """
+        add scatter points to the graph
+
+        Parameters
+        ----------
+        scatterplot_ls : list[pg.ScatterPlotItem]
+            scatterplot object to be plotted on the gui.
+        """
+        self.scatterplot_ls = scatterplot_ls
+        for scatter in scatterplot_ls:
+            self.p1.addItem(scatter)
 
 class StView(BaseAnimate):
     def __init__(self, topo_2dlist: list[list[topobj.Topology]], results2d: list[list[float]], topo_unixtime: list[float], xvalues2d: list[list[float]], 
@@ -966,69 +1168,58 @@ class StView(BaseAnimate):
         current_unix_time = self.topo_unixtime_sorted[current_time_index]
         self.infl.setValue(current_unix_time)
 
-class AFalsecolour(BaseAnimate):
-    def __init__(self, topo_2dlist: list[list[topobj.Topology]], results2d: list[list[float]], topo_unixtime: list[float], 
-                 false_min_max_val: list[float] = None, other_topo_2ddlist: list[list[dict]] = [], gl_option: str = 'opaque'):
+class VizTopo(QtWidgets.QWidget):
+    def __init__(self, topo_dictionary_list: list[dict], gl_option: str):
         """
-        Initializes a falsecolour animation window.
-    
-        Parameters
-        ----------
-        topo_2dlist : list[list[topobj.Topology]]
-            2dlist of topologies. You can have one set of geometries to multiple sets of results.
-        
-        results2d : list[list[float]]
-            2d list of performance value to be visualise as falsecolour.
-        
-        topo_datetime_ls : list[datetime.datetime]
-            timestamp of the topology data.
-        
-        false_min_max_val : list[float], optional
-            list of two values [min_val, max_val] for the falsecolour visualisation.
-        
-        other_topo_2ddlist : list[list[dict]], optional
-            A 2d list of dictionary specifying the visualisation parameters.
-            - topo_list: the topos to visualise
-            - colour:  keywords (RED,ORANGE,YELLOW,GREEN,BLUE,BLACK,WHITE) or rgb tuple to specify the colours
-            - draw_edges: bool whether to draw the edges of mesh, default is True
-            - point_size: size of the point
-            - px_mode: True or False, if true the size of the point is in pixel if not its in meters
-            - attribute: name of the attribute to viz
-        
-        gl_option : str, optional
-            str describing the gl option for the 3d view, default is 'opqaue', can be 'opaque', 'additive', 'translucent' 
+        gui object for visualizing topologies
         """
-        super(AFalsecolour, self).__init__(topo_unixtime, gl_option)
+        QtWidgets.QWidget.__init__(self)
         self.setupGUI()
         self.insert_parm3d()
-        self.topo_2dlist: list[list[topobj.Topology]] = topo_2dlist
-        """2dlist of topologies. You can have one set of geometries to multiple sets of results."""
-        self.results2d: list[list[float]] = results2d
-        """2d list of performance value to be visualise as falsecolour."""
-        self.false_min_max_val: list[float] = false_min_max_val
-        """list of two values [min_val, max_val] for the falsecolour visualisation."""
-        self.other_topo_2ddlist: list[list[dict]] = other_topo_2ddlist
-        """A 2d list of dictionary specifying the visualisation parameters."""
-        #process data to visualise 3d model
-        res_flat = list(chain(*results2d))
-        self.real_min_max: list[float] = [min(res_flat), max(res_flat)]
-        """the min max value of the results"""
-        self.create_3d_dict()
-        self.topo_unixtime_sorted: list[float] = sorted(self.model3d_dict.keys())
-        """timestamp of the topology data arranged in chronological order."""
-        self.current_time_index: int = 0
-        """index of the current timestamp"""
-        self.n3dtimes: int = len(self.topo_unixtime_sorted)
-        """the number of timestamps"""
-        
-        start_3d_unixt = self.topo_unixtime_sorted[0]
-        end_3d_unixt = self.topo_unixtime_sorted[-1]
-        date_str_start = datetime.datetime.fromtimestamp(start_3d_unixt).strftime('%Y-%m-%dT%H:%M:%S')
-        date_str_end = datetime.datetime.fromtimestamp(end_3d_unixt).strftime('%Y-%m-%dT%H:%M:%S')
-        range_str = date_str_start + ' to ' + date_str_end
-        self.params.param('Parm3d').param('Data Range Loaded').setValue(range_str)
-        #load the initial spatial time-series data
+        self.topo_dictionary_list: list[dict] = topo_dictionary_list
+        """list of dictionary specifying the topologies to visualize"""
+        self.gl_option: str = gl_option
+        """gl option for the 3d view"""
         self.load_3dmodel(zoom_extent = True)
+        self.backgroundc: str = 'k'
+        """background color of the 3d view port"""
+        
+    def setupGUI(self):
+        """
+        function for setting up the base gui
+        """
+        self.layout = QtWidgets.QVBoxLayout()
+        self.setLayout(self.layout)
+        #create the right panel
+        self.splitter = QtWidgets.QSplitter()
+        self.splitter.setOrientation(QtCore.Qt.Orientation.Horizontal)
+        #create the parameter tree for housing the parameters
+        self.tree = ParameterTree(showHeader=False)
+        self.splitter.addWidget(self.tree)
+        #create the 3d view
+        self.view3d = gl.GLViewWidget()
+        self.splitter.addWidget(self.view3d)
+        self.layout.addWidget(self.splitter)
+        
+        self.screen_width = self.screen().size().width()
+        self.screen_height = self.screen().size().height()
+        self.splitter.setSizes([int(self.screen_width/3), self.screen_width])
+        
+    def insert_parm3d(self):
+        """
+        function for setting up the base parameters of the gui
+        """
+        self.export3d = dict(name='Export3d', type='group', expanded = True, title = "Export Image",
+                    children=[
+                                dict(name='xpixels', type = 'int', title = "XPixels", default = 1000, readonly = False),
+                                dict(name='ypixels', type = 'int', title = "YPixels", default = 1000, readonly = False),
+                                dict(name = 'Export', type = 'action')
+                            ]
+                    )
+
+        self.params = Parameter.create(name = "Export", type = "group", children = [self.export3d])
+        self.params.param('Export3d').param('Export').sigActivated.connect(self.export)
+        self.tree.addParameters(self.params, showTop=False)
     
     def load_3dmodel(self, zoom_extent: bool = False):
         """
@@ -1039,150 +1230,7 @@ class AFalsecolour(BaseAnimate):
         zoom_extent : bool, optional
             zoom to the 3d model. Default = False.
         """
-        #clear the 3dview
-        self.clear_3dview()
-        model3d_dict = self.model3d_dict
-        
-        topo_unixtime_sorted = self.topo_unixtime_sorted
-        current_time_index = self.current_time_index
-        
-        current_unix_time = topo_unixtime_sorted[current_time_index]
-        model_res = model3d_dict[current_unix_time] 
-        topo_list = model_res[0]
-        results = model_res[1]
-        other_topo_dlist = model_res[2]
-        
-        false_min_max_val = self.false_min_max_val
-        if false_min_max_val == None:
-            colours, legendbar = self.gen_falsecolour_bar(self.real_min_max[0], self.real_min_max[0], results)
-        else:
-            colours, legendbar = self.gen_falsecolour_bar(false_min_max_val[0], false_min_max_val[1], results)
-            
-        colour_refs = self.colour_refs
-        
-        clr_ints = _sort_topos2clr_ints(topo_list, colours, colour_refs)
-        
-        for cnt,clr_int in enumerate(clr_ints):
-            colour = colour_refs[cnt*2]
-            _clr_topos(clr_int, colour, self.view3d, gl_option = self.gl_option)
-        
-        self.view3d.addItem(gl.GLAxisItem())
-        if zoom_extent == True:
-            cmp = create.composite(topo_list)
-            bbox = calculate.bbox_frm_topo(cmp)
-            midpt = calculate.bboxes_centre([bbox])[0]
-            self.view3d.opts['center'] = QtGui.QVector3D(midpt[0], midpt[1], midpt[2])
-            
-            
-            lwr_left = [bbox.minx, bbox.miny, bbox.minz]
-            upr_right =  [bbox.maxx, bbox.maxy, bbox.maxz]
-            dist = calculate.dist_btw_xyzs(lwr_left, upr_right)
-            self.view3d.opts['distance'] = dist*1.5
-        
-        if len(other_topo_dlist) != 0:
-            _convert_topo_dictionary_list4viz(other_topo_dlist, self.view3d, gl_option = self.gl_option)
-            
-        self.view3d.addItem(legendbar)
-        date_str = datetime.datetime.fromtimestamp(current_unix_time).strftime('%Y-%m-%dT%H:%M:%S')
-        
-        self.params.param('Parm3d').param('Current Date').setValue(date_str)
-        
-    def create_3d_dict(self):
-        """
-        create a dictionary of all the topologies arrange according to their timestamp
-        """
-        topo_2dlist = self.topo_2dlist
-        self.only1geom = False
-        if len(topo_2dlist) == 1:
-            self.only1geom = True
-            
-        results2d = self.results2d
-        topo_unixtime = self.topo_unixtime
-        other_topo_2ddlist = self.other_topo_2ddlist
-        
-        model3d_dict = {}
-        if self.only1geom:
-            for cnt, utime in enumerate(topo_unixtime):
-                topo_ls = topo_2dlist[0]
-                results = results2d[cnt]
-                if len(other_topo_2ddlist) != 0:
-                    other_topo_dlist = other_topo_2ddlist[cnt]
-                else: 
-                    other_topo_dlist = []
-                model3d_dict[utime] = [topo_ls, results, other_topo_dlist]
-        else:
-            for cnt, utime in enumerate(topo_unixtime):
-                topo_ls = topo_2dlist[cnt]
-                results = results2d[cnt]
-                if len(other_topo_2ddlist) != 0:
-                    other_topo_dlist = other_topo_2ddlist[cnt]
-                else: 
-                    other_topo_dlist = []
-                model3d_dict[utime] = [topo_ls, results, other_topo_dlist]
-                
-        self.model3d_dict = model3d_dict
-
-class AnimateTopo(BaseAnimate):
-    def __init__(self, topo_2ddlist: list[list[dict]], topo_unixtime: list[float], gl_option: str = 'opaque'):
-        """
-        Produces an animation window.
-    
-        Parameters
-        ----------
-        topo_2ddlist : list[list[dict]]
-            A 2d list of dictionary specifying the visualisation parameters.
-            - topo_list: the topos to visualise
-            - colour:  keywords (RED,ORANGE,YELLOW,GREEN,BLUE,BLACK,WHITE) or rgb tuple to specify the colours
-            - draw_edges: bool whether to draw the edges of mesh, default is True
-            - point_size: size of the point
-            - px_mode: True or False, if true the size of the point is in pixel if not its in meters
-            - attribute: name of the attribute to viz
-        
-        topo_datetime_ls : list[datetime.datetime]
-            timestamp of the topology data.
-        
-        gl_option : str, optional
-            str describing the gl option for the 3d view, default is 'opqaue', can be 'opaque', 'additive', 'translucent' 
-        """
-        super(AnimateTopo, self).__init__(topo_unixtime, gl_option)
-        self.setupGUI()
-        self.insert_parm3d()
-        # check if there are multiple sets of geometry or just one set of geometry with multiple results
-        self.topo_2ddlist: list[list[dict]] = topo_2ddlist
-        """2dlist of topologies."""
-        self.create_3d_dict()
-        self.topo_unixtime_sorted: list[float] = sorted(self.model3d_dict.keys())
-        """timestamp of the topology data arranged in chronological order."""
-        self.n3dtimes: int = len(self.topo_unixtime_sorted)
-        """the number of timestamps"""
-
-        start_3d_unixt = self.topo_unixtime_sorted[0]
-        end_3d_unixt = self.topo_unixtime_sorted[-1]
-        date_str_start = datetime.datetime.fromtimestamp(start_3d_unixt).strftime('%Y-%m-%dT%H:%M:%S')
-        date_str_end = datetime.datetime.fromtimestamp(end_3d_unixt).strftime('%Y-%m-%dT%H:%M:%S')
-        range_str = date_str_start + ' to ' + date_str_end
-        self.params.param('Parm3d').param('Data Range Loaded').setValue(range_str)
-        self.load_3dmodel(zoom_extent=True)
-        
-    def load_3dmodel(self, zoom_extent: bool = False):
-        """
-        loads the 3d model onto the 3d view port.
-
-        Parameters
-        ----------
-        zoom_extent : bool, optional
-            zoom to the 3d model. Default = False.
-        """
-        #clear the 3dview
-        self.clear_3dview()
-        model3d_dict = self.model3d_dict
-        
-        topo_unixtime_sorted = self.topo_unixtime_sorted
-        current_time_index = self.current_time_index
-        
-        current_unix_time = topo_unixtime_sorted[current_time_index]
-        topo_dlist  = model3d_dict[current_unix_time] 
-        bbox_list = _convert_topo_dictionary_list4viz(topo_dlist, self.view3d, gl_option = self.gl_option)
+        bbox_list = _convert_topo_dictionary_list4viz(self.topo_dictionary_list, self.view3d, gl_option=self.gl_option)
         if zoom_extent == True:
             overall_bbox = calculate.bbox_frm_bboxes(bbox_list)
             midpt = calculate.bboxes_centre([overall_bbox])[0]
@@ -1192,73 +1240,25 @@ class AnimateTopo(BaseAnimate):
             upr_right =  [overall_bbox.maxx, overall_bbox.maxy, overall_bbox.maxz]
             dist = calculate.dist_btw_xyzs(lwr_left, upr_right)
             self.view3d.opts['distance'] = dist*1.5
-        
-        date_str = datetime.datetime.fromtimestamp(current_unix_time).strftime('%Y-%m-%dT%H:%M:%S')
-        
-        self.params.param('Parm3d').param('Current Date').setValue(date_str)
-        
-    def create_3d_dict(self):
-        """
-        create a dictionary of all the topologies arrange according to their timestamp
-        """
-        topo_2ddlist = self.topo_2ddlist
-        topo_unixtime = self.topo_unixtime
-        
-        model3d_dict = {}
-    
-        for cnt, utime in enumerate(topo_unixtime):
-            topo_dlist = topo_2ddlist[cnt]
-            model3d_dict[utime] = topo_dlist
             
-        self.model3d_dict = model3d_dict
-
-class GraphView(QtWidgets.QWidget):
-    def __init__(self, is_time_series: bool):
-        """
-        loads a graph view gui.
-
-        Parameters
-        ----------
-        is_time_series : bool
-            whether the data set is time-series.
-        """
-        QtWidgets.QWidget.__init__(self)
-        self.setupGUI(is_time_series)
+        axs = gl.GLAxisItem()
+        axs.setSize(x=1, y=1, z=1)
+        self.view3d.addItem(axs)
         
-    def setupGUI(self, is_time_series: bool):
+    def export(self):
         """
-        setup the gui of the graph
-
-        Parameters
-        ----------
-        is_time_series : bool
-            whether the data set is time-series.
+        export the image on the 3d view port.
         """
-        self.layout = QtWidgets.QVBoxLayout()
-        self.layout.setContentsMargins(0,0,0,0)
-        self.setLayout(self.layout)
+        fn = pg.FileDialog.getSaveFileName(self, "Choose File Path", "exported_img.png", 'PNG (*.png);; JPEG (*.jpg)')
         
-        self.plot = pg.plot()
-        self.p1 = self.plot.plotItem
-        if is_time_series == True:
-            # self.p1.setAxisItems(axisItems = {'bottom': pg.DateAxisItem(utcOffset=time.timezone)})
-            self.p1.setAxisItems(axisItems = {'bottom': pg.DateAxisItem()})
+        if fn == '':
+            return
         
-        self.plot.showGrid(x=True, y=True)
-        self.layout.addWidget(self.plot)
+        xpixels = self.params.param('Export3d').param('xpixels').value()
+        ypixels = self.params.param('Export3d').param('ypixels').value()
         
-    def add_scatter(self, scatterplot_ls: list[pg.ScatterPlotItem]):
-        """
-        add scatter points to the graph
-
-        Parameters
-        ----------
-        scatterplot_ls : list[pg.ScatterPlotItem]
-            scatterplot object to be plotted on the gui.
-        """
-        self.scatterplot_ls = scatterplot_ls
-        for scatter in scatterplot_ls:
-            self.p1.addItem(scatter)
+        res_path = str(fn[0])
+        _export_img(res_path, xpixels, ypixels, self.view3d)
 
 def viz(topo_dictionary_list: list[dict], gl_option: str = 'opaque'):
     """
@@ -1285,7 +1285,90 @@ def viz(topo_dictionary_list: list[dict], gl_option: str = 'opaque'):
 
     if (sys.flags.interactive != 1) or not hasattr(QtCore, 'PYQT_VERSION'):
         pg.exec()
+
+def viz_animate(topo_2ddlist: list[list[dict]], topo_datetime_ls: list[datetime.datetime], gl_option: str = 'opaque'):
+    """
+    This function produces an animation window.
+ 
+    Parameters
+    ----------
+    topo_2ddlist : list[list[dict]]
+        A 2d list of dictionary specifying the visualisation parameters.
+        - topo_list: the topos to visualise
+        - colour:  keywords (RED,ORANGE,YELLOW,GREEN,BLUE,BLACK,WHITE) or rgb tuple to specify the colours
+        - draw_edges: bool whether to draw the edges of mesh, default is True
+        - point_size: size of the point
+        - px_mode: True or False, if true the size of the point is in pixel if not its in meters
+        - attribute: name of the attribute to viz
     
+    topo_datetime_ls : list[datetime.datetime]
+        timestamp of the topology data.
+    
+    gl_option : str, optional
+        str describing the gl option for the 3d view, default is 'opqaue', can be 'opaque', 'additive', 'translucent' 
+    """    
+    #convert the datetimes to unix timestamp
+    unix43d = []
+    for dt in topo_datetime_ls:
+        unix_time = dt.timestamp()
+        unix43d.append(unix_time)
+    
+    pg.mkQApp()
+    win = AnimateTopo(topo_2ddlist, unix43d, gl_option=gl_option)
+    
+    win.setWindowTitle("AnimateTopo")
+    win.show()
+    win.resize(1100,700)
+    win.animate()
+
+def viz_animate_falsecolour(topo_2dlist: list[list[topobj.Topology]], results2d: list[list[float]], topo_datetime_ls: list[datetime.datetime], 
+                            false_min_max_val: list[float] = None, other_topo_2ddlist: list[list[dict]] = [], gl_option: str = 'opaque'):
+    """
+    This function produces a falsecolour animation window.
+ 
+    Parameters
+    ----------
+    topo_2dlist : list[list[topobj.Topology]]
+        2dlist of topologies. You can have one set of geometries to multiple sets of results.
+    
+    results2d : list[list[float]]
+        2d list of performance value to be visualise as falsecolour.
+    
+    topo_datetime_ls : list[datetime.datetime]
+        timestamp of the topology data.
+    
+    false_min_max_val : list[float], optional
+        list of two values [min_val, max_val] for the falsecolour visualisation.
+    
+    other_topo_2ddlist : list[list[dict]], optional
+        A 2d list of dictionary specifying the visualisation parameters.
+        - topo_list: the topos to visualise
+        - colour:  keywords (RED,ORANGE,YELLOW,GREEN,BLUE,BLACK,WHITE) or rgb tuple to specify the colours
+        - draw_edges: bool whether to draw the edges of mesh, default is True
+        - point_size: size of the point
+        - px_mode: True or False, if true the size of the point is in pixel if not its in meters
+        - attribute: name of the attribute to viz
+    
+    gl_option : str, optional
+        str describing the gl option for the 3d view, default is 'opqaue', can be 'opaque', 'additive', 'translucent' 
+    """
+    
+    #--------------------------------------------------------------------------------------------
+    #convert the datetimes to unix timestamp
+    unix43d = []
+    for dt in topo_datetime_ls:
+        unix_time = dt.timestamp()
+        unix43d.append(unix_time)
+    
+    pg.mkQApp()
+    win = AFalsecolour(topo_2dlist, results2d, unix43d, false_min_max_val = false_min_max_val, 
+                       other_topo_2ddlist = other_topo_2ddlist, gl_option = gl_option)
+    
+    win.setWindowTitle("AnimateFalseColour")
+    win.show()
+    win.resize(1100,700)
+    win.animate()
+
 def viz_falsecolour(topo_list: list[topobj.Topology], results: list[float], false_min_max_val: list[float] = None, other_topo_dlist: list[dict] = [], 
                     gl_option: str = 'opaque'):
     """
@@ -1352,206 +1435,6 @@ def viz_falsecolour(topo_list: list[topobj.Topology], results: list[float], fals
     win.resize(1100,700)
     if (sys.flags.interactive != 1) or not hasattr(QtCore, 'PYQT_VERSION'):
         pg.exec()
-
-def viz_st(topo_2dlist: list[list[topobj.Topology]], results2d: list[list[float]], topo_datetime_ls: list[datetime.datetime], 
-           xvalues2d: list[list[datetime.datetime]], yvalues2d: list[list[float]], colour_ls: list[list[int]], false_min_max_val: list[float] = None, 
-           other_topo_2ddlist: list[list[dict]] = [], xlabel: str = None, xunit: str = None, ylabel: str = None, yunit: str = None, title: str = None, 
-           legend: list[str] = None, inf_lines: list[dict] = None, regions: list[dict] = None, second_xvalues2d: list[list[datetime.datetime]] = None, 
-           second_yvalues2d: list[list[float]] = None, second_colour_ls: list[list[int]] = None, second_legend: list[str] = None, 
-           second_ylabel: str = None, second_yunit: str = None, gl_option: str = 'opaque'):
-    """
-    This function visualises the spatial time-series data.
- 
-    Parameters
-    ----------
-    topo_2dlist : list[list[topobj.Topology]]
-        2dlist of topologies. You can have one set of geometries to multiple sets of results.
-    
-    results2d : list[list[float]]
-        2d list of performance value to be visualise as falsecolour.
-    
-    topo_datetime_ls : list[datetime.datetime]
-        timestamp of the topology data.
-    
-    xvalues2d : list[list[datetime.datetime]]
-        xvalues to plot. For different set of data separate them into different list.
-    
-    yvalues2d : list[list[float]]
-        yvalues to plot. For different set of data separate them into different list.
-    
-    colour_ls : list[list[int]]
-        list of tuples specifying the colour. The tuple is (R,G,B,A). e.g. [(255,255,255,255), (255,0,0,255)]. list[shape(number of colors, 3)] 
-    
-    false_min_max_val : list[float], optional
-        list of two values [min_val, max_val] for the falsecolour visualisation.
-    
-    other_topo_2ddlist : list[list[dict]], optional
-        A 2d list of dictionary specifying the visualisation parameters.
-        - topo_list: the topos to visualise
-        - colour:  keywords (RED,ORANGE,YELLOW,GREEN,BLUE,BLACK,WHITE) or rgb tuple to specify the colours
-        - draw_edges: bool whether to draw the edges of mesh, default is True
-        - point_size: size of the point
-        - px_mode: True or False, if true the size of the point is in pixel if not its in meters
-        - attribute: name of the attribute to viz
-    
-    xlabel : str, optional
-        label for the x-axis.
-    
-    xunit : str, optional
-        unit label for the x-axis.
-        
-    ylabel : str, optional
-        label for the y-axis.
-    
-    yunit : str, optional
-        unit label for the y-axis.
-        
-    title : str, optional
-        title for the graph.
-    
-    legend : list[str], optional
-        list of strings for the legends.
-        
-    inf_lines : list[dict], optional
-        dictionary describing the infinite line.
-        - label: str to describe the infinite line
-        - angle: float, the angle of the infinite line, 0=horizontal, 90=vertical
-        - pos: float, for horizontal and vertical line a single value is sufficient, for slanted line (x,y) is required.
-        - colour: tuple, (r,g,b,a)
-        
-    regions : list[dict], optional
-        dictionary describing the region on the graph.
-        - label: str to describe the region.
-        - orientation: str, vertical or horizontal
-        - range: list of floats, [lwr_limit, upr_limit] e.g. [50,70] 
-        - colour: tuple, (r,g,b,a)
-        
-    second_xvalues2d : list[list[datetime.datetime]], optional
-        xvalues to plot on a second y-axis. You can input python datetime object for time-series data. For different set of data separate them into different list.
-        
-    second_yvalues2d : list[list[float]], optional
-        yvalues to plot on a second y-axis. For different set of data separate them into different list.
-        
-    second_colour_ls : list[list[int]], optional
-        list of tuples specifying the colour. The tuple is (R,G,B,A). e.g. [(255,255,255,255), (255,0,0,255)].
-    
-    second_legend : list[str], optional
-        list of strings for the data on the second axis.
-    
-    second_ylabel : str, optional
-        label for the second y-axis.
-    
-    second_yunit : str, optional
-        unit label for the second y-axis.
-        
-    gl_option : str, optional
-        str describing the gl option for the 3d view, default is 'opqaue', can be 'opaque', 'additive', 'translucent' 
-    """    
-    #convert the datetimes to unix timestamp
-    unix43d = []
-    for dt in topo_datetime_ls:
-        unix_time = dt.timestamp()
-        unix43d.append(unix_time)
-    
-    unix_2d_graph = _convert_datetime2unix(xvalues2d)
-    
-    if second_xvalues2d is not None:
-        second_xvalues2d  = _convert_datetime2unix(second_xvalues2d)
-        
-    pg.mkQApp()
-    win = StView(topo_2dlist, results2d, unix43d, unix_2d_graph, yvalues2d, colour_ls, false_min_max_val = false_min_max_val, 
-                 other_topo_2ddlist = other_topo_2ddlist, xlabel = xlabel, xunit = xunit, ylabel = ylabel, yunit = yunit, 
-                 title = title, legend = legend, inf_lines = inf_lines, regions = regions, second_xvalues2d=second_xvalues2d,
-                 second_yvalues2d=second_yvalues2d, second_colour_ls=second_colour_ls,second_legend=second_legend,
-                 second_ylabel=second_ylabel, second_yunit=second_yunit, gl_option = gl_option)
-    
-    global p1, p2
-    win.setWindowTitle("SpatialTimeSeriesView")
-    win.showMaximized()
-    win.animate()
-
-def viz_animate_falsecolour(topo_2dlist: list[list[topobj.Topology]], results2d: list[list[float]], topo_datetime_ls: list[datetime.datetime], 
-                            false_min_max_val: list[float] = None, other_topo_2ddlist: list[list[dict]] = [], gl_option: str = 'opaque'):
-    """
-    This function produces a falsecolour animation window.
- 
-    Parameters
-    ----------
-    topo_2dlist : list[list[topobj.Topology]]
-        2dlist of topologies. You can have one set of geometries to multiple sets of results.
-    
-    results2d : list[list[float]]
-        2d list of performance value to be visualise as falsecolour.
-    
-    topo_datetime_ls : list[datetime.datetime]
-        timestamp of the topology data.
-    
-    false_min_max_val : list[float], optional
-        list of two values [min_val, max_val] for the falsecolour visualisation.
-    
-    other_topo_2ddlist : list[list[dict]], optional
-        A 2d list of dictionary specifying the visualisation parameters.
-        - topo_list: the topos to visualise
-        - colour:  keywords (RED,ORANGE,YELLOW,GREEN,BLUE,BLACK,WHITE) or rgb tuple to specify the colours
-        - draw_edges: bool whether to draw the edges of mesh, default is True
-        - point_size: size of the point
-        - px_mode: True or False, if true the size of the point is in pixel if not its in meters
-        - attribute: name of the attribute to viz
-    
-    gl_option : str, optional
-        str describing the gl option for the 3d view, default is 'opqaue', can be 'opaque', 'additive', 'translucent' 
-    """
-    
-    #--------------------------------------------------------------------------------------------
-    #convert the datetimes to unix timestamp
-    unix43d = []
-    for dt in topo_datetime_ls:
-        unix_time = dt.timestamp()
-        unix43d.append(unix_time)
-    
-    pg.mkQApp()
-    win = AFalsecolour(topo_2dlist, results2d, unix43d, false_min_max_val = false_min_max_val, 
-                       other_topo_2ddlist = other_topo_2ddlist, gl_option = gl_option)
-    
-    win.setWindowTitle("AnimateFalseColour")
-    win.show()
-    win.resize(1100,700)
-    win.animate()
-    
-def viz_animate(topo_2ddlist: list[list[dict]], topo_datetime_ls: list[datetime.datetime], gl_option: str = 'opaque'):
-    """
-    This function produces an animation window.
- 
-    Parameters
-    ----------
-    topo_2ddlist : list[list[dict]]
-        A 2d list of dictionary specifying the visualisation parameters.
-        - topo_list: the topos to visualise
-        - colour:  keywords (RED,ORANGE,YELLOW,GREEN,BLUE,BLACK,WHITE) or rgb tuple to specify the colours
-        - draw_edges: bool whether to draw the edges of mesh, default is True
-        - point_size: size of the point
-        - px_mode: True or False, if true the size of the point is in pixel if not its in meters
-        - attribute: name of the attribute to viz
-    
-    topo_datetime_ls : list[datetime.datetime]
-        timestamp of the topology data.
-    
-    gl_option : str, optional
-        str describing the gl option for the 3d view, default is 'opqaue', can be 'opaque', 'additive', 'translucent' 
-    """    
-    #convert the datetimes to unix timestamp
-    unix43d = []
-    for dt in topo_datetime_ls:
-        unix_time = dt.timestamp()
-        unix43d.append(unix_time)
-    
-    pg.mkQApp()
-    win = AnimateTopo(topo_2ddlist, unix43d, gl_option=gl_option)
-    
-    win.setWindowTitle("AnimateTopo")
-    win.show()
-    win.resize(1100,700)
-    win.animate()
 
 def viz_graph(xvalues2d: list[list], yvalues2d: list[list[float]], colour_ls: list[list[int]], xlabel: str = None, xunit: str = None, ylabel: str = None, 
               yunit: str = None, title: str = None, legend: list[str] = None, inf_lines: list[dict] = None, regions: list[dict] = None, 
@@ -1715,6 +1598,123 @@ def viz_graph(xvalues2d: list[list], yvalues2d: list[list[float]], colour_ls: li
     win.show()
     if (sys.flags.interactive != 1) or not hasattr(QtCore, 'PYQT_VERSION'):
         pg.exec()
+
+def viz_st(topo_2dlist: list[list[topobj.Topology]], results2d: list[list[float]], topo_datetime_ls: list[datetime.datetime], 
+           xvalues2d: list[list[datetime.datetime]], yvalues2d: list[list[float]], colour_ls: list[list[int]], false_min_max_val: list[float] = None, 
+           other_topo_2ddlist: list[list[dict]] = [], xlabel: str = None, xunit: str = None, ylabel: str = None, yunit: str = None, title: str = None, 
+           legend: list[str] = None, inf_lines: list[dict] = None, regions: list[dict] = None, second_xvalues2d: list[list[datetime.datetime]] = None, 
+           second_yvalues2d: list[list[float]] = None, second_colour_ls: list[list[int]] = None, second_legend: list[str] = None, 
+           second_ylabel: str = None, second_yunit: str = None, gl_option: str = 'opaque'):
+    """
+    This function visualises the spatial time-series data.
+ 
+    Parameters
+    ----------
+    topo_2dlist : list[list[topobj.Topology]]
+        2dlist of topologies. You can have one set of geometries to multiple sets of results.
+    
+    results2d : list[list[float]]
+        2d list of performance value to be visualise as falsecolour.
+    
+    topo_datetime_ls : list[datetime.datetime]
+        timestamp of the topology data.
+    
+    xvalues2d : list[list[datetime.datetime]]
+        xvalues to plot. For different set of data separate them into different list.
+    
+    yvalues2d : list[list[float]]
+        yvalues to plot. For different set of data separate them into different list.
+    
+    colour_ls : list[list[int]]
+        list of tuples specifying the colour. The tuple is (R,G,B,A). e.g. [(255,255,255,255), (255,0,0,255)]. list[shape(number of colors, 3)] 
+    
+    false_min_max_val : list[float], optional
+        list of two values [min_val, max_val] for the falsecolour visualisation.
+    
+    other_topo_2ddlist : list[list[dict]], optional
+        A 2d list of dictionary specifying the visualisation parameters.
+        - topo_list: the topos to visualise
+        - colour:  keywords (RED,ORANGE,YELLOW,GREEN,BLUE,BLACK,WHITE) or rgb tuple to specify the colours
+        - draw_edges: bool whether to draw the edges of mesh, default is True
+        - point_size: size of the point
+        - px_mode: True or False, if true the size of the point is in pixel if not its in meters
+        - attribute: name of the attribute to viz
+    
+    xlabel : str, optional
+        label for the x-axis.
+    
+    xunit : str, optional
+        unit label for the x-axis.
+        
+    ylabel : str, optional
+        label for the y-axis.
+    
+    yunit : str, optional
+        unit label for the y-axis.
+        
+    title : str, optional
+        title for the graph.
+    
+    legend : list[str], optional
+        list of strings for the legends.
+        
+    inf_lines : list[dict], optional
+        dictionary describing the infinite line.
+        - label: str to describe the infinite line
+        - angle: float, the angle of the infinite line, 0=horizontal, 90=vertical
+        - pos: float, for horizontal and vertical line a single value is sufficient, for slanted line (x,y) is required.
+        - colour: tuple, (r,g,b,a)
+        
+    regions : list[dict], optional
+        dictionary describing the region on the graph.
+        - label: str to describe the region.
+        - orientation: str, vertical or horizontal
+        - range: list of floats, [lwr_limit, upr_limit] e.g. [50,70] 
+        - colour: tuple, (r,g,b,a)
+        
+    second_xvalues2d : list[list[datetime.datetime]], optional
+        xvalues to plot on a second y-axis. You can input python datetime object for time-series data. For different set of data separate them into different list.
+        
+    second_yvalues2d : list[list[float]], optional
+        yvalues to plot on a second y-axis. For different set of data separate them into different list.
+        
+    second_colour_ls : list[list[int]], optional
+        list of tuples specifying the colour. The tuple is (R,G,B,A). e.g. [(255,255,255,255), (255,0,0,255)].
+    
+    second_legend : list[str], optional
+        list of strings for the data on the second axis.
+    
+    second_ylabel : str, optional
+        label for the second y-axis.
+    
+    second_yunit : str, optional
+        unit label for the second y-axis.
+        
+    gl_option : str, optional
+        str describing the gl option for the 3d view, default is 'opqaue', can be 'opaque', 'additive', 'translucent' 
+    """    
+    #convert the datetimes to unix timestamp
+    unix43d = []
+    for dt in topo_datetime_ls:
+        unix_time = dt.timestamp()
+        unix43d.append(unix_time)
+    
+    unix_2d_graph = _convert_datetime2unix(xvalues2d)
+    
+    if second_xvalues2d is not None:
+        second_xvalues2d  = _convert_datetime2unix(second_xvalues2d)
+        
+    pg.mkQApp()
+    win = StView(topo_2dlist, results2d, unix43d, unix_2d_graph, yvalues2d, colour_ls, false_min_max_val = false_min_max_val, 
+                 other_topo_2ddlist = other_topo_2ddlist, xlabel = xlabel, xunit = xunit, ylabel = ylabel, yunit = yunit, 
+                 title = title, legend = legend, inf_lines = inf_lines, regions = regions, second_xvalues2d=second_xvalues2d,
+                 second_yvalues2d=second_yvalues2d, second_colour_ls=second_colour_ls,second_legend=second_legend,
+                 second_ylabel=second_ylabel, second_yunit=second_yunit, gl_option = gl_option)
+    
+    global p1, p2
+    win.setWindowTitle("SpatialTimeSeriesView")
+    win.showMaximized()
+    win.animate()
             
 def viz_vx_dict(vx_dict: dict, colour: str, wireframe: bool = True, gl_option: str = 'opaque'):
     """
@@ -1751,117 +1751,129 @@ def viz_vx_dict(vx_dict: dict, colour: str, wireframe: bool = True, gl_option: s
             viz_ls.extend(bedges)
             
     viz([{'topo_list':viz_ls, 'colour':colour}], gl_option = gl_option)
-        
-def _make_mesh(xyzs: np.ndarray, indices: np.ndarray, face_colours: np.ndarray = [], shader: str = "shaded", gloptions: str = "opaque", 
-               draw_edges: bool = False, edge_colours: list[float] = [0,0,0,1]) -> gl.GLMeshItem:
-    """
-    This function returns a Mesh Item that can be viz by pyqtgraph.
- 
-    Parameters
-    ----------
-    xyzs : np.ndarray 
-        vertices of the mesh. np.ndarray(shape(Nvertices,3)).
-        
-    indices : np.ndarray
-        indices of the mesh. np.ndarray(shape(Ntriangles,3))
-        
-    face_colours : np.ndarray, optional
-        array of colours specifying the colours of each triangles of the mesh. np.ndarray(shape(Ntrianges, 4)).
-        
-    shader : str, optional
-        specify the shader visualisation of the mesh. The options are: 
-        shaded, balloon, normalColor, viewNormalColor, edgeHilight, 
-        heightColor
-        
-    gloptions : str, optional
-        specify the gloption visualisation of the mesh. The options are: 
-        additive, opaque, translucent
-    
-    draw_edges : bool, optional
-        toggle to whether draw the edges of the mesh
-        
-    edge_colours: list[float], option
-        list with four elements specifying the RGB and Transparency of the edges.
-        
-    Returns
-    -------
-    mesh : gl.GLMeshItem
-        mesh for visualisation.
-    """
-    if len(face_colours) == 0:
-        mesh = gl.GLMeshItem(vertexes = xyzs, faces = indices, 
-                             faceColors = None,
-                             edgeColor = edge_colours,
-                             smooth = True,
-                             drawEdges = draw_edges, 
-                             shader = shader,
-                             glOptions = gloptions)
-    else:
-        mesh = gl.GLMeshItem(vertexes = xyzs, faces = indices,
-                             faceColors = face_colours,
-                             edgeColor = edge_colours,
-                             smooth = True,
-                             drawEdges = draw_edges, 
-                             shader = shader,
-                             glOptions = gloptions)
-    
-    return mesh
 
-def _make_line(xyzs: np.ndarray, line_colour: list[float] = [0,0,0,1], width: float = 1, antialias: bool = True, mode: str = "lines") -> gl.GLLinePlotItem:
+def _clr_topos(topos: list[topobj.Topology], colour: list, view3d: gl.GLViewWidget, gl_option: str = 'opaque'):
     """
-    This function returns a Line Item that can be viz by pyqtgraph.
+    This function colours the topology for falsecolour visualization.
  
     Parameters
     ----------
-    xyzs : np.ndarray
-        vertices of the line. np.ndarray(shape(Nvertices,3))
-         
-    line_colour : list[float], optional
-        also can be np.ndarray(shape(Nlines, 4)) array of colours specifying the colours of the line.
-    
-    width : float, optional
-        the width of the line
+    topos : list[topobj.Topology]
+        the topos to sort.
         
-    antialias: bool, option
-        smooth line drawing
-    
-    mode: str, option
-        - lines: Each pair of vertexes draws a single line segment.
-        - line_strip: All vertexes are drawn as a continuous set of line segments
+    colour : list
+        [r,g,b]. The colour of the topologies.
         
-    Returns
-    -------
-    line : gl.GLLinePlotItem
-        line for visualisation.
+    view3d: gl.GLViewWidget
+        3d scene to put the objects into.
+        
+    gl_option : str, optional
+        str describing the gl option for the 3d view, default is 'opqaue', can be 'opaque', 'additive', 'translucent' 
     """
-    line = gl.GLLinePlotItem(pos = xyzs, color = line_colour, width = width, antialias = antialias, mode = mode)
-    return line
+    colour = np.append(colour, [255])
+    colour = colour/255
+    pts = []
+    lines = []
+    faces = []
+    for topo in topos:
+        topo_type = topo.topo_type
+        if topo_type == topobj.TopoType.VERTEX:
+            pnt = topo.point.xyz
+            pts.append(pnt)
+        elif topo_type == topobj.TopoType.EDGE:
+            lines.append(topo)
+        elif topo_type == topobj.TopoType.WIRE:
+            edges = get.edges_frm_wire(topo)
+            lines.extend(edges)
+        elif topo_type == topobj.TopoType.FACE:
+            faces.append(topo)
+        elif topo_type == topobj.TopoType.SHELL:
+            sfaces = get.faces_frm_shell(topo)
+            faces.extend(sfaces)
+        elif topo_type == topobj.TopoType.SOLID:
+            sofaces = get.faces_frm_solid(topo)
+            faces.extend(sofaces)
+        elif topo_type == topobj.TopoType.COMPOSITE:
+            sorted_d = get.unpack_composite(topo)
+            vertices = sorted_d['vertex']
+            if len(vertices) > 0:
+                pnts = [v.point.xyz for v in vertices]
+                pts.extend(pnts)
+            #=================================================================================
+            #get all the topology that can viz as lines
+            #=================================================================================
+            cedges = sorted_d['edge']
+            if len(cedges) > 0:
+                lines.extend(cedges)
+            wires = sorted_d['wire']
+            if len(wires) > 0:
+                edges = np.array([get.edges_frm_wire(wire) for wire in wires], dtype=object)
+                edges = list(chain(*edges))
+                lines.extend(edges)
+            #=================================================================================
+            #get all the topology that can be viz as mesh
+            #=================================================================================
+            cfaces = sorted_d['face']
+            if len(cfaces) > 0:
+                faces.extend(cfaces)
+            
+            shells = sorted_d['shell']
+            if len(shells) > 0:
+                shells2faces = np.array([get.faces_frm_shell(shell) for shell in shells], dtype=object)
+                shells2faces = list(chain(*shells2faces))
+                faces.extend(shells2faces)
+            
+            solids = sorted_d['solid']
+            if len(solids) > 0:
+                solids2faces = np.array([get.faces_frm_solid(solid) for solid in solids], dtype=object)
+                solids2faces = list(chain(*solids2faces))
+                faces.extend(solids2faces)
+    
+    if len(pts) > 0:
+        pts = np.array(pts)
+        viz_pts = _make_points(pts, tuple(colour), 10, pxMode = True)
+        view3d.addItem(viz_pts)
+        
+    if len(lines) > 0:
+        line_vertices = modify.edges2lines(lines)
+        viz_lines = _make_line(line_vertices, line_colour = tuple(colour))
+        view3d.addItem(viz_lines)
 
-def _make_points(xyzs: np.ndarray, point_colours: np.ndarray, sizes: float, pxMode: bool = True) -> gl.GLScatterPlotItem:
+    if len(faces) > 0:
+        mesh_dict = modify.faces2trimesh(faces)
+        #flip the indices
+        verts = mesh_dict['vertices']
+        idx = mesh_dict['indices']
+        #flip the vertices to be clockwise
+        idx = np.flip(idx, axis=1)
+        viz_mesh = _make_mesh(verts, idx, draw_edges = False, gloptions = gl_option)
+        viz_mesh.setColor(colour)
+        view3d.addItem(viz_mesh)
+
+def _convert_datetime2unix(datetime2d: list[list[datetime.datetime]]) -> list[list[float]]:
     """
-    This function returns points Item that can be viz by pyqtgraph.
+    This function converts a 2d list of datetime object into unix timestamps.
  
     Parameters
     ----------
-    xyzs : np.ndarray 
-        vertices of the points. np.ndarray(shape(Nvertices,3)).
-        
-    point_colour : np.ndarray
-        np.ndarray(shape(number of points, 4) array of colours specifying the colours of the point, if a single tuple is given all points assumes that colour.
-    
-    sizes : float, optional
-        list of floats of points sizes, if single val is given all point assumes that size
-        
-    pxMode: bool, option
-        if True size is measured in pixels, if False size is based on units of the xyzs
+    datetime2d : list[list[datetime.datetime]]
+        datetimes to be converted.
         
     Returns
     -------
-    points : gl.GLScatterPlotItem
-        point for visualisation.
+    unix2d : list[list[float]]
+        the converted unix timestamps.
     """
-    points = gl.GLScatterPlotItem(pos=xyzs, color=point_colours, size=sizes, pxMode = pxMode)
-    return points
+    unix2d = []
+    for xvalues in datetime2d:
+        unix_ls = []
+        for x in xvalues:
+            unix_time = x.timestamp()
+            # dt = datetime.datetime.fromtimestamp(unix_time)
+            # print(dt)
+            unix_ls.append(unix_time)
+        unix2d.append(unix_ls)
+    return unix2d
 
 def _convert_topo_dictionary_list4viz(topo_dictionary_list, view3d, gl_option='opaque'):
     """
@@ -2165,161 +2177,143 @@ def _convert_topo_dictionary_list4viz(topo_dictionary_list, view3d, gl_option='o
         view3d.addItem(txt)
     
     return bbox_list
-    
-def _clr_topos(topos: list[topobj.Topology], colour: list, view3d: gl.GLViewWidget, gl_option: str = 'opaque'):
+
+def _export_img(res_path: str, xpixels: int, ypixels: int, view3d: gl.GLViewWidget):
     """
-    This function colours the topology for falsecolour visualization.
+    Export the scene in the 3d view port as an image.
  
     Parameters
     ----------
-    topos : list[topobj.Topology]
-        the topos to sort.
-        
-    colour : list
-        [r,g,b]. The colour of the topologies.
-        
-    view3d: gl.GLViewWidget
-        3d scene to put the objects into.
-        
-    gl_option : str, optional
-        str describing the gl option for the 3d view, default is 'opqaue', can be 'opaque', 'additive', 'translucent' 
-    """
-    colour = np.append(colour, [255])
-    colour = colour/255
-    pts = []
-    lines = []
-    faces = []
-    for topo in topos:
-        topo_type = topo.topo_type
-        if topo_type == topobj.TopoType.VERTEX:
-            pnt = topo.point.xyz
-            pts.append(pnt)
-        elif topo_type == topobj.TopoType.EDGE:
-            lines.append(topo)
-        elif topo_type == topobj.TopoType.WIRE:
-            edges = get.edges_frm_wire(topo)
-            lines.extend(edges)
-        elif topo_type == topobj.TopoType.FACE:
-            faces.append(topo)
-        elif topo_type == topobj.TopoType.SHELL:
-            sfaces = get.faces_frm_shell(topo)
-            faces.extend(sfaces)
-        elif topo_type == topobj.TopoType.SOLID:
-            sofaces = get.faces_frm_solid(topo)
-            faces.extend(sofaces)
-        elif topo_type == topobj.TopoType.COMPOSITE:
-            sorted_d = get.unpack_composite(topo)
-            vertices = sorted_d['vertex']
-            if len(vertices) > 0:
-                pnts = [v.point.xyz for v in vertices]
-                pts.extend(pnts)
-            #=================================================================================
-            #get all the topology that can viz as lines
-            #=================================================================================
-            cedges = sorted_d['edge']
-            if len(cedges) > 0:
-                lines.extend(cedges)
-            wires = sorted_d['wire']
-            if len(wires) > 0:
-                edges = np.array([get.edges_frm_wire(wire) for wire in wires], dtype=object)
-                edges = list(chain(*edges))
-                lines.extend(edges)
-            #=================================================================================
-            #get all the topology that can be viz as mesh
-            #=================================================================================
-            cfaces = sorted_d['face']
-            if len(cfaces) > 0:
-                faces.extend(cfaces)
-            
-            shells = sorted_d['shell']
-            if len(shells) > 0:
-                shells2faces = np.array([get.faces_frm_shell(shell) for shell in shells], dtype=object)
-                shells2faces = list(chain(*shells2faces))
-                faces.extend(shells2faces)
-            
-            solids = sorted_d['solid']
-            if len(solids) > 0:
-                solids2faces = np.array([get.faces_frm_solid(solid) for solid in solids], dtype=object)
-                solids2faces = list(chain(*solids2faces))
-                faces.extend(solids2faces)
+    res_path : str
+        path of the img file.
     
-    if len(pts) > 0:
-        pts = np.array(pts)
-        viz_pts = _make_points(pts, tuple(colour), 10, pxMode = True)
-        view3d.addItem(viz_pts)
-        
-    if len(lines) > 0:
-        line_vertices = modify.edges2lines(lines)
-        viz_lines = _make_line(line_vertices, line_colour = tuple(colour))
-        view3d.addItem(viz_lines)
+    xpixels : int
+        number of pixels in the x direction.
+    
+    ypixels : int
+        number of pixels in the y direction.
 
-    if len(faces) > 0:
-        mesh_dict = modify.faces2trimesh(faces)
-        #flip the indices
-        verts = mesh_dict['vertices']
-        idx = mesh_dict['indices']
-        #flip the vertices to be clockwise
-        idx = np.flip(idx, axis=1)
-        viz_mesh = _make_mesh(verts, idx, draw_edges = False, gloptions = gl_option)
-        viz_mesh.setColor(colour)
-        view3d.addItem(viz_mesh)
-
-def _res2interval(results: list[float]) -> np.ndarray:
+    view3d : gl.GLViewWidget
+        the 3d view port.
     """
-    This function sorts the normalized results into 10 equal intervals.
+    # make the background image transparent
+    view3d.setBackgroundColor([0,0,0,0])
+    d = view3d.renderToArray((xpixels, ypixels))
+    d = np.rot90(d)
+    pg.makeQImage(d).save(res_path)
+    view3d.setBackgroundColor('k')
+
+def _make_mesh(xyzs: np.ndarray, indices: np.ndarray, face_colours: np.ndarray = [], shader: str = "shaded", gloptions: str = "opaque", 
+               draw_edges: bool = False, edge_colours: list[float] = [0,0,0,1]) -> gl.GLMeshItem:
+    """
+    This function returns a Mesh Item that can be viz by pyqtgraph.
  
     Parameters
     ----------
-    results : list[float]
-        list or array of floats between 0-1.
+    xyzs : np.ndarray 
+        vertices of the mesh. np.ndarray(shape(Nvertices,3)).
+        
+    indices : np.ndarray
+        indices of the mesh. np.ndarray(shape(Ntriangles,3))
+        
+    face_colours : np.ndarray, optional
+        array of colours specifying the colours of each triangles of the mesh. np.ndarray(shape(Ntrianges, 4)).
+        
+    shader : str, optional
+        specify the shader visualisation of the mesh. The options are: 
+        shaded, balloon, normalColor, viewNormalColor, edgeHilight, 
+        heightColor
+        
+    gloptions : str, optional
+        specify the gloption visualisation of the mesh. The options are: 
+        additive, opaque, translucent
     
+    draw_edges : bool, optional
+        toggle to whether draw the edges of the mesh
+        
+    edge_colours: list[float], option
+        list with four elements specifying the RGB and Transparency of the edges.
+        
     Returns
     -------
-    new_res : np.ndarray
-        array of floats between 0-1.
+    mesh : gl.GLMeshItem
+        mesh for visualisation.
     """
-    new_res = results[:]
-    for i in range(10):
-        int_mn = i*0.1
-        int_mx = (i+1)*0.1
-        condition = np.logical_and(int_mn <= new_res, new_res < int_mx)
-        new_res = np.where(condition, int_mn, new_res)
-    return new_res
+    if len(face_colours) == 0:
+        mesh = gl.GLMeshItem(vertexes = xyzs, faces = indices, 
+                             faceColors = None,
+                             edgeColor = edge_colours,
+                             smooth = True,
+                             drawEdges = draw_edges, 
+                             shader = shader,
+                             glOptions = gloptions)
+    else:
+        mesh = gl.GLMeshItem(vertexes = xyzs, faces = indices,
+                             faceColors = face_colours,
+                             edgeColor = edge_colours,
+                             smooth = True,
+                             drawEdges = draw_edges, 
+                             shader = shader,
+                             glOptions = gloptions)
+    
+    return mesh
 
-def _sort_topos2clr_ints(topo_list: list[topobj.Topology], colour_list: list[list[int]], colour_refs: list[list[int]]):
+def _make_line(xyzs: np.ndarray, line_colour: list[float] = [0,0,0,1], width: float = 1, antialias: bool = True, mode: str = "lines") -> gl.GLLinePlotItem:
     """
-    This function sorts the topology into intervals for falsecolour visualization.
+    This function returns a Line Item that can be viz by pyqtgraph.
  
     Parameters
     ----------
-    topo_list : list[topobj.Topology]
-        the topos to sort.
+    xyzs : np.ndarray
+        vertices of the line. np.ndarray(shape(Nvertices,3))
+         
+    line_colour : list[float], optional
+        also can be np.ndarray(shape(Nlines, 4)) array of colours specifying the colours of the line.
+    
+    width : float, optional
+        the width of the line
         
-    colour_list : list[list[int]]
-        list of colours [[r,g,b,a],[r,g,b,a]]. The colours corresponding to the topologies. 
+    antialias: bool, option
+        smooth line drawing
+    
+    mode: str, option
+        - lines: Each pair of vertexes draws a single line segment.
+        - line_strip: All vertexes are drawn as a continuous set of line segments
         
-    colour_refs : list[list[int]]
-        list of colours [[r,g,b,a],[r,g,b,a]]. The colours of the colourbar
+    Returns
+    -------
+    line : gl.GLLinePlotItem
+        line for visualisation.
     """
-    clr_ints = []
-    for i in range(10):
-        colour = colour_refs[i*2]
-        colour = np.append(colour, 255)
-        colours_t = colour_list.T
+    line = gl.GLLinePlotItem(pos = xyzs, color = line_colour, width = width, antialias = antialias, mode = mode)
+    return line
 
-        cond1 = np.where(colours_t[0] == colour[0], True, False)
-        cond2 = np.where(colours_t[1] == colour[1], True, False)
-        cond3 = np.where(colours_t[2] == colour[2], True, False)
-
-        cond = np.logical_and(cond1, cond2)
-        cond = np.logical_and(cond, cond3)
-
-        idx = np.where(cond)
-        chosen = np.take(topo_list, idx, axis=0)[0]
-        clr_ints.append(chosen)
+def _make_points(xyzs: np.ndarray, point_colours: np.ndarray, sizes: float, pxMode: bool = True) -> gl.GLScatterPlotItem:
+    """
+    This function returns points Item that can be viz by pyqtgraph.
+ 
+    Parameters
+    ----------
+    xyzs : np.ndarray 
+        vertices of the points. np.ndarray(shape(Nvertices,3)).
         
-    return clr_ints
+    point_colour : np.ndarray
+        np.ndarray(shape(number of points, 4) array of colours specifying the colours of the point, if a single tuple is given all points assumes that colour.
+    
+    sizes : float, optional
+        list of floats of points sizes, if single val is given all point assumes that size
         
+    pxMode: bool, option
+        if True size is measured in pixels, if False size is based on units of the xyzs
+        
+    Returns
+    -------
+    points : gl.GLScatterPlotItem
+        point for visualisation.
+    """
+    points = gl.GLScatterPlotItem(pos=xyzs, color=point_colours, size=sizes, pxMode = pxMode)
+    return points
+
 def _map_gen_bar(user_min: float, user_max: float, real_min: float, real_max: float, 
                  results: list[float]) -> tuple[np.ndarray, gl.GLGradientLegendItem, np.ndarray]:
     """
@@ -2395,56 +2389,6 @@ def _map_gen_bar(user_min: float, user_max: float, real_min: float, real_max: fl
     
     return colours, gll, bcolour
 
-def _export_img(res_path: str, xpixels: int, ypixels: int, view3d: gl.GLViewWidget):
-    """
-    Export the scene in the 3d view port as an image.
- 
-    Parameters
-    ----------
-    res_path : str
-        path of the img file.
-    
-    xpixels : int
-        number of pixels in the x direction.
-    
-    ypixels : int
-        number of pixels in the y direction.
-
-    view3d : gl.GLViewWidget
-        the 3d view port.
-    """
-    # make the background image transparent
-    view3d.setBackgroundColor([0,0,0,0])
-    d = view3d.renderToArray((xpixels, ypixels))
-    d = np.rot90(d)
-    pg.makeQImage(d).save(res_path)
-    view3d.setBackgroundColor('k')
-    
-def _convert_datetime2unix(datetime2d: list[list[datetime.datetime]]) -> list[list[float]]:
-    """
-    This function converts a 2d list of datetime object into unix timestamps.
- 
-    Parameters
-    ----------
-    datetime2d : list[list[datetime.datetime]]
-        datetimes to be converted.
-        
-    Returns
-    -------
-    unix2d : list[list[float]]
-        the converted unix timestamps.
-    """
-    unix2d = []
-    for xvalues in datetime2d:
-        unix_ls = []
-        for x in xvalues:
-            unix_time = x.timestamp()
-            # dt = datetime.datetime.fromtimestamp(unix_time)
-            # print(dt)
-            unix_ls.append(unix_time)
-        unix2d.append(unix_ls)
-    return unix2d
-
 def _plot_graph(xvalues2d: list[list[float]], yvalues2d: list[list[float]], colour_ls: list[list[int]], symbol: str = 'o') -> list[pg.ScatterPlotItem]:
     """
     This function converts datasets to pg.ScatterPlotItem to be plotted on the gui.
@@ -2483,3 +2427,59 @@ def _plot_graph(xvalues2d: list[list[float]], yvalues2d: list[list[float]], colo
         scatterplot.addPoints(spots)
         scatterplot_ls.append(scatterplot)
     return scatterplot_ls
+
+def _res2interval(results: list[float]) -> np.ndarray:
+    """
+    This function sorts the normalized results into 10 equal intervals.
+ 
+    Parameters
+    ----------
+    results : list[float]
+        list or array of floats between 0-1.
+    
+    Returns
+    -------
+    new_res : np.ndarray
+        array of floats between 0-1.
+    """
+    new_res = results[:]
+    for i in range(10):
+        int_mn = i*0.1
+        int_mx = (i+1)*0.1
+        condition = np.logical_and(int_mn <= new_res, new_res < int_mx)
+        new_res = np.where(condition, int_mn, new_res)
+    return new_res
+
+def _sort_topos2clr_ints(topo_list: list[topobj.Topology], colour_list: list[list[int]], colour_refs: list[list[int]]):
+    """
+    This function sorts the topology into intervals for falsecolour visualization.
+ 
+    Parameters
+    ----------
+    topo_list : list[topobj.Topology]
+        the topos to sort.
+        
+    colour_list : list[list[int]]
+        list of colours [[r,g,b,a],[r,g,b,a]]. The colours corresponding to the topologies. 
+        
+    colour_refs : list[list[int]]
+        list of colours [[r,g,b,a],[r,g,b,a]]. The colours of the colourbar
+    """
+    clr_ints = []
+    for i in range(10):
+        colour = colour_refs[i*2]
+        colour = np.append(colour, 255)
+        colours_t = colour_list.T
+
+        cond1 = np.where(colours_t[0] == colour[0], True, False)
+        cond2 = np.where(colours_t[1] == colour[1], True, False)
+        cond3 = np.where(colours_t[2] == colour[2], True, False)
+
+        cond = np.logical_and(cond1, cond2)
+        cond = np.logical_and(cond, cond3)
+
+        idx = np.where(cond)
+        chosen = np.take(topo_list, idx, axis=0)[0]
+        clr_ints.append(chosen)
+        
+    return clr_ints
