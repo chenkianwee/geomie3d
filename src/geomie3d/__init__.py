@@ -50,5 +50,4 @@ from . import earcut
 from . import geomdl
 from . import d4pispace
 from . import topobj
-from . import viz
 

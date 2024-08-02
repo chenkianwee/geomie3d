@@ -1,4 +1,5 @@
 import geomie3d
+import geomie3d.viz
 from dateutil.parser import parse
 
 def test_viz_animate_falsecolor():

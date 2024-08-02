@@ -314,9 +314,6 @@ def are_xyzs_in_polyxyzs(xyz_2dlist: list[list[list[float]]], polyxyzs: list[lis
     polyxyzs : list[list[list[float]]]
         list[shape(number of polygons, number of points in polygon, 3)].
 
-    ndecimals: int, optional
-        the number of digits to round off to
- 
     Returns
     -------
     is_xyzs_in_poly: list[list[bool]]
@@ -2309,7 +2306,7 @@ def rays_bboxes_intersect(ray_list: list[utility.Ray],
         miss_bboxes = []
         for cnt,bbox in enumerate(bbox_list):
             cnt_ls = np.array(cnt)
-            hit_true = np.in1d(res_bbox_indx, cnt_ls)
+            hit_true = np.isin(res_bbox_indx, cnt_ls)
             hit_indx = np.where(hit_true)[0]
             nhits = len(hit_indx)
             if nhits == 0:
@@ -2403,7 +2400,7 @@ def rays_bboxes_intersect(ray_list: list[utility.Ray],
         uq_hit_idx = np.unique(res_ray_indx)
         hit_rays = np.take(ray_list, uq_hit_idx , axis=0)
         rindx = np.arange(len(ray_list))
-        miss_true = np.in1d(rindx, uq_hit_idx)
+        miss_true = np.isin(rindx, uq_hit_idx)
         miss_true = np.logical_not(miss_true)
         miss_idx = np.where(miss_true)[0]
         miss_rays = np.take(ray_list, miss_idx, axis=0)
@@ -2464,7 +2461,7 @@ def rays_faces_intersection(ray_list: list[utility.Ray],
         miss_faces = []
         for cnt, tidx_face in enumerate(tidx_faces):
             #if the triidx_face are in the hit tri indx, this face is hit by a ray
-            hit_true = np.in1d(res_tri_indx, tidx_face)
+            hit_true = np.isin(res_tri_indx, tidx_face)
             hit_indx = np.where(hit_true)[0]
             nhits = len(hit_indx)
             if nhits == 0:
@@ -2576,7 +2573,7 @@ def rays_faces_intersection(ray_list: list[utility.Ray],
         uq_hit_idx = np.unique(res_ray_indx)
         hit_rays = np.take(ray_list, uq_hit_idx , axis=0)
         rindx = np.arange(len(ray_list))
-        miss_true = np.in1d(rindx, uq_hit_idx)
+        miss_true = np.isin(rindx, uq_hit_idx)
         miss_true = np.logical_not(miss_true)
         miss_idx = np.where(miss_true)[0]
         miss_rays = np.take(ray_list, miss_idx, axis=0)

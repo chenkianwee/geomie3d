@@ -1,5 +1,5 @@
-numpy==1.26.4
+numpy==2.0.1
 pyqtgraph==0.13.7
 PyOpenGL==3.1.7
-PyQt6==6.7.0
+PyQt6==6.7.1
 python-dateutil==2.9.0

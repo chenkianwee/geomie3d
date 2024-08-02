@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "geomie3d"
-version = "0.0.7"
+version = "0.0.8"
 authors = [
   { name="Kian Wee CHEN", email="chenkianwee@gmail.com" },
 ]
@@ -14,12 +14,14 @@ requires-python = ">=3.10"
 classifiers = ["License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
                "Programming Language :: Python :: 3.10",
                "Operating System :: OS Independent"]
-dependencies = ['numpy==1.26.4',
-                'pyqtgraph==0.13.7', 
-                'PyOpenGL==3.1.7',
-                'PyQt6==6.7.0',
-                'python-dateutil==2.9.0']
+dependencies = ['numpy>=1.26.4']
+
+[project.optional-dependencies]
+viewer3d = ['pyqtgraph==0.13.7', 
+            'PyOpenGL==3.1.7',
+            'PyQt6==6.7.1',
+            'python-dateutil==2.9.0']
 
 [project.urls]
 "Homepage" = "https://github.com/chenkianwee/geomie3d"
-"Bug Tracker" = "https://github.com/pypa/sampleproject/issues"
+"Bug Tracker" = "https://github.com/chenkianwee/geomie3d/issues"
