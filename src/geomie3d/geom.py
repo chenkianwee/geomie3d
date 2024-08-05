@@ -20,6 +20,7 @@
 # ==================================================================================================
 from enum import Enum
 from . import calculate
+from . import settings
 import numpy as np 
 
 class Point(object):
@@ -35,7 +36,7 @@ class Point(object):
         if type(xyz) != np.ndarray:
             xyz = np.array(xyz)
 
-        self.xyz: np.ndarray = xyz
+        self.xyz: np.ndarray = np.round(xyz, decimals=settings.NDECIMALS)
         """array specifying the xyz coordinates"""
         
 class CurveType(Enum):
@@ -143,7 +144,7 @@ class PolygonSurface(Surface):
         n3_sum = np.sum(n3, axis = 0)
         n = [n1_sum, n2_sum, n3_sum]
         normal = calculate.normalise_vectors(n)
-        normal = np.round(normal, decimals = 6)
+        normal = np.round(normal, decimals = settings.NDECIMALS)
 
         self.normal = normal
     

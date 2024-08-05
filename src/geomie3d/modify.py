@@ -29,6 +29,7 @@ from . import calculate
 from . import geom
 from . import topobj
 from . import utility
+from . import settings
 
 def edges2lines(edge_list: list[topobj.Edge]) -> np.ndarray:
     """
@@ -188,7 +189,7 @@ def faces2trimesh(face_list: list[topobj.Face]) -> dict:
 
     return {"vertices":all_xyzs, "indices":all_idxs}
 
-def fuse_points(point_list: list[geom.Point], decimals: int = 6) -> list[geom.Point]:
+def fuse_points(point_list: list[geom.Point], ndecimals: int = None) -> list[geom.Point]:
     """
     This function fuses the points, duplicate points are fuse into a single point.
     
@@ -205,9 +206,11 @@ def fuse_points(point_list: list[geom.Point], decimals: int = 6) -> list[geom.Po
     fused_point_list : list[geom.Point]
         A numpy array of the fused points
     """
-    
+    if ndecimals is None:
+        ndecimals = settings.NDECIMALS
+
     xyz_list = np.array([point.xyz for point in point_list])
-    xyz_list = np.round(xyz_list, decimals = decimals)
+    xyz_list = np.round(xyz_list, decimals = ndecimals)
     vals, u_ids, inverse = np.unique(xyz_list, axis = 0,
                                       return_inverse=True,
                                       return_index=True)        
@@ -215,7 +218,7 @@ def fuse_points(point_list: list[geom.Point], decimals: int = 6) -> list[geom.Po
     unique_p = point_list[u_ids]
     return unique_p
 
-def fuse_vertices(vertex_list: list[topobj.Vertex], decimals: int = 6) -> list[topobj.Vertex]:
+def fuse_vertices(vertex_list: list[topobj.Vertex], ndecimals: int = None) -> list[topobj.Vertex]:
     """
     This function fuses the vertices, duplicate vertices are fuse into a single vertex.
     
@@ -232,8 +235,11 @@ def fuse_vertices(vertex_list: list[topobj.Vertex], decimals: int = 6) -> list[t
     fused_vertex_list : list[topobj.Vertex]
         A numpy array of the fused vertices
     """
+    if ndecimals is None:
+        ndecimals = settings.NDECIMALS
+
     xyz_list = np.array([v.point.xyz for v in vertex_list])
-    xyz_list = np.round(xyz_list, decimals = decimals)
+    xyz_list = np.round(xyz_list, decimals = ndecimals)
     vals, u_ids, inverse = np.unique(xyz_list, axis = 0,
                                       return_inverse=True,
                                       return_index=True)

@@ -36,11 +36,14 @@ Submodules
     - Functions for obtaining information from geometries through calculations. e.g. calculate the mid point of a face
 - utility
     - Functions that does not fit into the previous four modules. e.g. visualise the face, export the face to stl
+- settings
+    - global settings for the whole library e.g. precision ndecimals=number of decimals for geometry operation
 - viz
     - Functions for visualizing the geometries
 """
 __all__ = ['create', 'calculate', 'get', 'modify', 'viz', 'utility', 'topobj', 'geom']
 
+from . import settings
 from . import get
 from . import modify
 from . import calculate

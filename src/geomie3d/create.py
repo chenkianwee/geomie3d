@@ -27,8 +27,8 @@ from . import utility
 from . import topobj
 from . import geom
 from . import d4pispace
-
 from .geomdl import BSpline, utilities, construct
+
 
 def bbox_frm_arr(bbox_arr: np.ndarray, attributes: dict = {}) -> utility.Bbox:
     """

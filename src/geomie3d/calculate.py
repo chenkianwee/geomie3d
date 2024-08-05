@@ -29,6 +29,7 @@ from . import geom
 from . import create
 from . import topobj
 from . import utility
+from . import settings
 
 def a_connected_path_from_edges(edge_list: list[topobj.Edge], indx: bool = False) -> dict:
     """
@@ -234,7 +235,7 @@ def are_bboxes1_related2_bboxes2(bboxes1: list[utility.Bbox], bboxes2: list[util
     are_related_res = np.logical_or(are_related1, are_related2)
     return are_related_res
 
-def are_polygon_faces_convex(faces: list[topobj.Face]) -> np.ndarray:
+def are_polygon_faces_convex(faces: list[topobj.Face], ndecimals: int = None) -> np.ndarray:
     """
     check if the polygon faces are convex 
  
@@ -242,12 +243,18 @@ def are_polygon_faces_convex(faces: list[topobj.Face]) -> np.ndarray:
     ----------
     faces : list[topobj.Face]
         faces to check whether they are convex.
+
+    ndecimals: int, optional
+        the number of decimals to round off to compare if points are the same.
  
     Returns
     -------
     are_face_convex: np.ndarray
         np.ndarray[shape(number of faces)], True or False if the face is convex.
     """
+    if ndecimals is None:
+        ndecimals = settings.NDECIMALS
+
     are_convex = []
     for f in faces:
         verts = get.vertices_frm_face(f)
@@ -257,6 +264,7 @@ def are_polygon_faces_convex(faces: list[topobj.Face]) -> np.ndarray:
         vects_roll = np.roll(vects, -1, axis=0)
         cres = cross_product(vects, vects_roll)
         cres_n = normalise_vectors(cres)
+        cres_n = np.round(cres_n, decimals=ndecimals)
         uniq = np.unique(cres_n, axis=0)
         if len(uniq) == 1:
             are_convex.append(True)
@@ -264,7 +272,7 @@ def are_polygon_faces_convex(faces: list[topobj.Face]) -> np.ndarray:
             are_convex.append(False)
     return are_convex
 
-def are_verts_in_polygons(verts: list[list[topobj.Vertex]], polygons: list[topobj.Face]) -> list[list[bool]]:
+def are_verts_in_polygons(verts: list[list[topobj.Vertex]], polygons: list[topobj.Face], atol: float = None, rtol: float = None) -> list[list[bool]]:
     """
     - calculate if verts is in polygons. If the point lies on the edges of the polygons it is counted as inside the polygon.
     - implemented based on https://en.wikipedia.org/wiki/Even%E2%80%93odd_rule
@@ -276,12 +284,24 @@ def are_verts_in_polygons(verts: list[list[topobj.Vertex]], polygons: list[topob
     
     polygons: list[topobj.Face]
         the set of polygons.
+
+    atol: float, optional
+        absolute tolerance. 
+
+    rtol: float, optional
+        relative tolerance.
  
     Returns
     -------
     list[list[bool]]
         list[shape(number of sets of points, number of points in the set)], True or False if the point is in the polygon.
     """
+    if atol is None:
+        atol = settings.ATOL
+    
+    if rtol is None:
+        rtol = settings.RTOL
+
     # TODO: ACCOUNT FOR POLYGON HOLES
     xyz_2dlist = []
     for vset in verts:
@@ -298,10 +318,10 @@ def are_verts_in_polygons(verts: list[list[topobj.Vertex]], polygons: list[topob
 
     # print(xyz_2dlist)
     # print(polyxyzs_list)
-    are_xyzs_in_poly = are_xyzs_in_polyxyzs(xyz_2dlist, polyxyzs_list)
+    are_xyzs_in_poly = are_xyzs_in_polyxyzs(xyz_2dlist, polyxyzs_list, atol=atol, rtol=rtol)
     return are_xyzs_in_poly
 
-def are_xyzs_in_polyxyzs(xyz_2dlist: list[list[list[float]]], polyxyzs: list[list[list[float]]]) -> list[list[bool]]:
+def are_xyzs_in_polyxyzs(xyz_2dlist: list[list[list[float]]], polyxyzs: list[list[list[float]]], atol: float = None, rtol: float = None) -> list[list[bool]]:
     """
     - calculate if point xyzs is in polygon xyzs. If the point lies on the edges of the polygons it is counted as inside the polygon.
     - implemented based on https://en.wikipedia.org/wiki/Even%E2%80%93odd_rule
@@ -314,11 +334,23 @@ def are_xyzs_in_polyxyzs(xyz_2dlist: list[list[list[float]]], polyxyzs: list[lis
     polyxyzs : list[list[list[float]]]
         list[shape(number of polygons, number of points in polygon, 3)].
 
+    atol: float, optional
+        absolute tolerance. 
+
+    rtol: float, optional
+        relative tolerance.
+
     Returns
     -------
     is_xyzs_in_poly: list[list[bool]]
         list[shape(number of sets of points, number of points in the set)], True or False if the point is in the polygon.
     """
+    if atol is None:
+        atol = settings.ATOL
+    
+    if rtol is None:
+        rtol = settings.RTOL
+
     nsets = len(xyz_2dlist)
     npolys = len(polyxyzs)
     if nsets != npolys:
@@ -351,12 +383,12 @@ def are_xyzs_in_polyxyzs(xyz_2dlist: list[list[list[float]]], polyxyzs: list[lis
     is_coplanar = np.logical_not(isnan)
     is_nt_nan_id = np.where(is_coplanar)[0]
     coplanar_xyzs = np.take(coplanar_xyzs ,is_nt_nan_id, axis=0)
-    is_coplanar2 = is_coplanar_xyzs(coplanar_xyzs)
+    is_coplanar2 = is_coplanar_xyzs(coplanar_xyzs, atol = atol, rtol = rtol)
     np.put(is_coplanar, is_nt_nan_id, is_coplanar2)
     is_coplanar_id = np.where(is_coplanar)[0]
     # if all are not coplanar should return all false and stop the calculation
     if is_coplanar_id.size == 0:
-        print('IS NOT COPLANAR')
+        # print('IS NOT COPLANAR')
         res2 = []
         for each_cnt in range(nsets):
             res1 = []
@@ -384,7 +416,6 @@ def are_xyzs_in_polyxyzs(xyz_2dlist: list[list[list[float]]], polyxyzs: list[lis
         points2test = np.reshape(points2test, [p2t_shp[0], 1, p2t_shp[1]])
         mv_poly_edge_mid = np.reshape(mv_poly_edge_mid, [p2t_shp[0], 1, p2t_shp[1]])
         test_edges = np.append(points2test, mv_poly_edge_mid, axis=1)
-        # test_edges = np.round(test_edges, decimals=ndecimals)
 
         # get all the corresponding polygons
         poly2test = allxyzs[:, 1:]
@@ -399,12 +430,11 @@ def are_xyzs_in_polyxyzs(xyz_2dlist: list[list[list[float]]], polyxyzs: list[lis
         tedges_rep_flat_nt_nan_shp = np.shape(tedges_rep_flat_nt_nan)
         tedges_rep_ready = np.reshape(tedges_rep_flat_nt_nan, [int(tedges_rep_flat_nt_nan_shp[0]/2), 2, tedges_rep_flat_nt_nan_shp[1]])
 
-        intxs = linexyzs_intersect(tedges_rep_ready, p2t_edges)
+        intxs = linexyzs_intersect(tedges_rep_ready, p2t_edges, atol=atol, rtol=rtol)
         # print('intxs', intxs)
 
         np.put_along_axis(intx_res, is_nt_nan_id2_intx, intxs, axis=0)
         intx_res = np.reshape(intx_res, [int((poly2t_shp[0] * poly2t_shp[1]/2)/(poly2t_shp[1]/2)), int(poly2t_shp[1]/2), 3])
-        # intx_res = np.round(intx_res, decimals=ndecimals)
         # check if the number of intx is odd or even number
         for cnt,intx in enumerate(intx_res):
             is_nan_intx = np.isnan(intx.T[0])
@@ -735,8 +765,8 @@ def dist_pointxyzs2linexyzs(pointxyzs: np.ndarray, linexyzs: np.ndarray, int_pts
     else:
         return dists, int_xyzs
 
-def dist_pointxyzs2polyxyzs(xyzs: np.ndarray, polyxyzs: np.ndarray, nrmlxyzs: np.ndarray, 
-                            int_pts: bool = False) -> np.ndarray | tuple[np.ndarray, np.ndarray]:
+def dist_pointxyzs2polyxyzs(xyzs: np.ndarray, polyxyzs: np.ndarray, nrmlxyzs: np.ndarray, int_pts: bool = False, 
+                            atol: float = None, rtol: float = None) -> np.ndarray | tuple[np.ndarray, np.ndarray]:
     """
     Find the distance between the points and the polygons.
     
@@ -753,6 +783,12 @@ def dist_pointxyzs2polyxyzs(xyzs: np.ndarray, polyxyzs: np.ndarray, nrmlxyzs: np
 
     int_pts: bool, optional
         if true will return the closest point on the polygon to the point. default == False
+    
+    atol: float, optional
+        absolute tolerance. 
+
+    rtol: float, optional
+        relative tolerance.
         
     Returns
     -------
@@ -765,6 +801,12 @@ def dist_pointxyzs2polyxyzs(xyzs: np.ndarray, polyxyzs: np.ndarray, nrmlxyzs: np
 
     if type(nrmlxyzs) != np.ndarray:
         nrmlxyzs = np.array(nrmlxyzs)
+
+    if atol is None:
+        atol = settings.ATOL
+    
+    if rtol is None:
+        rtol = settings.RTOL
 
     nxyzs = len(xyzs)
     npolys = len(polyxyzs)
@@ -780,7 +822,7 @@ def dist_pointxyzs2polyxyzs(xyzs: np.ndarray, polyxyzs: np.ndarray, nrmlxyzs: np
     # check if the points are in the polygons
     on_pl_shape = np.shape(ptxyzs_on_pl)
     ptxyzs_on_pl_2d = np.reshape(ptxyzs_on_pl, (on_pl_shape[0], 1, on_pl_shape[1]))
-    are_in_polys = are_xyzs_in_polyxyzs(ptxyzs_on_pl_2d, polyxyzs)
+    are_in_polys = are_xyzs_in_polyxyzs(ptxyzs_on_pl_2d, polyxyzs, atol=atol, rtol=rtol)
     # coplanar = np.vstack([polyxyzs[0], ptxyzs_on_pl])
     # is_coplanar = is_coplanar_xyzs(coplanar)
     are_in_polys = np.reshape(are_in_polys, (on_pl_shape[0]))
@@ -851,8 +893,8 @@ def dist_vertex2line_edge(vertex_list: list[topobj.Vertex], edge_list: list[topo
         vlist = create.vertex_list(intxs)
         return dists, vlist
 
-def dist_verts2polyfaces(vertex_list: list[topobj.Vertex], polyfaces: list[topobj.Face], 
-                         int_pts: bool = False) -> np.ndarray | tuple[np.ndarray, list[topobj.Vertex]]:
+def dist_verts2polyfaces(vertex_list: list[topobj.Vertex], polyfaces: list[topobj.Face], int_pts: bool = False,
+                         atol: float = None, rtol: float = None) -> np.ndarray | tuple[np.ndarray, list[topobj.Vertex]]:
     """
     Find the distance between the verts and the polygons. Does not accound for the hole in the polygons. Only boundary is used.
     
@@ -866,6 +908,12 @@ def dist_verts2polyfaces(vertex_list: list[topobj.Vertex], polyfaces: list[topob
 
     int_pts: bool, optional
         if true will return the closest point on the polygon to the point. default == False
+    
+    atol: float, optional
+        absolute tolerance. 
+
+    rtol: float, optional
+        relative tolerance.
         
     Returns
     -------
@@ -878,6 +926,12 @@ def dist_verts2polyfaces(vertex_list: list[topobj.Vertex], polyfaces: list[topob
         print('ERROR NUMBER OF VERTEX DOES NOT MATCH POLYGON FACES')
         return None
     
+    if atol is None:
+        atol = settings.ATOL
+    
+    if rtol is None:
+        rtol = settings.RTOL
+
     pointxyzs = [v.point.xyz for v in vertex_list]
     polyxyzs = []
     nrmls = []
@@ -889,10 +943,10 @@ def dist_verts2polyfaces(vertex_list: list[topobj.Vertex], polyfaces: list[topob
         polyxyzs.append(xyzs)
 
     if int_pts == False:
-        dists = dist_pointxyzs2polyxyzs(pointxyzs, polyxyzs, nrmls, int_pts=False)
+        dists = dist_pointxyzs2polyxyzs(pointxyzs, polyxyzs, nrmls, int_pts=False, atol=atol, rtol=rtol)
         return dists
     else:
-        dists, intxs = dist_pointxyzs2polyxyzs(pointxyzs, polyxyzs, nrmls, int_pts=True)
+        dists, intxs = dist_pointxyzs2polyxyzs(pointxyzs, polyxyzs, nrmls, int_pts=True, atol=atol, rtol=rtol)
         vlist = create.vertex_list(intxs)
         return dists, vlist
 
@@ -1005,7 +1059,8 @@ def face_midxyz(face: topobj.Face) -> np.ndarray:
         mid_xyz = np.array(bspline_srf.evaluate_single([0.5,0.5]))
     return mid_xyz
 
-def find_edges_connected2this_edge(this_edge: topobj.Edge, edge_list: list[topobj.Edge], mode: str = 'end_start', indx: bool = False) -> dict:
+def find_edges_connected2this_edge(this_edge: topobj.Edge, edge_list: list[topobj.Edge], mode: str = 'end_start', indx: bool = False, atol: float = None, 
+                                   rtol: float = None) -> dict:
     """
     find the edges in the edge_list that is connected to this_edge. The algorithm use the end point of this_edge and check it with the start point of the edge_list, directionality of the edges matter.
  
@@ -1026,12 +1081,24 @@ def find_edges_connected2this_edge(this_edge: topobj.Edge, edge_list: list[topob
 
     indx : bool, optional
         return the index instead of the actual edge object.
+
+    atol: float, optional
+        absolute tolerance. 
+
+    rtol: float, optional
+        relative tolerance.
  
     Returns
     -------
     connected_edges : dict
         A dictionary {'connected': list[topobj.Edge], 'loose': list[topobj.Edge]}. If indx==True, return the indices instead.
     """
+    if atol is None:
+        atol = settings.ATOL
+    
+    if rtol is None:
+        rtol = settings.RTOL
+
     if mode == 'end_start':
         this_xyz = this_edge.end_vertex.point.xyz
         xyz_ls = np.array([e.start_vertex.point.xyz for e in edge_list])
@@ -1046,7 +1113,7 @@ def find_edges_connected2this_edge(this_edge: topobj.Edge, edge_list: list[topob
         xyz_ls = np.array([e.start_vertex.point.xyz for e in edge_list])
     
     all_indxs = range(len(xyz_ls))    
-    connected_indxs = find_these_xyzs_in_xyzs([[this_xyz]], [xyz_ls])[1]
+    connected_indxs = find_these_xyzs_in_xyzs([[this_xyz]], [xyz_ls], atol=atol, rtol=rtol)[1]
     loose_indxs = utility.find_xs_not_in_ys(all_indxs, connected_indxs)
     
     if indx == True:
@@ -1057,7 +1124,7 @@ def find_edges_connected2this_edge(this_edge: topobj.Edge, edge_list: list[topob
         result = {'connected': connected_edges, 'loose': loose_edges}
     return result
 
-def find_faces_outline(face_list: list[topobj.Face]) -> tuple[list[topobj.Edge], list[topobj.Edge]]:
+def find_faces_outline(face_list: list[topobj.Face], ndecimals: int = None) -> tuple[list[topobj.Edge], list[topobj.Edge]]:
     """
     Find non-duplicated edges from a list of faces. Can be used to find the outline of a triangulated surface.
     
@@ -1065,6 +1132,9 @@ def find_faces_outline(face_list: list[topobj.Face]) -> tuple[list[topobj.Edge],
     ----------
     face_list: list[topobj.Face]
         find non-duplicated edges of these faces.
+
+    ndecimals: int, optional
+        the number of decimals to round off to compare if points are the same.
     
     Returns
     -------
@@ -1074,13 +1144,15 @@ def find_faces_outline(face_list: list[topobj.Face]) -> tuple[list[topobj.Edge],
     dup_edges : list[topobj.Edge]
         list[Shape(Any, Any)] of duplicated edges
     """
+    if ndecimals is None:
+        ndecimals = settings.NDECIMALS
     edge_ls = [get.edges_frm_face(f) for f in face_list]
     edge_ls = list(chain(*edge_ls))
     edge_ls = modify.edges2lineedges(edge_ls)
-    non_dup_edges, dup_edges = find_non_dup_lineedges(edge_ls)
+    non_dup_edges, dup_edges = find_non_dup_lineedges(edge_ls, ndecimals=ndecimals)
     return non_dup_edges, dup_edges
 
-def find_non_dup_lineedges(edge_list: list[topobj.Edge]) -> tuple[list[topobj.Edge], list[list[topobj.Edge]]]:
+def find_non_dup_lineedges(edge_list: list[topobj.Edge], ndecimals: int = None) -> tuple[list[topobj.Edge], list[list[topobj.Edge]]]:
     """
     Find edges that are not duplicated.
     
@@ -1088,6 +1160,9 @@ def find_non_dup_lineedges(edge_list: list[topobj.Edge]) -> tuple[list[topobj.Ed
     ----------
     edge_list: list[topobj.Edge]
         find non duplicated edges from these edges.
+
+    ndecimals: int, optional
+        the number of decimals to round off to compare if points are the same.
     
     Returns
     -------
@@ -1097,6 +1172,8 @@ def find_non_dup_lineedges(edge_list: list[topobj.Edge]) -> tuple[list[topobj.Ed
     dup_edges : list[list[topobj.Edge]]
         list[shape(number of duplicates, Any)] of duplicated edges
     """
+    if ndecimals is None:
+        ndecimals = settings.NDECIMALS
     edge_vert_list = [get.vertices_frm_edge(e) for e in edge_list]
     edge_xyz_ls = []
     for edge_verts in edge_vert_list:
@@ -1104,12 +1181,12 @@ def find_non_dup_lineedges(edge_list: list[topobj.Edge]) -> tuple[list[topobj.Ed
         edge_xyz_ls.append(edge_xyzs)
 
     edge_xyz_ls = np.array(edge_xyz_ls)
-    non_dup_idx, dup_idx = find_non_dup_lineedges_xyz(edge_xyz_ls)
+    non_dup_idx, dup_idx = find_non_dup_lineedges_xyz(edge_xyz_ls, ndecimals=ndecimals)
     non_dup_edges = np.take(edge_list, non_dup_idx).tolist()
     dup_edges = np.take(edge_list, dup_idx).tolist()
     return non_dup_edges, dup_edges
 
-def find_non_dup_lineedges_xyz(edge_xyz_list: np.ndarray, index: bool = True) -> tuple[np.ndarray, np.ndarray]:
+def find_non_dup_lineedges_xyz(edge_xyz_list: np.ndarray, index: bool = True, ndecimals: int = None) -> tuple[np.ndarray, np.ndarray]:
     """
     Find edges that are not duplicated.
     
@@ -1121,6 +1198,9 @@ def find_non_dup_lineedges_xyz(edge_xyz_list: np.ndarray, index: bool = True) ->
     index: bool, optional
         Default = True, if True return the indices of the edges that are non-duplicated and duplicated. False returns only the xyzs of the non duplicated. 
     
+    ndecimals: int, optional
+        the number of decimals to round off to compare if points are the same.
+
     Returns
     -------
     non_dup_edge_xyzs : np.ndarray
@@ -1133,11 +1213,15 @@ def find_non_dup_lineedges_xyz(edge_xyz_list: np.ndarray, index: bool = True) ->
     if type(edge_xyz_list) != np.ndarray:
         np.array(edge_xyz_list)
 
+    if ndecimals is None:
+        ndecimals = settings.NDECIMALS
+
     arr_shape = np.shape(edge_xyz_list)
     if arr_shape[1] != 2:
         raise ValueError('This is not a line edge !! The edge has more than two vertices')
     else:
         xyz_list = np.reshape(edge_xyz_list, (arr_shape[0]*arr_shape[1], 3)) # flatten the list
+        xyz_list = np.round(xyz_list, decimals=ndecimals)
         uniq_xyzs = np.unique(xyz_list, axis=0, return_inverse = True) # index the vertices
         edge_idxs = np.reshape(uniq_xyzs[1], (arr_shape[0], arr_shape[1])) # reshape it back to the edge shape
         edge_idxs = np.sort(edge_idxs) # sort the edge indices 
@@ -1149,7 +1233,8 @@ def find_non_dup_lineedges_xyz(edge_xyz_list: np.ndarray, index: bool = True) ->
             non_dup = np.take(edge_xyz_list, non_dup_idx)
             return non_dup
 
-def find_these_xyzs_in_xyzs(these_xyzs_2dlist: list[list[list[float]]], xyz_2dlist: list[list[list[float]]]) -> np.ndarray:
+def find_these_xyzs_in_xyzs(these_xyzs_2dlist: list[list[list[float]]], xyz_2dlist: list[list[list[float]]], atol: float = None, 
+                            rtol: float = None) -> np.ndarray:
     """
     Compare these_xyzs_2dlist to the xyz_2dlist and find all the xyz that is the same as these_xyzs_2dlist. Returns the index of the identical xyz in the xyz_2dlist.
  
@@ -1160,6 +1245,12 @@ def find_these_xyzs_in_xyzs(these_xyzs_2dlist: list[list[list[float]]], xyz_2dli
     
     xyz_2dlist : list[list[list[float]]]
         list[shape(number of sets of points, number of points, 3)].
+
+    atol: float, optional
+        absolute tolerance. 
+
+    rtol: float, optional
+        relative tolerance.
  
     Returns
     -------
@@ -1167,6 +1258,12 @@ def find_these_xyzs_in_xyzs(these_xyzs_2dlist: list[list[list[float]]], xyz_2dli
         np.ndarray[shape(2, any)], the first index list refers to the index of the set, the second list is the index of the points in that set. 
         So if you do a index_list.T you can get the indices to get the points from the xyz_2dlist
     """
+    if atol is None:
+        atol = settings.ATOL
+    
+    if rtol is None:
+        rtol = settings.RTOL
+
     nsets = len(these_xyzs_2dlist)
     nsets2 = len(xyz_2dlist)
     if nsets != nsets2:
@@ -1198,9 +1295,9 @@ def find_these_xyzs_in_xyzs(these_xyzs_2dlist: list[list[list[float]]], xyz_2dli
     xyz_ls_y = np.reshape(xyz_ls_y, (xyz_2darr_rep_shp[0], xyz_2darr_rep_shp[1]))
     xyz_ls_z = np.reshape(xyz_ls_z, (xyz_2darr_rep_shp[0], xyz_2darr_rep_shp[1]))
 
-    validx = these_flatx == xyz_ls_x
-    validy = these_flaty == xyz_ls_y
-    validz = these_flatz == xyz_ls_z
+    validx = np.isclose(these_flatx, xyz_ls_x, rtol=rtol, atol=atol) # these_flatx == xyz_ls_x
+    validy = np.isclose(these_flaty, xyz_ls_y, rtol=rtol, atol=atol) # these_flaty == xyz_ls_y
+    validz = np.isclose(these_flatz, xyz_ls_z, rtol=rtol, atol=atol) # these_flatz == xyz_ls_z
 
     cond1 = np.logical_and(validx, validy)
     cond2 = np.logical_and(cond1, validz)
@@ -1221,7 +1318,7 @@ def grp_faces_on_nrml(face_list: list[topobj.Face], return_idx: bool = False, nd
         only return the indices of the grouped faces. Default to False
 
     ndecimals: int, optional
-        the number of decimals to round the normals of the faces. Default to 6 
+        the number of decimals to round the normals of the faces. Default to 5
 
     Returns
     -------
@@ -1229,10 +1326,12 @@ def grp_faces_on_nrml(face_list: list[topobj.Face], return_idx: bool = False, nd
         list[Shape[Any,Any]] of grouped faces. list[Shape[Any]] of faces that do not belong to any group.
         
     """
+    if ndecimals is None:
+        ndecimals = settings.NDECIMALS
     # get the normals of each tri face
     nrml_ls = np.array([get.face_normal(f) for f in face_list])
-    if ndecimals != None:
-        nrml_ls = np.round(nrml_ls, decimals=ndecimals)
+    # if ndecimals != None:
+    nrml_ls = np.round(nrml_ls, decimals=ndecimals)
     uniq_nrml = np.unique(nrml_ls, axis=0, return_inverse = True)
     idx = utility.separate_dup_non_dup(uniq_nrml[1])
     non_dup_idx = idx[0]
@@ -1318,7 +1417,7 @@ def inverse_matrice(matrice: np.ndarray) -> np.ndarray:
     """
     return np.linalg.inv(matrice)
 
-def is_collinear(vertex_list: list[topobj.Vertex]) -> bool:
+def is_collinear(vertex_list: list[topobj.Vertex], ndecimals: int = None) -> bool:
     """
     This function checks if the list of points are collinear. 
  
@@ -1326,7 +1425,10 @@ def is_collinear(vertex_list: list[topobj.Vertex]) -> bool:
     ----------
     vertex_list : list[topobj.Vertex]
         list[shape(number of vertices)] or list[shape(number of sets of vertices, number of vertices)] array of vertices. It will also work for a 2darray of vertex list
-        
+    
+    ndecimals: int, optional
+        the number of decimals to round off to compare if points are the same.
+
     Returns
     -------
     True or False : bool
@@ -1335,6 +1437,9 @@ def is_collinear(vertex_list: list[topobj.Vertex]) -> bool:
     if type(vertex_list) != np.ndarray:
         vertex_list = np.array(vertex_list)
     
+    if ndecimals is None:
+        ndecimals = settings.NDECIMALS
+
     is_2d = isinstance(vertex_list[0], np.ndarray | list)
     
     if not is_2d:
@@ -1346,9 +1451,9 @@ def is_collinear(vertex_list: list[topobj.Vertex]) -> bool:
             xyz = [v.point.xyz for v in verts]
             xyzs.append(xyz)
             
-    return is_collinear_xyzs(xyzs)
+    return is_collinear_xyzs(xyzs, ndecimals=ndecimals)
 
-def is_collinear_xyzs(xyzs: np.ndarray) -> bool:
+def is_collinear_xyzs(xyzs: np.ndarray, ndecimals: int = None) -> bool:
     """
     This function checks if the list of xyzs are collinear.
     
@@ -1356,16 +1461,21 @@ def is_collinear_xyzs(xyzs: np.ndarray) -> bool:
     ----------
     xyzs : np.ndarray
         np.ndarray(shape(number of points, 3)) or np.ndarray(shape(number of sets of points, number of points, 3)).
+
+    ndecimals: int, optional
+        the number of decimals to round off to compare if points are the same.
         
     Returns
     -------
     True or False : bool
         If True the list of points are coplanar.
     """
-    affine_rank = _affine_rank(xyzs)
+    if ndecimals is None:
+        ndecimals = settings.NDECIMALS
+    affine_rank = _affine_rank(xyzs, ndecimals=ndecimals)
     return affine_rank <=1
 
-def is_coplanar(vertex_list: list[topobj.Vertex], atol: float = 1e-05, rtol: float = 1e-05) -> bool:
+def is_coplanar(vertex_list: list[topobj.Vertex], atol: float = None, rtol: float = None) -> bool:
     """
     This function checks if the list of points are coplanar. 
  
@@ -1379,6 +1489,12 @@ def is_coplanar(vertex_list: list[topobj.Vertex], atol: float = 1e-05, rtol: flo
     True or False : bool
         If True the list of points are coplanar.
     """
+    if atol is None:
+        atol = settings.ATOL
+    
+    if rtol is None:
+        rtol = settings.RTOL
+
     is_2d = isinstance(vertex_list[0], np.ndarray | list)
     
     if not is_2d:
@@ -1392,7 +1508,7 @@ def is_coplanar(vertex_list: list[topobj.Vertex], atol: float = 1e-05, rtol: flo
             
     return is_coplanar_xyzs(xyzs, atol=atol, rtol=rtol)
 
-def is_coplanar_xyzs(xyzs: np.ndarray, atol: float = 1e-05, rtol: float = 1e-05) -> bool | list[bool]:
+def is_coplanar_xyzs(xyzs: np.ndarray, atol: float = None, rtol: float = None) -> bool | list[bool]:
     """
     This function checks if the list of xyzs are coplanar. (https://www.geeksforgeeks.org/program-to-check-whether-4-points-in-a-3-d-plane-are-coplanar/)
     
@@ -1409,22 +1525,22 @@ def is_coplanar_xyzs(xyzs: np.ndarray, atol: float = 1e-05, rtol: float = 1e-05)
     """
     def a_coplanar(xyzs):
         shape = np.shape(xyzs)
-        is_collinear = True
+        is_this_collinear = True
         abcd = None
         max_cnt = shape[0] - 3
         cnt = 0
-        while is_collinear:
+        while is_this_collinear:
             if cnt != 0:
                 xyzs_roll = np.roll(xyzs, -1, axis=0)
             else:
                 xyzs_roll = xyzs
             xyzs_reshape = np.reshape(xyzs_roll, (1, shape[0], shape[1]))
-            abcd = planes_frm_3pts(xyzs_reshape)[0]
-            is_collinear = np.isnan(abcd[0])
+            abcd = planes_frm_3pts(xyzs_reshape, atol=atol, rtol=rtol)[0]
+            is_this_collinear = np.isnan(abcd[0])
             
-            if cnt == max_cnt and is_collinear == True:
+            if cnt == max_cnt and is_this_collinear == True:
                 abcd = None
-                is_collinear = False
+                is_this_collinear = False
             cnt +=1
         
         if abcd is None:
@@ -1445,7 +1561,12 @@ def is_coplanar_xyzs(xyzs: np.ndarray, atol: float = 1e-05, rtol: float = 1e-05)
     # old codes
     # affine_rank = _affine_rank(xyzs)
     # return affine_rank <=2
-        
+    if atol is None:
+        atol = settings.ATOL
+    
+    if rtol is None:
+        rtol = settings.RTOL
+
     flat = list(chain.from_iterable(xyzs))
     flat_shp = np.shape(flat)
     nshape = len(flat_shp)
@@ -1572,7 +1693,7 @@ def is_anticlockwise(xyzs: np.ndarray, ref_vec: np.ndarray) -> bool:
         cond3 = np.where(cond2, None, cond1) #use the 0 cond rule to change the 0 to None    
         return cond3
 
-def lineedge_intersect(edge_list1: list[topobj.Edge], edge_list2: list[topobj.Edge], atol: float = 1e-05, rtol: float = 1e-05) -> list[topobj.Vertex]:
+def lineedge_intersect(edge_list1: list[topobj.Edge], edge_list2: list[topobj.Edge], atol: float = None, rtol: float = None) -> list[topobj.Vertex]:
     """
     Find the intersections between the edge_list1 and edge_list2. The edges need to only have simple lines as curve geometry
     
@@ -1595,6 +1716,12 @@ def lineedge_intersect(edge_list1: list[topobj.Edge], edge_list2: list[topobj.Ed
     intersections : list[topobj.Vertex]
         array of all the intersection points.
     """
+    if atol is None:
+        atol = settings.ATOL
+    
+    if rtol is None:
+        rtol = settings.RTOL
+
     linexyzs1 = _extract_xyzs_from_lineedge(edge_list1)
     linexyzs2 = _extract_xyzs_from_lineedge(edge_list2)
     #TODO implement for more complex polygon curve can be achieve by breaking each curve into lines
@@ -1656,7 +1783,7 @@ def linexyzs_from_t(ts: list[float], linexyzs: np.ndarray) -> np.ndarray:
     
     return xyzs_t
 
-def linexyzs_intersect(linexyzs1: np.ndarray, linexyzs2: np.ndarray, atol: float = 1e-05, rtol: float = 1e-05) -> np.ndarray:
+def linexyzs_intersect(linexyzs1: np.ndarray, linexyzs2: np.ndarray, atol: float = None, rtol: float = None) -> np.ndarray:
     """
     Find the intersections between the lines. Intersection does not include when the end point of one of the line is touching the other line.
     
@@ -1684,6 +1811,12 @@ def linexyzs_intersect(linexyzs1: np.ndarray, linexyzs2: np.ndarray, atol: float
     
     if type(linexyzs2) != np.ndarray:
         linexyzs2 = np.array(linexyzs2)
+
+    if atol is None:
+        atol = settings.ATOL
+    
+    if rtol is None:
+        rtol = settings.RTOL
 
     shape1 = np.shape(linexyzs1)
     shape2 = np.shape(linexyzs2)
@@ -1882,7 +2015,7 @@ def planes_frm_pointxyzs_nrmls(xyzs: np.ndarray, nrmlxyzs = np.ndarray) -> np.nd
     abcds = np.append(nrmlxyzs, d, axis=1)
     return abcds
 
-def planes_frm_3pts(xyzs: np.ndarray) -> np.ndarray:
+def planes_frm_3pts(xyzs: np.ndarray, atol: float = None, rtol: float = None) -> np.ndarray:
     """
     Returns coefficient a,b,c,d for the plane equation ax + by + cz + d = 0.
     
@@ -1890,7 +2023,13 @@ def planes_frm_3pts(xyzs: np.ndarray) -> np.ndarray:
     ----------
     xyzs : np.ndarray
         np.ndarray(shape(number of sets of points, 3, 3)).
-        
+    
+    atol: float, optional
+        absolute tolerance. 
+
+    rtol: float, optional
+        relative tolerance.
+
     Returns
     -------
     np.ndarray
@@ -1899,6 +2038,12 @@ def planes_frm_3pts(xyzs: np.ndarray) -> np.ndarray:
     if type(xyzs) != np.ndarray:
         xyzs = np.array(xyzs)
     
+    if atol is None:
+        atol = settings.ATOL
+    
+    if rtol is None:
+        rtol = settings.RTOL
+
     a1 = xyzs[:, 1, 0] - xyzs[:, 0, 0]
     b1 = xyzs[:, 1, 1] - xyzs[:, 0, 1]
     c1 = xyzs[:, 1, 2] - xyzs[:, 0, 2]
@@ -1909,9 +2054,9 @@ def planes_frm_3pts(xyzs: np.ndarray) -> np.ndarray:
     b = a2 * c1 - a1 * c2
     c = a1 * b2 - b1 * a2
     # check for cases where the given points are collinear
-    ais0 = np.isclose(a, 0)
-    bis0 = np.isclose(b, 0)
-    cis0 = np.isclose(c, 0)
+    ais0 = np.isclose(a, 0, rtol=rtol, atol=atol)
+    bis0 = np.isclose(b, 0, rtol=rtol, atol=atol)
+    cis0 = np.isclose(c, 0, rtol=rtol, atol=atol)
     is01 = np.logical_and(ais0, bis0)
     is0 = np.logical_and(is01, cis0)
     is0x3 = np.repeat(is0, 3)
@@ -1935,7 +2080,7 @@ def planes_frm_3pts(xyzs: np.ndarray) -> np.ndarray:
     abcdT = abcd.T
     return abcdT
 
-def polygons_clipping(clipping_poly: topobj.Face, subject_poly: topobj.Face, boolean_op: str) -> list[topobj.Face]:
+def polygons_clipping(clipping_poly: topobj.Face, subject_poly: topobj.Face, boolean_op: str, atol: float = None, rtol: float = None) -> list[topobj.Face]:
     """
     Find the intersections between the clipping polys and the subject polys. Both the polygons cannot have holes. The result of the operation cannot have holes.
     
@@ -1950,11 +2095,23 @@ def polygons_clipping(clipping_poly: topobj.Face, subject_poly: topobj.Face, boo
     boolean_op : str
         can be either 'union', 'intersection', 'clip_not_subject', 'subject_not_clip'.    
 
+    atol: float, optional
+        absolute tolerance. 
+
+    rtol: float, optional
+        relative tolerance. 
+
     Returns
     -------
     intersect : list[topobj.Face]
         results of the boolean operation. None return when operations do not produce any faces.
     """
+    if atol is None:
+        atol = settings.ATOL
+    
+    if rtol is None:
+        rtol = settings.RTOL
+
     clip_hole_verts = get.hole_vertices_frm_face(clipping_poly)
     subj_hole_verts = get.hole_vertices_frm_face(subject_poly)
     if len(clip_hole_verts) != 0 or len(subj_hole_verts) != 0:
@@ -1966,7 +2123,7 @@ def polygons_clipping(clipping_poly: topobj.Face, subject_poly: topobj.Face, boo
     clip_xyzs = np.array([vert.point.xyz for vert in clip_verts]).astype(float)
     subj_xyzs = np.array([vert.point.xyz for vert in subj_verts]).astype(float)
     
-    clip_res_xyzs = polyxyzs_clipping(clip_xyzs, subj_xyzs, clip_normal, boolean_op)
+    clip_res_xyzs = polyxyzs_clipping(clip_xyzs, subj_xyzs, clip_normal, boolean_op, atol=atol, rtol=rtol)
     if clip_res_xyzs != None:
         intfs = []
         for clip in clip_res_xyzs:
@@ -1977,8 +2134,8 @@ def polygons_clipping(clipping_poly: topobj.Face, subject_poly: topobj.Face, boo
     else:
         return None
 
-def polyxyzs_clipping(clipping_polyxyzs: np.ndarray, subject_polyxyzs: np.ndarray, ref_vec: list[float] | np.ndarray, 
-                      boolean_op: str) -> np.ndarray:
+def polyxyzs_clipping(clipping_polyxyzs: np.ndarray, subject_polyxyzs: np.ndarray, ref_vec: list[float] | np.ndarray, boolean_op: str,
+                      atol: float = None, rtol: float = None) -> np.ndarray:
     """
     - Perform Greiner-Hormann polygon clipping. Both the polygons cannot have holes. The result of the operation cannot have holes.
     - (https://en.wikipedia.org/wiki/Greiner%E2%80%93Hormann_clipping_algorithm) (https://davis.wpi.edu/~matt/courses/clipping/)
@@ -1995,7 +2152,13 @@ def polyxyzs_clipping(clipping_polyxyzs: np.ndarray, subject_polyxyzs: np.ndarra
         list(shape(3)). The normal of the clipping polygon.
     
     boolean_op : str
-        can be either 'union', 'intersection', 'clip_not_subject', 'subject_not_clip'.    
+        can be either 'union', 'intersection', 'clip_not_subject', 'subject_not_clip'.
+
+    atol: float, optional
+        absolute tolerance. 
+
+    rtol: float, optional
+        relative tolerance. 
     
     Returns
     -------
@@ -2183,13 +2346,19 @@ def polyxyzs_clipping(clipping_polyxyzs: np.ndarray, subject_polyxyzs: np.ndarra
     if type(subject_polyxyzs) != np.ndarray:
         subject_polyxyzs = np.array(subject_polyxyzs).astype(float)
 
+    if atol is None:
+        atol = settings.ATOL
+    
+    if rtol is None:
+        rtol = settings.RTOL
+
     is_ccw = is_anticlockwise(subject_polyxyzs, ref_vec)
     if is_ccw:
         subject_polyxyzs = np.flip(subject_polyxyzs, axis=0)
 
     # check if both polygons are coplanar, if not just return no intersection
     all_xyzs = np.append(clipping_polyxyzs, subject_polyxyzs, axis = 0)
-    is_pts_coplanar = is_coplanar_xyzs(all_xyzs)
+    is_pts_coplanar = is_coplanar_xyzs(all_xyzs, atol=atol, rtol=rtol)
     if is_pts_coplanar == False:
         return None
     # turn each polygon into edges
@@ -2200,7 +2369,7 @@ def polyxyzs_clipping(clipping_polyxyzs: np.ndarray, subject_polyxyzs: np.ndarra
     # intersect the edges and find intersections
     clip_edges_rep = np.repeat(clip_edges, n_subj_edges, axis=0)
     subj_edges_rep = np.tile(subj_edges, (n_clip_edges, 1, 1))
-    intxs = linexyzs_intersect(clip_edges_rep, subj_edges_rep)
+    intxs = linexyzs_intersect(clip_edges_rep, subj_edges_rep, atol=atol, rtol=rtol)
     if len(intxs) == 0: # if no intersection no clipping
         return None 
     # arrange each intersections into the polygon xyzs
@@ -2220,18 +2389,18 @@ def polyxyzs_clipping(clipping_polyxyzs: np.ndarray, subject_polyxyzs: np.ndarra
     clip_intxs = np.insert(clipping_polyxyzs, clip_edge_idxs, clip_intxs_take, axis = 0)
     subj_intxs = np.insert(subject_polyxyzs, subj_edge_idxs, subj_intxs_take, axis = 0)
 
-    clip_intxs_idxs = find_these_xyzs_in_xyzs([clip_intxs_take], [clip_intxs])[1]
-    subj_intxs_idxs = find_these_xyzs_in_xyzs([subj_intxs_take], [subj_intxs])[1]
+    clip_intxs_idxs = find_these_xyzs_in_xyzs([clip_intxs_take], [clip_intxs], atol=atol, rtol=rtol)[1]
+    subj_intxs_idxs = find_these_xyzs_in_xyzs([subj_intxs_take], [subj_intxs], atol=atol, rtol=rtol)[1]
 
-    map_subj2clip_idxs = find_these_xyzs_in_xyzs([subj_intxs_take], [clip_intxs])[1]
-    map_clip2subj_idxs = find_these_xyzs_in_xyzs([clip_intxs_take], [subj_intxs])[1]
+    map_subj2clip_idxs = find_these_xyzs_in_xyzs([subj_intxs_take], [clip_intxs], atol=atol, rtol=rtol)[1]
+    map_clip2subj_idxs = find_these_xyzs_in_xyzs([clip_intxs_take], [subj_intxs], atol=atol, rtol=rtol)[1]
 
     # find the entry or exit status of each intersection
     subj_intxs_idxs_bef = subj_intxs_idxs - 1
     subj_intxs_bef = np.take(subj_intxs, subj_intxs_idxs_bef, axis = 0)
-    entry_exit = are_xyzs_in_polyxyzs([subj_intxs_bef], [clipping_polyxyzs])[0] # True = Exit, False = Entry
+    entry_exit = are_xyzs_in_polyxyzs([subj_intxs_bef], [clipping_polyxyzs], atol=atol, rtol=rtol)[0] # True = Exit, False = Entry
     entry_exit_idxs = list(range(len(entry_exit)))
-    map_clip2subj_idxs_entry_exit = find_these_xyzs_in_xyzs([clip_intxs_take], [subj_intxs_take])[1]
+    map_clip2subj_idxs_entry_exit = find_these_xyzs_in_xyzs([clip_intxs_take], [subj_intxs_take], atol=atol, rtol=rtol)[1]
 
     # find the boolean result polygons
     n_intxs = len(intxs_take)
@@ -2269,8 +2438,8 @@ def proj_ptxyzs_on_plane(pointxyzs: np.ndarray, planexyzs: np.ndarray) -> tuple[
     abs_dist = np.abs(dist)
     return abs_dist, ptxyz_on_pl
 
-def rays_bboxes_intersect(ray_list: list[utility.Ray], 
-                          bbox_list: list[utility.Bbox]) -> tuple[list[utility.Ray], list[utility.Ray], list[utility.Bbox], list[utility.Bbox]]:
+def rays_bboxes_intersect(ray_list: list[utility.Ray], bbox_list: list[utility.Bbox], 
+                          ndecimals: int = None) -> tuple[list[utility.Ray], list[utility.Ray], list[utility.Bbox], list[utility.Bbox]]:
     """
     This function intersect multiple rays with multiple bboxes
  
@@ -2282,6 +2451,9 @@ def rays_bboxes_intersect(ray_list: list[utility.Ray],
     bbox_list : list[utility.Bbox]
         A list of bbox
         
+    ndecimals: int, optional
+        precision for the calculation. How many decimal place to round the calculations.
+
     Returns
     -------
     hit_rays : list[utility.Ray]
@@ -2296,9 +2468,11 @@ def rays_bboxes_intersect(ray_list: list[utility.Ray],
     miss_faces : list[utility.Bbox]
         bboxes that are not hit by any rays.
     """
+    if ndecimals is None:
+        ndecimals = settings.NDECIMALS
     #extract the origin and dir of the rays
     rays_xyz = np.array([[r.origin,r.dirx] for r in ray_list])
-    res_pts, res_mag, res_ray_indx, res_bbox_indx = rays_xyz_bboxes_intersect(rays_xyz, bbox_list)
+    res_pts, res_mag, res_ray_indx, res_bbox_indx = rays_xyz_bboxes_intersect(rays_xyz, bbox_list, ndecimals=ndecimals)
     # print(res_pts, res_mag, res_ray_indx, res_bbox_indx)
     if len(res_pts) != 0:
         #now i need to sort it into bboxes
@@ -2409,8 +2583,8 @@ def rays_bboxes_intersect(ray_list: list[utility.Ray],
     else:
         return [], ray_list, [], bbox_list
 
-def rays_faces_intersection(ray_list: list[utility.Ray], 
-                            face_list: list[topobj.Face]) -> tuple[list[utility.Ray], list[utility.Ray], list[topobj.Face], list[topobj.Face]]:
+def rays_faces_intersection(ray_list: list[utility.Ray], face_list: list[topobj.Face], 
+                            ndecimals: int = None) -> tuple[list[utility.Ray], list[utility.Ray], list[topobj.Face], list[topobj.Face]]:
     """
     This function intersect multiple rays with multiple faces
  
@@ -2421,6 +2595,9 @@ def rays_faces_intersection(ray_list: list[utility.Ray],
         
     face_list : list[topobj.Face]
         array of face objects
+    
+    ndecimals: int, optional
+        precision for the calculation. How many decimal place to round the calculations.
         
     Returns
     -------
@@ -2436,9 +2613,11 @@ def rays_faces_intersection(ray_list: list[utility.Ray],
     miss_faces : list[topobj.Face]
         faces that are not hit by any rays.
     """
-    #extract the origin and dir of the rays 
+    if ndecimals is None:
+        ndecimals = settings.NDECIMALS
+    # extract the origin and dir of the rays 
     rays_xyz = np.array([[r.origin,r.dirx] for r in ray_list])
-    #need to first triangulate the faces
+    # need to first triangulate the faces
     tris_xyz = np.array([])
     ntris = 0
     tidx_faces = []
@@ -2454,7 +2633,7 @@ def rays_faces_intersection(ray_list: list[utility.Ray],
     
     #reshape the tris
     tris_xyz = np.reshape(tris_xyz, (ntris, 3, 3))
-    res_pts, res_mag, res_ray_indx, res_tri_indx = rays_xyz_tris_intersect(rays_xyz, tris_xyz)
+    res_pts, res_mag, res_ray_indx, res_tri_indx = rays_xyz_tris_intersect(rays_xyz, tris_xyz, ndecimals=ndecimals)
     if len(res_pts) != 0:
         #now i need to sort it into faces
         hit_faces = []
@@ -2581,7 +2760,8 @@ def rays_faces_intersection(ray_list: list[utility.Ray],
     else:
         return [], ray_list, [], face_list
 
-def rays_xyz_bboxes_intersect(rays_xyz: np.ndarray, bbox_list: list[utility.Bbox]) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+def rays_xyz_bboxes_intersect(rays_xyz: np.ndarray, bbox_list: list[utility.Bbox], 
+                              ndecimals: int = None) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """
     This function intersect multiple rays with multiple bboxes. based on this https://www.scratchapixel.com/lessons/3d-basic-rendering/minimal-ray-tracer-rendering-simple-shapes/ray-box-intersection and this https://github.com/stackgl/ray-aabb-intersection/blob/master/index.js 
     
@@ -2592,6 +2772,9 @@ def rays_xyz_bboxes_intersect(rays_xyz: np.ndarray, bbox_list: list[utility.Bbox
         
     bbox_list : list[utility.Bbox]
         A list of bbox
+
+    ndecimals: int, optional
+        precision for the calculation. How many decimal place to round the calculations.
 
     Returns
     -------
@@ -2610,19 +2793,21 @@ def rays_xyz_bboxes_intersect(rays_xyz: np.ndarray, bbox_list: list[utility.Bbox
     if type(rays_xyz) != np.ndarray:
         rays_xyz = np.array(rays_xyz)
     
-    precision = 6
+    if ndecimals is None:
+        ndecimals = settings.NDECIMALS
+
     nrays = len(rays_xyz)
     nbbox = len(bbox_list)
     bbox_arr_ls = np.array([bbox.bbox_arr for bbox in bbox_list])
-    bbox_arr_ls = np.around(bbox_arr_ls, decimals=precision)
+    bbox_arr_ls = np.around(bbox_arr_ls, decimals=ndecimals)
     #sort the bbox to match the number of rays, each ray to all the bboxes
     bbox_tiled = np.tile(bbox_arr_ls, (nrays,1))
     bboxT = bbox_tiled.T
     #sort the rays to match the boxs 
     rays_repeat = np.repeat(rays_xyz, nbbox, axis=0)
     rays_stacked = np.stack(rays_repeat, axis=1)
-    rays_origs = np.around(rays_stacked[0], decimals=precision)
-    rays_dirs = np.around(rays_stacked[1], decimals=precision)
+    rays_origs = np.around(rays_stacked[0], decimals=ndecimals)
+    rays_dirs = np.around(rays_stacked[1], decimals=ndecimals)
     # rays_origs = rays_stacked[0]
     # rays_dirs = rays_stacked[1]
     rays_origsT = rays_origs.T
@@ -2647,8 +2832,8 @@ def rays_xyz_bboxes_intersect(rays_xyz: np.ndarray, bbox_list: list[utility.Bbox
     txmax_ntrue = np.logical_and(x0_true, txmax_neg)
     txmax = np.where(txmax_ntrue, -np.inf, txmax)
     
-    txmin = np.around(txmin, decimals=precision)
-    txmax = np.around(txmax, decimals=precision)
+    txmin = np.around(txmin, decimals=ndecimals)
+    txmax = np.around(txmax, decimals=ndecimals)
     
     txmin1 = txmin
     txmax1 = txmax
@@ -2672,8 +2857,8 @@ def rays_xyz_bboxes_intersect(rays_xyz: np.ndarray, bbox_list: list[utility.Bbox
     tymax_ntrue = np.logical_and(y0_true, tymax_neg)
     tymax = np.where(tymax_ntrue, -np.inf, tymax)
     
-    tymin = np.around(tymin, decimals=precision)
-    tymax = np.around(tymax, decimals=precision)
+    tymin = np.around(tymin, decimals=ndecimals)
+    tymax = np.around(tymax, decimals=ndecimals)
     tymin1 = tymin
     tymax1 = tymax
     tymin = np.where(tymin1 > tymax1, tymax1, tymin1)
@@ -2714,8 +2899,8 @@ def rays_xyz_bboxes_intersect(rays_xyz: np.ndarray, bbox_list: list[utility.Bbox
     tzmax_ntrue = np.logical_and(z0_true, tzmax_neg)
     tzmax = np.where(tzmax_ntrue, -np.inf, tzmax)
     
-    tzmin = np.around(tzmin, decimals=precision)
-    tzmax = np.around(tzmax, decimals=precision)
+    tzmin = np.around(tzmin, decimals=ndecimals)
+    tzmax = np.around(tzmax, decimals=ndecimals)
     tzmin1 = tzmin
     tzmax1 = tzmax
     tzmin = np.where(tzmin1 > tzmax1, tzmax1 , tzmin1)
@@ -2773,7 +2958,7 @@ def rays_xyz_bboxes_intersect(rays_xyz: np.ndarray, bbox_list: list[utility.Bbox
     
     return res_pts, res_mag, res_ray_indx, res_bbox_indx
 
-def rays_xyz_tris_intersect(rays_xyz: np.ndarray, tris_xyz: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+def rays_xyz_tris_intersect(rays_xyz: np.ndarray, tris_xyz: np.ndarray, ndecimals: int = None) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """
     This function intersect multiple rays with multiple triangles. https://github.com/johnnovak/raytriangle-test/blob/master/python/perftest.py 
  
@@ -2784,6 +2969,9 @@ def rays_xyz_tris_intersect(rays_xyz: np.ndarray, tris_xyz: np.ndarray) -> tuple
         
     tris_xyz : np.ndarray
         array of triangles [tri_xyz1, tri_xyz2, ...]. Each triangle is define with [[x1,y1,z1],[x2,y2,z2],[x3,y3,z3]]. np.ndarray(shape(number of triangles, 3, 3))
+
+    ndecimals: int, optional
+        precision for the calculation. How many decimal place to round the calculations.
 
     Returns
     -------
@@ -2799,8 +2987,10 @@ def rays_xyz_tris_intersect(rays_xyz: np.ndarray, tris_xyz: np.ndarray) -> tuple
     tris_index : np.ndarray
         indices of the intersected triangles. Corresponds to the intersect pts.
     """
-    dets_threshold = 1e-06
-    precision = 6
+    if ndecimals is None:
+        ndecimals = settings.NDECIMALS
+
+    dets_threshold = settings.ATOL
     if type(rays_xyz) != np.ndarray:
         rays_xyz = np.array(rays_xyz)
     
@@ -2819,9 +3009,9 @@ def rays_xyz_tris_intersect(rays_xyz: np.ndarray, tris_xyz: np.ndarray) -> tuple
     raysT = np.stack(rays_repeat, axis=1)
     pvecs = cross_product(raysT[1], xyzs2_0)
     dets = dot_product(xyzs1_0, pvecs)
-    dets_round = np.around(dets, decimals=precision)
+    dets_round = np.around(dets, decimals=ndecimals)
     # print('dets', dets)
-    dets_true = np.logical_not(dets_round<dets_threshold)
+    dets_true = np.logical_not(dets_round<dets_threshold) #bigger than 0
     dets_index = np.where(dets_true)[0]
     # print(dets_index)
     if len(dets_index) == 0:
@@ -2841,7 +3031,7 @@ def rays_xyz_tris_intersect(rays_xyz: np.ndarray, tris_xyz: np.ndarray) -> tuple
                   dot_product(tvecs, pvecs)*invDet, 
                   np.zeros(len(dets_true)))
     
-    us = np.around(us, decimals=precision)
+    us = np.around(us, decimals=ndecimals)
     us_true = np.logical_and(us>=0.0-dets_threshold, us<=1.0+dets_threshold)
     us_true = np.logical_and(us_true, dets_true)
     us_index = np.where(us_true)[0]
@@ -2858,10 +3048,10 @@ def rays_xyz_tris_intersect(rays_xyz: np.ndarray, tris_xyz: np.ndarray) -> tuple
     vs = np.where(us_true, 
                   dot_product(raysT[1], qvecs)*invDet,
                   np.zeros([len(us_true)]))
-    vs = np.around(vs, decimals = precision)
+    vs = np.around(vs, decimals = ndecimals)
     vs_true1 = np.logical_not(vs < 0.0-dets_threshold)
     usvs = us+vs
-    usvs = np.around(usvs, decimals=precision)
+    usvs = np.around(usvs, decimals=ndecimals)
     vs_true2 = np.logical_not(usvs > 1.0+dets_threshold)
     vs_true = np.logical_and(vs_true1, vs_true2)
     vs_true = np.logical_and(vs_true, us_true)
@@ -2869,7 +3059,7 @@ def rays_xyz_tris_intersect(rays_xyz: np.ndarray, tris_xyz: np.ndarray) -> tuple
                     dot_product(xyzs2_0, qvecs)*invDet,
                     np.zeros([len(vs_true)]))
     
-    mags = np.around(mags, decimals=precision)
+    mags = np.around(mags, decimals=ndecimals)
     mags_true = np.logical_not(mags < dets_threshold)
     mags = np.where(mags_true, mags, np.zeros([len(vs_true)]))
     # print('mags',mags)
@@ -3247,7 +3437,7 @@ def _acct4obstruction(intPts: np.ndarray, mags: np.ndarray, rayIndxs: np.ndarray
     nb_objIndxs = np.take(objIndxs, non_obs_indx, axis=0)
     return nb_intPts, nb_mags, nb_rayIndxs, nb_objIndxs
 
-def _affine_rank(xyzs: np.ndarray) -> np.ndarray:
+def _affine_rank(xyzs: np.ndarray, ndecimals = None) -> np.ndarray:
     """
     This function calculate the affine rank of the xyzs. If having a 3d array.
     
@@ -3256,7 +3446,10 @@ def _affine_rank(xyzs: np.ndarray) -> np.ndarray:
     xyzs : np.ndarray
         np.ndarray(shape(number of points, 3)) or np.ndarray(shape(number of sets of points, number of points, 3)). 
         This function takes multiple sets of points and check their coplanarity.
-        
+    
+    ndecimals: int, optional
+        the number of decimals to round off to compare if points are the same.
+
     Returns
     -------
     affine_rank : np.ndarray
@@ -3269,6 +3462,9 @@ def _affine_rank(xyzs: np.ndarray) -> np.ndarray:
         affine_rank = matrix_rank(centered_pts)
         return affine_rank
     #--------------------------------------------------------------------------------------------------------------------------------
+    if ndecimals is None:
+        ndecimals = settings.NDECIMALS
+
     shape = np.shape(xyzs)
     nshape = len(shape)
     if nshape == 1:
@@ -3278,6 +3474,7 @@ def _affine_rank(xyzs: np.ndarray) -> np.ndarray:
     if type(xyzs) != np.ndarray:
         xyzs = np.array(xyzs)
 
+    xyzs = np.round(xyzs, decimals=ndecimals)
     if nshape == 2:  # only 1 set of points
         xyzs = np.unique(xyzs, axis=0)
         affine_rank = rank_affine(xyzs)
