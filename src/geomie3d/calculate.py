@@ -1182,7 +1182,8 @@ def find_non_dup_lineedges(edge_list: list[topobj.Edge], ndecimals: int = None) 
 
     edge_xyz_ls = np.array(edge_xyz_ls)
     non_dup_idx, dup_idx = find_non_dup_lineedges_xyz(edge_xyz_ls, ndecimals=ndecimals)
-    non_dup_edges = np.take(edge_list, non_dup_idx).tolist()
+    non_dup_edges = np.take(edge_list, non_dup_idx, axis=0)
+    non_dup_edges = non_dup_edges.tolist()
     dup_edges = np.take(edge_list, dup_idx).tolist()
     return non_dup_edges, dup_edges
 

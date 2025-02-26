@@ -561,7 +561,7 @@ def rgb2val(rgb: list[float], minval: float, maxval: float) -> float:
     orig_val = (orig_val_part1*orig_val_part2)+minval
     return orig_val
 
-def separate_dup_non_dup(lst: list) -> np.ndarray:
+def separate_dup_non_dup(lst: list) -> list:
     """
     This function return the indices of non dup elements and duplicate elements.
  
@@ -572,8 +572,8 @@ def separate_dup_non_dup(lst: list) -> np.ndarray:
         
     Returns
     -------
-    indices : np.ndarray
-        np.ndarray of the indices [[non_dup_idx], [[dup_idx1], [dup_idx2] ... [dup_idxn]]].
+    indices : list
+        list of indices [[non_dup_idx], [[dup_idx1], [dup_idx2] ... [dup_idxn]]].
     """
     if type(lst) != np.ndarray:    
         lst = np.array(lst)
@@ -582,7 +582,8 @@ def separate_dup_non_dup(lst: list) -> np.ndarray:
     dupIds = id_dup_indices_1dlist(lst)
     dupIds_flat = list(chain(*dupIds))
     non_dup_indx = find_xs_not_in_ys(indx, dupIds_flat)
-    return np.array([non_dup_indx, dupIds], dtype=object)
+    # return np.array([non_dup_indx, dupIds], dtype=object)
+    return [non_dup_indx, dupIds]
     
 def viz1axis_timeseries(data_dict_ls: list[dict], plot_title: str, xaxis_label: str, yaxis_label: str, filepath: str,
                         yaxis_lim: list[float] = None, dateformat: str = None, xtick_rot: float = 40, label_fontsize: int = 18, tick_fontsize: int = 16,
