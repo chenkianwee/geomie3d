@@ -234,7 +234,7 @@ def test_viz_spatial_time_series():
                               second_xvalues2d=second_xvalues2d, second_yvalues2d=second_yvalues2d, second_colour_ls=second_colour_ls, 
                               second_legend=['someThingA', 'someThingB'], second_ylabel='something2', second_yunit='someunit2')
     
-    global p1, p2
+    # global p1, p2
     win.setWindowTitle("SpatialTimeSeriesView")
     win.showMaximized()
 
