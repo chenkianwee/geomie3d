@@ -263,7 +263,7 @@ def calc_falsecolour(vals: list[float], minval: float, maxval: float, inverse: b
     Returns
     -------
     rgb value : list[list[float]]
-        The converted list of rgb value.
+        The converted list of rgb value between 0-1 
     """
     res_colours = []
     for result in vals:
@@ -889,7 +889,7 @@ def viz2axis_timeseries(y1_data_dict_ls: list[dict], y2_data_dict_ls: list[dict]
                   marker = dd['marker'], markersize = dd['marker_size'],
                   c = dd['color'], label = dd['label'])
 
-    ax2.set_ylabel(yaxis2_label, color='b', fontsize=label_fontsize)
+    ax2.set_ylabel(yaxis2_label, color=yaxis2_color, fontsize=label_fontsize)
     ax2.tick_params('y', colors = yaxis2_color)
     if yaxis2_lim is not None:
         ax2.set_ylim(yaxis2_lim[0],yaxis2_lim[1])

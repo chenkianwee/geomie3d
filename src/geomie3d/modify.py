@@ -700,9 +700,6 @@ def trsf_topo_based_on_cs(topo: topobj.Topology, orig_cs: utility.CoordinateSyst
     
     dest_cs: utility.CoordinateSystem
         the destination coordinate system.
-
-    trsf_mat: np.ndarray
-        np.ndarray[shape(number of matrices, 4, 4)], 4x4 matrices to transform the corresponding xyzs.
      
     Returns
     -------
@@ -757,7 +754,9 @@ def xyzs2voxs(xyzs: np.ndarray, xdim: float, ydim: float, zdim: float) -> dict:
     Returns
     -------
     voxel_dictionary : dict
-        a dictionary with key (i,j,k) for each voxel and the value as the index of the point
+        - a dictionary with keys 'voxels' and 'voxel_dim'. 
+        - 'voxel_dim': list [x, y, z] gives you the voxel size
+        - 'voxels': dict, (i,j,k) for each voxel, in each voxel you have the 'idx' of the xyzs and the 'midpt' of the voxel.
     """
     if type(xyzs) != np.ndarray:
         xyzs = np.array(xyzs)

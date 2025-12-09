@@ -102,7 +102,7 @@ def bboxes_frm_lwr_left_pts(lwr_left_pts: np.ndarray, xdims: np.ndarray, ydims: 
     bboxes = [utility.Bbox(bbox_arr) for bbox_arr in bbox_arrs]
     return bboxes
 
-def bboxes_frm_midpts(midpts: np.ndarray, xdims: np.ndarray, ydims: np.ndarray, zdims: np.ndarray, attributes_list: list[dict] = {}) -> list[utility.Bbox]:
+def bboxes_frm_midpts(midpts: np.ndarray, xdims: np.ndarray, ydims: np.ndarray, zdims: np.ndarray, attributes_list: list[dict] = None) -> list[utility.Bbox]:
     """
     Create bboxes based on midpts and the x,y,z dimensions.
     
@@ -154,7 +154,16 @@ def bboxes_frm_midpts(midpts: np.ndarray, xdims: np.ndarray, ydims: np.ndarray, 
     mxzs = zs + (zdims/2)
 
     bbox_arrs = np.vstack([mnxs, mnys, mnzs, mxxs, mxys, mxzs]).T
-    bboxes = [utility.Bbox(bbox_arr) for bbox_arr in bbox_arrs]
+    bboxes = []
+    if attributes_list != None:
+        for cnt, bbox_arr in enumerate(bbox_arrs):
+            bbox = utility.Bbox(bbox_arr, attributes_list[cnt])
+            bboxes.append(bbox)
+    else:
+        for cnt, bbox_arr in enumerate(bbox_arrs):
+            bbox = utility.Bbox(bbox_arr)
+            bboxes.append(bbox)
+
     return bboxes
 
 def box(dimx: float, dimy: float, dimz: float, centre_pt: list[float] = [0.0,0.0,0.0], attributes: dict = {}) -> topobj.Solid:

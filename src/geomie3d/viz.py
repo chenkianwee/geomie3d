@@ -38,8 +38,7 @@ from . import calculate
 from . import topobj
 
 # setup the QT environment
-# import PyQT6
-os.environ['PYQTGRAPH_QT_LIB'] = 'PyQt6'
+# os.environ['PYQTGRAPH_QT_LIB'] = 'PyQt6'
 if sys.platform == 'linux' or sys.platform == 'linux2':
     # os.environ['QT_QPA_PLATFORM'] = 'wayland'
     # os.environ['QT_QPA_PLATFORM'] = 'wayland-egl'
