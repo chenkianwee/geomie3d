@@ -1710,7 +1710,6 @@ def viz_st(topo_2dlist: list[list[topobj.Topology]], results2d: list[list[float]
                  second_yvalues2d=second_yvalues2d, second_colour_ls=second_colour_ls,second_legend=second_legend,
                  second_ylabel=second_ylabel, second_yunit=second_yunit, gl_option = gl_option)
     
-    global p1, p2
     win.setWindowTitle("SpatialTimeSeriesView")
     win.showMaximized()
     win.animate()
