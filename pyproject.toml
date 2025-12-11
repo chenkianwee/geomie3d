@@ -1,10 +1,10 @@
 [build-system]
-requires = ["setuptools>=61.0"]
+requires = ["setuptools>=77.0.3"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "geomie3d"
-version = "0.0.10"
+version = "0.0.11"
 authors = [
   { name="Kian Wee CHEN", email="chenkianwee@gmail.com" },
 ]
