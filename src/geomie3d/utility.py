@@ -585,9 +585,10 @@ def separate_dup_non_dup(lst: list) -> list:
     # return np.array([non_dup_indx, dupIds], dtype=object)
     return [non_dup_indx, dupIds]
     
-def viz1axis_timeseries(data_dict_ls: list[dict], plot_title: str, xaxis_label: str, yaxis_label: str, filepath: str,
+def viz1axis_timeseries(data_dict_ls: list[dict], plot_title: str, xaxis_label: str, yaxis_label: str, filepath: str = None,
                         yaxis_lim: list[float] = None, dateformat: str = None, xtick_rot: float = 40, label_fontsize: int = 18, tick_fontsize: int = 16,
-                        legend_loc: dict = None, tight_layout: bool = True, inf_lines: list[dict] = None, regions: list[dict] = None, viz: bool = True):
+                        legend_loc: dict = None, tight_layout: bool = True, inf_lines: list[dict] = None, regions: list[dict] = None, 
+                        viz: bool = True, return_fig_ax: bool = False):
     """
     Viz timeseries data in a 1 axis x-y plot
     
@@ -613,8 +614,8 @@ def viz1axis_timeseries(data_dict_ls: list[dict], plot_title: str, xaxis_label: 
     yaxis_label : str
         label of the yaxis
         
-    filepath : str
-        filepath to save the generated graph.
+    filepath : str, optional
+        filepath to save the generated graph. Default = None
     
     yaxis_lim : list[float], optional
         tuple specifying the lower and upper limit of the yaxis (lwr, uppr)
@@ -656,6 +657,14 @@ def viz1axis_timeseries(data_dict_ls: list[dict], plot_title: str, xaxis_label: 
 
     viz : bool, optional
         if set to True will show the graph. Default to True.
+    
+    return_fig_ax: bool, optional
+        if set to True will return the matplotlib plt. Default to False.
+
+    Returns
+    -------
+    fig, ax
+        if return_fig_ax == True return the matplotlib fig, ax else will close the plot.
     """
     import matplotlib.pyplot as plt
     from matplotlib.dates import DateFormatter
@@ -724,15 +733,22 @@ def viz1axis_timeseries(data_dict_ls: list[dict], plot_title: str, xaxis_label: 
     if tight_layout==True:
         plt.tight_layout()
     
-    plt.savefig(filepath, bbox_inches = "tight", dpi = 300, transparent=False)
-    plt.close()
+    if filepath != None:
+        plt.savefig(filepath, bbox_inches = "tight", dpi = 300, transparent=False)
+    
     if viz == True:
         plt.show()
     
+    if return_fig_ax == True:
+        return fig, ax1
+    else:
+        plt.close()
+    
+
 def viz2axis_timeseries(y1_data_dict_ls: list[dict], y2_data_dict_ls: list[dict], plot_title: str, xaxis_label: str, yaxis1_label: str,
-                        yaxis2_label: str, filepath: str, yaxis1_lim: list[float] = None, yaxis2_lim: list[float] = None, yaxis2_color: str = 'b',
+                        yaxis2_label: str, filepath: str = None, yaxis1_lim: list[float] = None, yaxis2_lim: list[float] = None, yaxis2_color: str = 'b',
                         dateformat: str = None, xtick_rot: float = 40, label_fontsize: int = 18, tick_fontsize: int = 16, legend_loc1: dict = None, legend_loc2: dict = None, tight_layout: bool = True, 
-                        inf_lines: list[dict] = None, regions: list[dict] = None, viz: bool = True):
+                        inf_lines: list[dict] = None, regions: list[dict] = None, viz: bool = True, return_fig_ax: bool = False):
     """
     Viz timeseries data in a 1 axis x-y plot
 
@@ -764,8 +780,8 @@ def viz2axis_timeseries(y1_data_dict_ls: list[dict], y2_data_dict_ls: list[dict]
     yaxis2_label : str
         label of the yaxis2
 
-    filepath : str
-        filepath to save the generated graph.
+    filepath : str, optional
+        filepath to save the generated graph. Default is None
 
     yaxis1_lim : list[float], optional
         tuple specifying the lower and upper limit of the yaxis1 (lwr, uppr)
@@ -819,6 +835,14 @@ def viz2axis_timeseries(y1_data_dict_ls: list[dict], y2_data_dict_ls: list[dict]
 
     viz : bool, optional
         if set to True will show the graph. Default to True.
+
+    return_fig_ax: bool, optional
+        if set to True will return the matplotlib plt. Default to False.
+
+    Returns
+    -------
+    fig, ax, ax2
+        if return_fig_ax == True return the matplotlib plt else will close the plt.
     """
     import matplotlib.pyplot as plt
     from matplotlib.dates import DateFormatter
@@ -902,10 +926,16 @@ def viz2axis_timeseries(y1_data_dict_ls: list[dict], y2_data_dict_ls: list[dict]
     if tight_layout == True:
       plt.tight_layout()
 
-    plt.savefig(filepath, bbox_inches = "tight", dpi = 300, transparent=False)
-    plt.close()
+    if filepath != None:
+        plt.savefig(filepath, bbox_inches = "tight", dpi = 300, transparent=False)
+    
     if viz == True:
         plt.show()
+    
+    if return_fig_ax == True:
+        return fig, ax1, ax2
+    else:
+        plt.close()
 
 def write2csv(rows2d: list[list], csv_path: str, mode: str = 'w'):
     """
